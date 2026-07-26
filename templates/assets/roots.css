@@ -1,0 +1,43 @@
+/* teach-template-version: 7 */
+:root {
+  color-scheme: light;
+  --paper: #edf1ee;
+  --paper-2: #fbfcfa;
+  --ink: #17231e;
+  --ink-soft: #5c6a62;
+  --rule: #c8d1ca;
+  --rule-2: #6c7b72;
+  --accent: #0d5a7a;
+  --accent-2: #08435d;
+  --wrong: #a84540;
+  --serif: 'Iowan Old Style', 'Palatino Linotype', 'Book Antiqua', Palatino, Georgia, serif;
+  --sans: Aptos, 'Segoe UI Variable', 'Segoe UI', system-ui, sans-serif;
+  --mono: 'SF Mono', 'Cascadia Code', 'JetBrains Mono', ui-monospace, Consolas, monospace;
+  --s-1: 0.5rem;
+  --s-2: 1rem;
+  --s-3: 1.5rem;
+  --s-4: 2rem;
+  --s-5: 3rem;
+  --s-6: 4rem;
+  --s-7: 6rem;
+  --measure: clamp(34rem, 29rem + 12vw, 44rem);
+  --margin-w: clamp(12rem, 10rem + 5vw, 17rem);
+  --radius: 0.25rem;
+  --tap: 2.75rem;
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+@media print {
+  :root {
+    color-scheme: light;
+    --paper: #fff;
+    --paper-2: #fff;
+    --ink: #111;
+    --ink-soft: #4f4f4f;
+    --rule: #b8b8b8;
+    --rule-2: #666;
+    --accent: #174f69;
+    --accent-2: #174f69;
+    --wrong: #7d302c;
+  }
+}
