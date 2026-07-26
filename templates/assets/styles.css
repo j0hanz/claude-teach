@@ -402,13 +402,17 @@ a.cite:hover {
 }
 
 .quiz-btn {
+  --quiz-option-marker: 1.75rem;
   font: inherit;
   text-align: left;
-  display: block;
-  position: relative;
+  display: grid;
+  grid-template-columns: var(--quiz-option-marker) minmax(0, 1fr) var(--s-4);
+  gap: var(--s-2);
+  align-items: center;
   width: 100%;
   min-height: var(--tap);
-  padding: var(--s-2) var(--s-7) var(--s-2) 3.4rem;
+  padding: var(--s-2) var(--s-4);
+  overflow-wrap: anywhere;
   background: var(--paper-2);
   color: var(--ink);
   border: 1px solid var(--rule-2);
@@ -419,14 +423,11 @@ a.cite:hover {
 
 .quiz-btn::before {
   content: counter(option, upper-alpha);
-  position: absolute;
-  inset-inline-start: var(--s-2);
-  top: 50%;
   display: grid;
-  width: 1.75rem;
-  height: 1.75rem;
+  width: var(--quiz-option-marker);
+  height: var(--quiz-option-marker);
   place-items: center;
-  transform: translateY(-50%);
+  place-self: center;
   border: 1px solid var(--rule-2);
   border-radius: 50%;
   color: var(--accent-2);
@@ -455,10 +456,7 @@ a.cite:hover {
 .quiz-btn[data-state]::after {
   content: var(--mark);
   color: var(--state);
-  position: absolute;
-  inset-inline-end: var(--s-4);
-  top: 50%;
-  transform: translateY(-50%);
+  justify-self: end;
   font-family: var(--mono);
   font-weight: 700;
 }
