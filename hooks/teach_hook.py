@@ -38,6 +38,7 @@ from teach import (  # noqa: E402  # pyright: ignore[reportMissingImports]
     parse_ledger_line,
     read_notes,
     read_text,
+    resume_target,
     split_records,
     today,
     write_text,
@@ -75,6 +76,16 @@ def event_session_start(cwd):
         f"due: {due}",
         f"mission: {mission}",
     ]
+    rt = resume_target(cwd)
+    if rt is None:
+        resume_s = "—"
+    elif rt["missing"]:
+        resume_s = f"{rt['lesson']} file-missing"
+    else:
+        resume_s = f"{rt['lesson']} paste-pending" + (
+            f" asked={rt['asked']}" if rt["asked"] else ""
+        )
+    lines.append(f"resume: {resume_s}")
     # ponytail: plain stdout -> added to Claude's context (verified). SessionStart
     # cannot block. If a future harness requires hookSpecificOutput wrapping,
     # wrap here — one-line change.

@@ -509,6 +509,16 @@ def cmd_state(args):
         )
     else:
         print("ledger      closed")
+    rt = resume_target(cwd)
+    if rt is None:
+        print("resume      —")
+    elif rt["missing"]:
+        print(f"resume      {rt['lesson']}  file-missing")
+    else:
+        print(
+            f"resume      {rt['lesson']}  paste-pending"
+            + (f" asked={rt['asked']}" if rt["asked"] else "")
+        )
     print(
         f"due         {len(due)} of {len(active)} active records, "
         f"{distinct} distinct source lessons"
@@ -643,6 +653,61 @@ def _lang(cwd):
     return "en"
 
 
+def resume_target(cwd):
+    """The open cold-open ledger's lesson, or None. One derivation shared by
+    build_index, cmd_state, and the SessionStart hook — the resume signal is
+    ledger-driven (exact), never guessed from lesson numbering.
+
+    Returns {'lesson': <rel-path>, 'missing': bool, 'asked': N} or None when
+    no cold-open ledger is open. `missing` is True when the ledger names a
+    lesson file that is no longer on disk (dangling reference).
+    """
+    ledger = parse_ledger_line(read_notes(cwd))
+    if ledger is None:
+        return None
+    lesson = ledger["lesson"]  # forward-slash rel path, per cmd_ledger
+    full = lesson if os.path.isabs(lesson) else os.path.join(cwd, lesson)
+    return {
+        "lesson": lesson,
+        "missing": not os.path.isfile(full),
+        "asked": ledger["asked"],
+    }
+
+
+def resume_section(cwd):
+    """HTML lines for the 'Continue where you were' section, or [] if nothing
+    pending. Isolated so a dangling or malformed ledger never breaks the page
+    — any failure degrades to 'no section', never a half-rendered index."""
+    from html import escape as esc
+
+    try:
+        target = resume_target(cwd)
+    except Exception:
+        return []
+    if target is None:
+        return []
+    lesson = target["lesson"]
+    if target["missing"]:
+        return [
+            "    <h2>Continue where you were</h2>",
+            f"    <p>An open cold open names <code>{esc(lesson)}</code> "
+            "but its file is missing — tell your tutor.</p>",
+        ]
+    title = _doc_title(os.path.join(cwd, lesson))
+    asked = target["asked"]
+    prompt = "paste your cold-open result line into your chat with your tutor."
+    if asked > 0:
+        prompt += (
+            f" (your tutor has asked {asked} "
+            + ("time" if asked == 1 else "times")
+            + " and you have not pasted it back yet.)"
+        )
+    return [
+        "    <h2>Continue where you were</h2>",
+        f'    <p><a href="{esc(lesson)}">{esc(title)}</a> — {prompt}</p>',
+    ]
+
+
 def build_index(cwd):
     """Write the learner-facing course home page. Returns its path.
 
@@ -654,7 +719,12 @@ def build_index(cwd):
     if not is_workspace(cwd):
         raise TeachError(1, f"not a teach workspace ({cwd})")
     lessons = sorted(glob.glob(os.path.join(cwd, "lessons", "*.html")))
-    if not lessons:
+    # Resume section is computed before the zero-lessons guard so a dangling
+    # ledger (open cold open naming a lesson file that is gone) still renders
+    # the "file is missing" line instead of crashing the rebuild — the only
+    # lesson being the deleted one is exactly the case the guard would catch.
+    resume = resume_section(cwd)
+    if not lessons and not resume:
         raise TeachError(1, "no lessons yet — nothing to index")
     if not os.path.isfile(os.path.join(cwd, "assets", "lesson.css")):
         raise TeachError(
@@ -705,6 +775,10 @@ def build_index(cwd):
         f"    <h1>{esc(_topic(cwd))}</h1>",
         f"    <p>{len(lessons)} lessons · {len(reference)} reference documents · "
         f"{len(active)} tracked, {len(due)} due today.</p>",
+    ]
+    if resume:
+        parts += [""] + resume
+    parts += [
         "",
         "    <h2>Lessons</h2>",
         "    <ul>",
@@ -818,6 +892,10 @@ def cmd_ledger(args):
     )
     write_text(os.path.join(cwd, "NOTES.md"), append_working_note(notes, line))
     print(f"ledger: {line}")
+    try:
+        print(f"index: {os.path.relpath(build_index(cwd), cwd)}")
+    except TeachError as e:
+        print(f"index: skipped ({e.msg})")
     return 0
 
 
