@@ -1,35 +1,27 @@
-/* lesson.css — shared stylesheet for a {Topic} course.
- * Design system: moss-and-stone teaching manual. See DESIGN.md.
- * One course identity across every lesson + reference doc in the workspace.
- * Constraints: works on file:// (no remote font/CDN/script), prints, a11y baseline.
- * Extend per-workspace only with topic components; never override tokens or gate.
- * teach-template-version: 6
- */
-
 :root {
   color-scheme: dark;
-  --paper: #1a1b19;
-  --paper-2: #232420;
-  --ink: #e6e7e1;
-  --ink-soft: #9b9b92;
-  --rule: #34352f;
-  --rule-2: #6b6c62;
-  --accent: #8fb89a;
-  --accent-2: #5c7d66;
-  --wrong: #d98878;
+  --paper: #15171a;
+  --paper-2: #1d2025;
+  --ink: #e8e6e1;
+  --ink-soft: #9a9ba0;
+  --rule: #262a31;
+  --rule-2: #6e747c;
+  --accent: #e0a44a;
+  --accent-2: #c98a36;
+  --wrong: #c8625a;
   --serif: 'Iowan Old Style', 'Palatino Linotype', 'Book Antiqua', Palatino, Georgia, serif;
-  --sans: 'Avenir Next', 'Segoe UI', system-ui, sans-serif;
-  --mono: 'SF Mono', 'Cascadia Code', 'JetBrains Mono', Consolas, monospace;
+  --sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+  --mono: 'SF Mono', 'Cascadia Code', 'JetBrains Mono', ui-monospace, Consolas, monospace;
 
   --fs-1: 0.75rem;
   --fs-2: 0.8125rem;
   --fs-3: 0.875rem;
   --fs-4: 1.0625rem;
   --fs-5: 1.1875rem;
-  --fs-6: 1.25rem;
-  --fs-7: 1.5rem;
-  --fs-8: 2.25rem;
-  --track: 0.12em;
+  --fs-6: 1.3125rem;
+  --fs-7: 1.625rem;
+  --fs-8: 2.5rem;
+  --track: 0.14em;
 
   --s-1: 0.25rem;
   --s-2: 0.5rem;
@@ -45,13 +37,16 @@
   --measure: 36rem;
   --margin-w: 16rem;
   --gutter: var(--s-8);
-  --radius: 2px;
+  --radius: 10px;
+  --radius-2: 5px;
   --tap: 2.75rem;
-  --tint: 10%;
+  --tint: 12%;
   --lh-tight: 1.45;
   --dur-seal: 0.6s;
-  --dur-control: 0.15s;
-  --blur-seal: 0.18rem;
+  --dur-control: 0.18s;
+  --blur-seal: 0.3rem;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.35), 0 8px 22px -10px rgba(0, 0, 0, 0.5);
+  --hi: inset 0 1px 0 rgba(255, 255, 255, 0.045);
 }
 
 *,
@@ -70,6 +65,8 @@ body {
   font-size: var(--fs-4);
   line-height: 1.6;
   font-variant-numeric: oldstyle-nums;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
 .lesson {
@@ -117,11 +114,12 @@ h4 {
 }
 h1 {
   font-size: var(--fs-8);
-  letter-spacing: -0.01em;
+  letter-spacing: -0.02em;
   margin-bottom: var(--s-1);
 }
 h2 {
   font-size: var(--fs-7);
+  letter-spacing: -0.01em;
   margin: var(--s-9) 0 var(--s-4);
   padding-top: var(--s-5);
   border-top: 1px solid var(--rule);
@@ -144,6 +142,7 @@ p {
   font-size: var(--fs-6);
   line-height: var(--lh-tight);
   margin: 0 0 var(--s-6);
+  color: var(--ink);
 }
 .eyebrow {
   font-family: var(--sans);
@@ -160,21 +159,23 @@ pre {
 }
 pre {
   background: var(--paper-2);
-  border-left: 2px solid var(--accent);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
   padding: var(--s-4) var(--s-5);
   overflow-x: auto;
   line-height: 1.5;
   margin: var(--s-6) 0;
+  box-shadow: var(--hi);
 }
 :not(pre) > code {
   background: var(--paper-2);
-  padding: 0.12em 0.35em;
-  border-radius: var(--radius);
+  padding: 0.12em 0.4em;
+  border-radius: var(--radius-2);
 }
 a {
   color: var(--accent);
   text-decoration: underline;
-  text-underline-offset: 0.18em;
+  text-underline-offset: 0.2em;
   text-decoration-thickness: 1px;
 }
 a:hover {
@@ -186,10 +187,10 @@ a:focus-visible,
 .quiz-copy:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
-  border-radius: var(--radius);
+  border-radius: var(--radius-2);
 }
 .quiz-copy:focus-visible {
-  outline-color: var(--ink);
+  outline-color: var(--paper);
 }
 
 sup.cite,
@@ -224,16 +225,22 @@ a.cite:hover {
   margin: 0 0 var(--s-6);
 }
 
+/* Cold open — the raised threshold panel. Elevation + hairline frame mark the
+   gate; the amber eyebrow carries the accent, not a colored bar. */
 .cold-open {
   grid-column: 1 / -1;
   background: var(--paper-2);
   border: 1px solid var(--rule);
-  border-left: 3px solid var(--accent);
+  border-radius: var(--radius);
   padding: var(--s-7);
   margin: var(--s-8) 0 var(--s-9);
+  box-shadow: var(--shadow), var(--hi);
 }
 .cold-open h2 {
   font-size: var(--fs-6);
+  border-top: 0;
+  padding-top: 0;
+  margin: var(--s-2) 0 var(--s-4);
 }
 .cold-open .eyebrow {
   color: var(--accent);
@@ -249,10 +256,12 @@ a.cite:hover {
 .seal-note {
   font-family: var(--sans);
   font-size: var(--fs-2);
+  line-height: var(--lh-tight);
   color: var(--ink-soft);
   margin: var(--s-5) 0 0;
 }
 
+/* Frosted veil over the sealed body. The one authored motion: a calm lift. */
 .lesson-content::after {
   content: 'Answer the cold open to unseal the lesson.';
   position: absolute;
@@ -266,7 +275,7 @@ a.cite:hover {
   letter-spacing: var(--track);
   text-transform: uppercase;
   color: var(--ink-soft);
-  background: linear-gradient(var(--paper), color-mix(in srgb, var(--paper) 65%, transparent) 45%);
+  background: linear-gradient(var(--paper), color-mix(in srgb, var(--paper) 62%, transparent) 48%);
   -webkit-backdrop-filter: blur(var(--blur-seal));
   backdrop-filter: blur(var(--blur-seal));
   opacity: 0;
@@ -293,7 +302,7 @@ a.cite:hover {
   .lesson-content.sealed::after {
     background: linear-gradient(
       var(--paper),
-      color-mix(in srgb, var(--paper) 88%, transparent) 45%
+      color-mix(in srgb, var(--paper) 86%, transparent) 48%
     );
   }
 }
@@ -319,6 +328,8 @@ a.cite:hover {
   flex-direction: column;
   gap: var(--s-2);
 }
+/* Option chips read as fields inset into the raised gate: page-colour fill on
+   the panel, 3:1 boundary so the edge is found, amber on hover. */
 .quiz-btn {
   font: inherit;
   text-align: left;
@@ -328,13 +339,13 @@ a.cite:hover {
   background: var(--paper);
   color: var(--ink);
   border: 1px solid var(--rule-2);
-  border-radius: var(--radius);
+  border-radius: var(--radius-2);
   padding: var(--s-2) var(--s-8) var(--s-2) var(--s-4);
   min-height: var(--tap);
   cursor: pointer;
   transition:
-    border-color var(--dur-control),
-    background var(--dur-control);
+    border-color var(--dur-control) ease,
+    background var(--dur-control) ease;
 }
 
 .quiz-item:not([data-pending], [data-answered]) .quiz-btn:hover {
@@ -378,8 +389,12 @@ a.cite:hover {
   margin-top: var(--s-2);
   min-height: var(--tap);
   padding: var(--s-2) var(--s-4);
-  border-radius: var(--radius);
+  border-radius: var(--radius-2);
   cursor: pointer;
+  transition:
+    border-color var(--dur-control) ease,
+    background var(--dur-control) ease,
+    color var(--dur-control) ease;
 }
 .quiz-undo {
   background: none;
@@ -394,9 +409,10 @@ a.cite:hover {
   background: var(--accent);
   color: var(--paper);
   border: 0;
+  font-weight: 600;
 }
 .quiz-copy:hover {
-  background: color-mix(in srgb, var(--accent) 82%, #fff);
+  background: color-mix(in srgb, var(--accent) 85%, #fff);
 }
 
 .quiz-fb {
@@ -405,6 +421,7 @@ a.cite:hover {
   color: var(--ink-soft);
   margin: var(--s-2) 0 0;
 }
+/* Result readout — a mono strip, instrument-style. */
 .quiz-result {
   font-family: var(--mono);
   font-size: var(--fs-3);
@@ -412,7 +429,7 @@ a.cite:hover {
   padding: var(--s-3) var(--s-4);
   background: var(--paper);
   border: 1px solid var(--rule);
-  border-radius: var(--radius);
+  border-radius: var(--radius-2);
 }
 .quiz-fb:empty,
 .quiz-result:empty {
@@ -440,12 +457,17 @@ a.cite:hover {
     padding: var(--s-5);
     margin: var(--s-7) 0 var(--s-8);
   }
+  h1 {
+    font-size: 2.125rem;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .lesson-content::after,
   .lesson-content.sealed::after,
-  .quiz-btn {
+  .quiz-btn,
+  .quiz-undo,
+  .quiz-copy {
     transition: none;
   }
 }
@@ -460,14 +482,16 @@ a.cite:hover {
   :root {
     color-scheme: light;
     --paper: #fff;
-    --paper-2: #eceee7;
-    --ink: #20211f;
+    --paper-2: #f2f1ec;
+    --ink: #1a1a1a;
     --ink-soft: #56564f;
     --rule: #c9c7bd;
     --rule-2: #8a887a;
-    --accent: #3d5c4a;
-    --accent-2: #7a9a82;
+    --accent: #9a6520;
+    --accent-2: #7a5018;
     --wrong: #8a3b2e;
+    --shadow: none;
+    --hi: none;
   }
 
   .lesson,
@@ -482,6 +506,9 @@ a.cite:hover {
   }
   .cold-open > * {
     max-width: none;
+  }
+  .cold-open {
+    box-shadow: none;
   }
   .lesson-content.sealed {
     pointer-events: auto;
