@@ -533,7 +533,7 @@ def verify(type_, parser, css_blocks, html_dir, self_mode=False, html_name=""):
                     1,
                     "seal-note-missing",
                     "lesson body is sealed but no .seal-note element exists; "
-                    "add <p class=\"seal-note\" role=\"status\">…</p> as a "
+                    'add <p class="seal-note" role="status">…</p> as a '
                     "sibling of the cold-open quiz, outside the seal",
                 )
             )

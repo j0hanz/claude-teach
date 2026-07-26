@@ -27,6 +27,10 @@ import os
 import re
 import sys
 from datetime import date, timedelta
+from typing import TYPE_CHECKING, TypedDict
+
+if TYPE_CHECKING:
+    import argparse
 
 # ponytail: one guard at the stream, not an ASCII hunt through every string.
 # The report prints em dashes; a cp437 console (still the OEM default in
@@ -39,6 +43,34 @@ from datetime import date, timedelta
 for _stream in (sys.stdout, sys.stderr):
     with contextlib.suppress(AttributeError, OSError, ValueError):
         _stream.reconfigure(errors="replace")
+
+
+# --- types ------------------------------------------------------------------
+class RecordDict(TypedDict):
+    path: str
+    fm: dict[str, str]
+    raw: list[str]
+    body: str
+    quotes: dict[str, str | None]
+    interval: int | float
+    lapses: int
+    lesson: str | None
+    status: str
+    next: date | None
+    title: str
+
+
+class LedgerLine(TypedDict):
+    lesson: str
+    tests: list[str]
+    asked: int
+
+
+class ResumeTarget(TypedDict):
+    lesson: str
+    missing: bool
+    asked: int
+
 
 # --- constants ---------------------------------------------------------------
 DEFAULT_DOUBLING = 2
@@ -69,20 +101,20 @@ LEDGER_RE = re.compile(
 # lesson cold-open comment: "cold-open: 1=0003-slug 2=0007-slug"
 COLD_OPEN_RE = re.compile(r"(\d+)=([0-9A-Za-z][0-9A-Za-z\-]*)")
 
-TODAY = None  # tests override; None => datetime.date.today()
+TODAY: date | None = None  # tests override; None => datetime.date.today()
 
 
-def today():
+def today() -> date:
     return TODAY if TODAY is not None else date.today()
 
 
-def num_str(x):
+def num_str(x: int | float | str) -> str:
     """'4' not '4.0'; '4.5' stays."""
     f = float(x)
     return str(int(f)) if f == int(f) else str(f)
 
 
-def _parse_interval(s):
+def _parse_interval(s: str | None) -> int | float:
     """Interval is float-tolerant on reload. score_record writes fractional
     intervals via num_str whenever doubling or ceiling is fractional, so an
     int-only guard here rejects them on the next load and silently resets the
@@ -102,7 +134,7 @@ def _parse_interval(s):
     return int(v) if v == int(v) else v
 
 
-def parse_date(s):
+def parse_date(s: str) -> date:
     try:
         return date.fromisoformat(s.strip())
     except (ValueError, AttributeError):
@@ -114,19 +146,19 @@ def parse_date(s):
 class TeachError(Exception):
     """carry exit code + message; 2 = usage/parse, 1 = ambiguity/violation."""
 
-    def __init__(self, code, msg):
+    def __init__(self, code: int, msg: str) -> None:
         super().__init__(msg)
         self.code = code
         self.msg = msg
 
 
 # --- IO ---------------------------------------------------------------------
-def read_text(path):
+def read_text(path: str) -> str:
     with open(path, encoding="utf-8", newline="") as f:
         return f.read()
 
 
-def write_text(path, text):
+def write_text(path: str, text: str) -> None:
     """atomic write — the multi-file score write is the load-bearing reason."""
     d = os.path.dirname(path)
     if d and not os.path.isdir(d):
@@ -138,10 +170,12 @@ def write_text(path, text):
 
 
 # --- frontmatter (the load-bearing contract) -------------------------------
-def parse_frontmatter(text):
+def parse_frontmatter(
+    text: str,
+) -> tuple[dict[str, str], list[str], str, dict[str, str | None]]:
     """Return (fm_dict, raw_lines, body, quotes).
 
-    raw_lines are the lines between the fences, verbatim (trailing \\r preserved
+    raw_lines are the lines between the fences, verbatim (trailing \r preserved
     so CRLF round-trips). body is the bytes after the closing fence, verbatim.
     fm_dict maps key->value for non-comment, non-blank lines. quotes maps key->
     '"'|"'"|None for the value's quote style.
@@ -158,7 +192,8 @@ def parse_frontmatter(text):
         raise TeachError(2, "unterminated frontmatter (no closing ---)")
     raw = lines[1:close]
     body = "\n".join(lines[close + 1 :])
-    fm, quotes = {}, {}
+    fm: dict[str, str] = {}
+    quotes: dict[str, str | None] = {}
     for ln in raw:
         s = ln.strip()
         if not s or s.startswith("#"):
@@ -177,7 +212,13 @@ def parse_frontmatter(text):
     return fm, raw, body, quotes
 
 
-def serialize_frontmatter(fm, raw, body, quotes, changed):
+def serialize_frontmatter(
+    fm: dict[str, str],
+    raw: list[str],
+    body: str,
+    quotes: dict[str, str | None],
+    changed: set[str],
+) -> str:
     """Re-emit raw byte-for-byte except lines whose key is in `changed`."""
     out = []
     for ln in raw:
@@ -198,26 +239,33 @@ def serialize_frontmatter(fm, raw, body, quotes, changed):
     return "\n".join(["---"] + out + ["---"]) + "\n" + body
 
 
-def load_record(path):
+def load_record(path: str) -> RecordDict:
     fm, raw, body, quotes = parse_frontmatter(read_text(path))
-    rec = {"path": path, "fm": fm, "raw": raw, "body": body, "quotes": quotes}
-    rec["interval"] = _parse_interval(fm.get("interval"))
-    rec["lapses"] = (
-        int(fm["lapses"])
-        if "lapses" in fm and fm["lapses"].lstrip("-").isdigit()
-        else 0
-    )
-    rec["lesson"] = fm.get("lesson")
-    rec["status"] = fm.get("status", "active")
-    if "next" in fm and fm["next"].strip():
-        rec["next"] = parse_date(fm["next"])
-    else:
-        rec["next"] = None
-    rec["title"] = _title(body)
+    rec: RecordDict = {
+        "path": path,
+        "fm": fm,
+        "raw": raw,
+        "body": body,
+        "quotes": quotes,
+        "interval": _parse_interval(fm.get("interval")),
+        "lapses": (
+            int(fm["lapses"])
+            if "lapses" in fm and fm["lapses"].lstrip("-").isdigit()
+            else 0
+        ),
+        "lesson": fm.get("lesson"),
+        "status": fm.get("status", "active"),
+        "next": (
+            parse_date(fm["next"])
+            if "next" in fm and fm["next"].strip()
+            else None
+        ),
+        "title": _title(body),
+    }
     return rec
 
 
-def _title(body):
+def _title(body: str) -> str:
     for ln in body.split("\n"):
         s = ln.strip()
         if s.startswith("# "):
@@ -225,7 +273,7 @@ def _title(body):
     return "(no title)"
 
 
-def save_record(rec, changed):
+def save_record(rec: RecordDict, changed: set[str]) -> None:
     out = serialize_frontmatter(
         rec["fm"], rec["raw"], rec["body"], rec["quotes"], changed
     )
@@ -233,7 +281,7 @@ def save_record(rec, changed):
 
 
 # --- spacing ----------------------------------------------------------------
-def resolve_spacing(notes_text):
+def resolve_spacing(notes_text: str) -> tuple[float, float, str]:
     """NOTES.md spacing: (exact shape) > built-in. Returns (d, c, source)."""
     for ln in notes_text.split("\n"):
         m = SPACING_RE.match(ln.strip())
@@ -243,24 +291,24 @@ def resolve_spacing(notes_text):
 
 
 # --- workspace / NNNN / ledger ----------------------------------------------
-def is_workspace(cwd):
+def is_workspace(cwd: str) -> bool:
     return os.path.isfile(os.path.join(cwd, "MISSION.md")) or os.path.isdir(
         os.path.join(cwd, "learning-records")
     )
 
 
-def read_notes(cwd):
+def read_notes(cwd: str) -> str:
     p = os.path.join(cwd, "NOTES.md")
     return read_text(p) if os.path.isfile(p) else ""
 
 
-def load_records(cwd):
+def load_records(cwd: str) -> list[RecordDict]:
     """Every learning record, sorted by filename. A malformed one is skipped
     rather than raised — it must not cost the learner the report or the index
     — but never silently: a skipped record vanishes from the due pool, from
     the report's counts and from index.html, and nothing else would say so."""
     lr_dir = os.path.join(cwd, "learning-records")
-    out = []
+    out: list[RecordDict] = []
     if os.path.isdir(lr_dir):
         for name in sorted(os.listdir(lr_dir)):
             if name.endswith(".md"):
@@ -276,7 +324,9 @@ def load_records(cwd):
     return out
 
 
-def split_records(records):
+def split_records(
+    records: list[RecordDict],
+) -> tuple[list[RecordDict], list[RecordDict], list[RecordDict]]:
     """(active, retired, due) — one status rule, so every caller agrees."""
     active = [
         r for r in records if r["status"] not in ("retired", "superseded")
@@ -287,10 +337,12 @@ def split_records(records):
     return active, retired, due
 
 
-def due_pool(due):
+def due_pool(due: list[RecordDict]) -> list[RecordDict]:
     """At most three due records, distinct source lessons first — a cold open
     interleaves rather than retesting one lesson three times (SKILL.md step 5)."""
-    seen, first, rest = set(), [], []
+    seen: set[str | None] = set()
+    first: list[RecordDict] = []
+    rest: list[RecordDict] = []
     for r in due:
         if r["lesson"] in seen:
             rest.append(r)
@@ -300,7 +352,7 @@ def due_pool(due):
     return (first + rest)[:3]
 
 
-def next_number(dirpath):
+def next_number(dirpath: str) -> int:
     hi = 0
     if os.path.isdir(dirpath):
         for name in os.listdir(dirpath):
@@ -310,7 +362,7 @@ def next_number(dirpath):
     return hi + 1
 
 
-def parse_ledger_line(notes_text):
+def parse_ledger_line(notes_text: str) -> LedgerLine | None:
     """Return {'lesson':..., 'tests':[id,...], 'asked':N} or None."""
     for ln in notes_text.split("\n"):
         s = ln.strip()
@@ -325,7 +377,7 @@ def parse_ledger_line(notes_text):
     return None
 
 
-def delete_ledger_line(notes_text):
+def delete_ledger_line(notes_text: str) -> str:
     out = []
     removed = 0
     for ln in notes_text.split("\n"):
@@ -341,13 +393,13 @@ def delete_ledger_line(notes_text):
     return "\n".join(out)
 
 
-def bump_asked(notes_text):
+def bump_asked(notes_text: str) -> tuple[str, int]:
     """Rewrite the open ledger line with asked+1. Returns (text, new_asked).
 
     Rebuilt from the regex's own groups, never from a hand-edit: the shape is
     strict (LEDGER_RE) and a line that stops matching is a cold open no
     consumer can see any more. Preserves the list marker, the indentation and
-    a trailing \\r, so a CRLF NOTES.md round-trips.
+    a trailing \r, so a CRLF NOTES.md round-trips.
     """
     out = []
     hits = 0
@@ -370,12 +422,12 @@ def bump_asked(notes_text):
             f"{indent}{prefix}unscored cold open: {m.group(1)} "
             f"tests {m.group(2)} (asked: {new_asked}){tail}"
         )
-    if hits != 1:
+    if hits != 1 or new_asked is None:
         raise TeachError(1, f"expected exactly 1 ledger line, found {hits}")
     return "\n".join(out), new_asked
 
 
-def find_cold_open_comment(html):
+def find_cold_open_comment(html: str) -> str | None:
     """Text of the cold-open mapping comment, or None. Reuses check_lesson's
     DocParser so the structural rule — the comment must sit inside a .cold-open
     ancestor — is the same one the validator enforces, not a substring scan that
@@ -389,7 +441,7 @@ def find_cold_open_comment(html):
     return p.cold_open_comment[1] if p.cold_open_comment else None
 
 
-def parse_cold_open_comment(html):
+def parse_cold_open_comment(html: str) -> list[tuple[int, str]]:
     """Return [(pos, record_id), ...] from the cold-open mapping comment.
 
     Positions may appear in any order — cmd_ledger sorts by position when it
@@ -430,7 +482,7 @@ def parse_cold_open_comment(html):
 
 
 # --- result line / scoring ---------------------------------------------------
-def parse_result_line(line):
+def parse_result_line(line: str) -> tuple[str | None, list[tuple[int, str]]]:
     """'Cold open 0007-x: 1 right, 2 wrong' -> ('0007-x', [(1,'right'),(2,'wrong')]).
 
     The id in the head binds the line to the lesson that produced it. A line
@@ -470,9 +522,11 @@ def parse_result_line(line):
     return lesson_id, results
 
 
-def score_record(rec, outcome, doubling, ceiling):
+def score_record(
+    rec: RecordDict, outcome: str, doubling: float, ceiling: float
+) -> set[str]:
     """Apply one scoring row (RECORDS.md § Scoring). Mutates rec; returns set(changed keys)."""
-    changed = set()
+    changed: set[str] = set()
     t = today()
     if outcome == "right":
         if rec["interval"] < ceiling:
@@ -509,7 +563,7 @@ def score_record(rec, outcome, doubling, ceiling):
     return changed
 
 
-def prior_cold_opens(cwd, rec_id):
+def prior_cold_opens(cwd: str, rec_id: str) -> list[str]:
     """Lesson numbers whose cold-open comment names this record — the per-record
     Grep that used to live in SKILL.md, now in the report so the model reads titles,
     not bodies, for everything except the due few."""
@@ -528,7 +582,7 @@ def prior_cold_opens(cwd, rec_id):
     return sorted(set(hits))
 
 
-def resolve_record_path(cwd, rec_id):
+def resolve_record_path(cwd: str, rec_id: str) -> str:
     direct = os.path.join(cwd, "learning-records", rec_id + ".md")
     if os.path.isfile(direct):
         return direct
@@ -547,7 +601,7 @@ def resolve_record_path(cwd, rec_id):
 
 
 # --- subcommands ------------------------------------------------------------
-def cmd_state(args):
+def cmd_state(args: "argparse.Namespace") -> int:
     cwd = args.workspace
     if not is_workspace(cwd):
         print(f"teach-state 0  not a teach workspace  ({cwd})")
@@ -557,7 +611,13 @@ def cmd_state(args):
     ledger = parse_ledger_line(notes)
     active, retired, due = split_records(load_records(cwd))
     t = today()
-    due.sort(key=lambda r: ((t - r["next"]).days, r["lesson"] or ""))
+    due.sort(
+        key=lambda r: (
+            ((t - r["next"]).days, r["lesson"] or "")
+            if r["next"] is not None
+            else (0, "")
+        )
+    )
     pool = due_pool(due)
     distinct = len({r["lesson"] for r in pool})
     assets = asset_status(cwd)
@@ -591,8 +651,11 @@ def cmd_state(args):
         f"{distinct} distinct source lessons"
     )
     for r in pool:
-        over = (t - r["next"]).days
-        over_s = "today" if over == 0 else f"{over}d over"
+        if r["next"] is not None:
+            over = (t - r["next"]).days
+            over_s = "today" if over == 0 else f"{over}d over"
+        else:
+            over_s = "unscheduled"
         reteach = "  RE-TEACH" if r["lapses"] >= 3 else ""
         rid = os.path.splitext(os.path.basename(r["path"]))[0]
         prior = prior_cold_opens(cwd, rid)
@@ -610,7 +673,7 @@ def cmd_state(args):
     return 0
 
 
-def mission_status(cwd):
+def mission_status(cwd: str) -> str:
     p = os.path.join(cwd, "MISSION.md")
     if not os.path.isfile(p):
         return "absent"
@@ -620,14 +683,14 @@ def mission_status(cwd):
     return "ok, not provisional"
 
 
-def project_markers(cwd):
+def project_markers(cwd: str) -> str:
     found = [
         m for m in PROJECT_MARKERS if os.path.exists(os.path.join(cwd, m))
     ]
     return ", ".join(found) if found else "no code-project markers in cwd"
 
 
-def asset_status(cwd):
+def asset_status(cwd: str) -> list[tuple[str, str]]:
     """Reuse check_lesson's stamp parser and templates dir; per-asset ok/STALE."""
     from check_lesson import TEMPLATES_DIR, parse_stamp
 
@@ -660,7 +723,7 @@ def asset_status(cwd):
     return out
 
 
-def inventory(cwd):
+def inventory(cwd: str) -> str:
     lessons = len(glob.glob(os.path.join(cwd, "lessons", "*.html")))
     reference = len(glob.glob(os.path.join(cwd, "reference", "*.html")))
     know, comm = 0, 0
@@ -679,7 +742,7 @@ def inventory(cwd):
     return f"{lessons} lessons, {reference} reference docs, {know} knowledge + {comm} community sources"
 
 
-def _doc_title(path):
+def _doc_title(path: str) -> str:
     """First <h1>, else <title>, else the file stem. Tags stripped, entities
     decoded, space collapsed — esc() in build_index re-escapes, so decode here
     or an `&amp;` in a title ends up double-escaped on the page."""
@@ -697,7 +760,7 @@ def _doc_title(path):
     return " ".join(unescape(re.sub(r"<[^>]+>", "", m.group(1))).split())
 
 
-def _topic(cwd):
+def _topic(cwd: str) -> str:
     p = os.path.join(cwd, "MISSION.md")
     if os.path.isfile(p):
         m = re.search(r"^#\s*Mission:\s*(.+)$", read_text(p), re.M)
@@ -706,7 +769,7 @@ def _topic(cwd):
     return os.path.basename(os.path.abspath(cwd)) or "Course"
 
 
-def _lang(cwd):
+def _lang(cwd: str) -> str:
     """Match the course's own language rather than assuming English."""
     for p in sorted(
         glob.glob(os.path.join(cwd, "lessons", "*.html")), reverse=True
@@ -720,7 +783,7 @@ def _lang(cwd):
     return "en"
 
 
-def resume_target(cwd):
+def resume_target(cwd: str) -> ResumeTarget | None:
     """The open cold-open ledger's lesson, or None. One derivation shared by
     build_index, cmd_state, and the SessionStart hook — the resume signal is
     ledger-driven (exact), never guessed from lesson numbering.
@@ -741,7 +804,7 @@ def resume_target(cwd):
     }
 
 
-def resume_section(cwd):
+def resume_section(cwd: str) -> list[str]:
     """HTML lines for the 'Continue where you were' section, or [] if nothing
     pending. Isolated so a dangling or malformed ledger never breaks the page
     — any failure degrades to 'no section', never a half-rendered index."""
@@ -775,7 +838,28 @@ def resume_section(cwd):
     ]
 
 
-def build_index(cwd):
+def _format_links(paths: list[str], prefix: str) -> str:
+    from html import escape as esc
+
+    return "\n".join(
+        f'      <li><a href="{esc(prefix + os.path.basename(p))}">'
+        f"{esc(_doc_title(p))}</a></li>"
+        for p in paths
+    )
+
+
+def _format_when(r: RecordDict, t: date) -> str:
+    if r["status"] in ("retired", "superseded"):
+        return "banked"
+    if r["next"] is None:
+        return "unscheduled"
+    d = (r["next"] - t).days
+    if d < 0:
+        return f"{-d} d overdue"
+    return "due today" if d == 0 else f"in {d} d"
+
+
+def build_index(cwd: str) -> str:
     """Write the learner-facing course home page. Returns its path.
 
     Deterministic by construction — same workspace state, same bytes — which is
@@ -805,25 +889,8 @@ def build_index(cwd):
     records = load_records(cwd)
     active, _, due = split_records(records)
 
-    def links(paths, prefix):
-        return "\n".join(
-            f'      <li><a href="{esc(prefix + os.path.basename(p))}">'
-            f"{esc(_doc_title(p))}</a></li>"
-            for p in paths
-        )
-
-    def when(r):
-        if r["status"] in ("retired", "superseded"):
-            return "banked"
-        if r["next"] is None:
-            return "unscheduled"
-        d = (r["next"] - t).days
-        if d < 0:
-            return f"{-d} d overdue"
-        return "due today" if d == 0 else f"in {d} d"
-
     learned = "\n".join(
-        f'      <li>{esc(r["title"])} <span class="eyebrow">{esc(when(r))}</span></li>'
+        f'      <li>{esc(r["title"])} <span class="eyebrow">{esc(_format_when(r, t))}</span></li>'
         for r in records
     )
 
@@ -849,7 +916,7 @@ def build_index(cwd):
         "",
         "    <h2>Lessons</h2>",
         "    <ul>",
-        links(lessons, "lessons/"),
+        _format_links(lessons, "lessons/"),
         "    </ul>",
     ]
     if reference:
@@ -857,7 +924,7 @@ def build_index(cwd):
             "",
             "    <h2>Reference</h2>",
             "    <ul>",
-            links(reference, "reference/"),
+            _format_links(reference, "reference/"),
             "    </ul>",
         ]
     if records:
@@ -874,12 +941,12 @@ def build_index(cwd):
     return out
 
 
-def cmd_index(args):
+def cmd_index(args: "argparse.Namespace") -> int:
     print(f"index: {build_index(args.workspace)}")
     return 0
 
 
-def cmd_score(args):
+def cmd_score(args: "argparse.Namespace") -> int:
     cwd = args.workspace
     if not is_workspace(cwd):
         raise TeachError(1, f"not a teach workspace ({cwd})")
@@ -936,7 +1003,7 @@ def cmd_score(args):
     return 0
 
 
-def cmd_ledger(args):
+def cmd_ledger(args: "argparse.Namespace") -> int:
     cwd = args.workspace
     lesson_path = args.lesson
     if not os.path.isabs(lesson_path):
@@ -966,7 +1033,7 @@ def cmd_ledger(args):
     return 0
 
 
-def cmd_asked(args):
+def cmd_asked(args: "argparse.Namespace") -> int:
     cwd = args.workspace
     if not is_workspace(cwd):
         raise TeachError(1, f"not a teach workspace ({cwd})")
@@ -976,10 +1043,7 @@ def cmd_asked(args):
         raise TeachError(1, "no open cold-open ledger line in NOTES.md")
     text, n = bump_asked(notes)
     write_text(os.path.join(cwd, "NOTES.md"), text)
-    print(
-        f"asked: {n}  {ledger['lesson']} tests "
-        f"{', '.join(ledger['tests'])}"
-    )
+    print(f"asked: {n}  {ledger['lesson']} tests {', '.join(ledger['tests'])}")
     if n >= 2:
         print(
             'abandon it now: teach.py score "abandon" — reschedules each '
@@ -993,7 +1057,7 @@ def cmd_asked(args):
     return 0
 
 
-def append_working_note(notes, line):
+def append_working_note(notes: str, line: str) -> str:
     """Append `line` under NOTES.md ## Working notes (create heading if missing)."""
     lines = notes.split("\n")
     # find ## Working notes
@@ -1018,7 +1082,7 @@ def append_working_note(notes, line):
 
 
 # --- entry ------------------------------------------------------------------
-def main(argv):
+def main(argv: list[str]) -> int:
     import argparse
 
     p = argparse.ArgumentParser(
