@@ -100,6 +100,9 @@ LEDGER_RE = re.compile(
 
 # lesson cold-open comment: "cold-open: 1=0003-slug 2=0007-slug"
 COLD_OPEN_RE = re.compile(r"(\d+)=([0-9A-Za-z][0-9A-Za-z\-]*)")
+H1_RE = re.compile(r"<h1[^>]*>(.*?)</h1>", re.S | re.I)
+TITLE_RE = re.compile(r"<title[^>]*>(.*?)</title>", re.S | re.I)
+TAG_RE = re.compile(r"<[^>]+>")
 
 TODAY: date | None = None  # tests override; None => datetime.date.today()
 
@@ -433,6 +436,8 @@ def find_cold_open_comment(html: str) -> str | None:
     ancestor — is the same one the validator enforces, not a substring scan that
     latches the first comment containing 'cold-open:' (a stray TODO note matches
     that and steals the slot from the real mapping)."""
+    if "cold-open:" not in html:
+        return None
     from check_lesson import DocParser
 
     p = DocParser()
@@ -752,12 +757,10 @@ def _doc_title(path: str) -> str:
         text = read_text(path)
     except OSError:
         return os.path.splitext(os.path.basename(path))[0]
-    m = re.search(r"<h1[^>]*>(.*?)</h1>", text, re.S | re.I) or re.search(
-        r"<title[^>]*>(.*?)</title>", text, re.S | re.I
-    )
+    m = H1_RE.search(text) or TITLE_RE.search(text)
     if not m:
         return os.path.splitext(os.path.basename(path))[0]
-    return " ".join(unescape(re.sub(r"<[^>]+>", "", m.group(1))).split())
+    return " ".join(unescape(TAG_RE.sub("", m.group(1))).split())
 
 
 def _topic(cwd: str) -> str:
