@@ -2,7 +2,7 @@
 """check_lesson.py — stdlib-only validator for teach lessons/reference docs.
 
 Validates a generated lessons/*.html (or reference doc) against the contract
-defined by templates/lesson.html + templates/quiz.js + templates/lesson.css.
+defined by templates/lesson.html + templates/assets/quiz.js + templates/assets/styles.css.
 
 Usage:
   python skills/teach/scripts/check_lesson.py <path>                # lesson (default)
@@ -389,7 +389,7 @@ def verify(type_, parser, css_blocks, html_dir, self_mode=False, html_name=""):
                     line,
                     "missing-asset",
                     f'script src "{src}" does not exist - copy '
-                    f"templates/quiz.js into the workspace assets/",
+                    f"templates/assets/quiz.js into the workspace assets/",
                 )
             )
     for line, tag, ref in parser.media_srcs:
@@ -678,7 +678,7 @@ def main(argv):
         return 2
 
     # Gather CSS blocks: linked stylesheets (resolved against the HTML dir,
-    # with a sibling-lesson.css fallback for --self) + inline <style>.
+    # with a sibling-styles.css fallback for --self) + inline <style>.
     errors = []
     css_blocks = list(parser.inline_css)
     html_dir = os.path.dirname(os.path.abspath(path))
@@ -686,11 +686,11 @@ def main(argv):
         p = href.split("#")[0].split("?")[0]
         if p.startswith(("http://", "https://", "//")):
             continue  # flagged as offline-stylesheet in verify
-        # --self validates templates/lesson.html, whose ../assets/lesson.css
+        # --self validates templates/lesson.html, whose ./assets/styles.css
         # lives next to the template instead — same fallback resolve_local uses
         candidates = [os.path.normpath(os.path.join(html_dir, p))]
         if self_mode:
-            candidates.append(os.path.join(html_dir, "lesson.css"))
+            candidates.append(os.path.join(html_dir, "styles.css"))
         css_text = None
         for cand in candidates:
             try:

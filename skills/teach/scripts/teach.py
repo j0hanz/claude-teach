@@ -717,11 +717,11 @@ def asset_status(cwd: str) -> list[tuple[str, str]]:
 
     assets_dir = os.path.join(cwd, "assets")
     out = []
-    for name in ("lesson.css", "quiz.js"):
+    for name in ("styles.css", "quiz.js"):
         ws = os.path.join(assets_dir, name)
         if not os.path.isfile(ws):
             continue
-        tmpl = os.path.join(TEMPLATES_DIR, name)
+        tmpl = os.path.join(TEMPLATES_DIR, "assets", name)
         try:
             wt = parse_stamp(read_text(ws))
             tt = parse_stamp(read_text(tmpl))
@@ -900,10 +900,10 @@ def build_index(cwd: str) -> str:
     resume = resume_section(cwd)
     if not lessons and not resume:
         raise TeachError(1, "no lessons yet — nothing to index")
-    if not os.path.isfile(os.path.join(cwd, "assets", "lesson.css")):
+    if not os.path.isfile(os.path.join(cwd, "assets", "styles.css")):
         raise TeachError(
             1,
-            "assets/lesson.css missing — copy templates/lesson.css "
+            "assets/styles.css missing — copy templates/assets/styles.css "
             "into assets/ first",
         )
     reference = sorted(glob.glob(os.path.join(cwd, "reference", "*.html")))
@@ -924,7 +924,7 @@ def build_index(cwd: str) -> str:
         '  <meta charset="utf-8">',
         '  <meta name="viewport" content="width=device-width, initial-scale=1">',
         f"  <title>{esc(_topic(cwd))} — course</title>",
-        '  <link rel="stylesheet" href="assets/lesson.css">',
+        '  <link rel="stylesheet" href="assets/styles.css">',
         "</head>",
         "<body>",
         '  <main class="lesson">',
@@ -988,8 +988,9 @@ def cmd_score(args: "argparse.Namespace") -> int:
             raise TeachError(
                 1,
                 "result line carries no lesson id — this workspace's "
-                "assets/quiz.js predates template v3. Re-copy templates/quiz.js "
-                "into assets/, rebuild the cold open, and ask for a fresh line.",
+                "assets/quiz.js predates template v3. Re-copy "
+                "templates/assets/quiz.js into assets/, rebuild the cold "
+                "open, and ask for a fresh line.",
             )
         if lesson_id != ledger_id:
             raise TeachError(

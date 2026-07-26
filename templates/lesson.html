@@ -4,13 +4,22 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{{TITLE}} — {{TOPIC}}</title>
-    <link rel="stylesheet" href="../assets/lesson.css" />
+    <link rel="stylesheet" href="./assets/styles.css" />
   </head>
   <body>
     <main class="lesson">
       <p class="eyebrow">Lesson {{NUMBER}} · {{TOPIC}}</p>
       <h1>{{TITLE}}</h1>
       <p class="lead">{{LEAD — the one thing this lesson lands, in one or two sentences.}}</p>
+
+      <nav class="toc" aria-label="In this lesson">
+        <span class="toc-eyebrow">In this lesson</span>
+        <ul class="toc-list">
+          <li><a href="#knowledge">Knowledge</a></li>
+          <li><a href="#skills">Skills</a></li>
+          <li><a href="#where-next">Where next</a></li>
+        </ul>
+      </nav>
 
       <section class="cold-open">
         <!-- cold-open: 1={{RECORD-ID}} 2={{RECORD-ID}} -->
@@ -52,15 +61,15 @@
         inert
         data-seal-label="Answer the cold open to unseal the lesson."
       >
-        <h2>Knowledge</h2>
+        <h2 id="knowledge">Knowledge</h2>
         <p>{{Body. Every claim cites.}}<a class="cite" href="#n1">1</a></p>
         <p class="sidenote" id="n1">
           ¹ <a href="{{URL}}">{{Author, Title}}</a> — {{one line on what it covers}}.
         </p>
 
-        <h2>Skills</h2>
+        <h2 id="skills">Skills</h2>
 
-        <h2>Where next</h2>
+        <h2 id="where-next">Where next</h2>
         <p>
           Primary source: <a href="{{URL}}">{{SOURCE}}</a>. Related:
           <a href="{{PREV-LESSON}}.html">{{prev lesson}}</a>,
@@ -69,9 +78,20 @@
         </p>
         <p>Ask follow-up questions — anything unclear, your teacher can unpack it.</p>
         <p class="sidenote" id="n2">² <a href="{{URL}}">{{Author, Title}}</a> — {{one line}}.</p>
+
+        <nav class="lesson-nav" aria-label="Lesson navigation">
+          <div class="lesson-nav-cell prev">
+            <span class="lesson-nav-eyebrow">Previous</span>
+            <a class="lesson-nav-link" href="{{PREV-LESSON}}.html">← {{PREV-LESSON-TITLE}}</a>
+          </div>
+          <div class="lesson-nav-cell next">
+            <span class="lesson-nav-eyebrow">Next</span>
+            <a class="lesson-nav-link" href="{{NEXT-LESSON}}.html">{{NEXT-LESSON-TITLE}} →</a>
+          </div>
+        </nav>
       </div>
     </main>
 
-    <script src="../assets/quiz.js"></script>
+    <script src="./assets/quiz.js"></script>
   </body>
 </html>

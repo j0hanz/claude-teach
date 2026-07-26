@@ -85,7 +85,7 @@ Every lesson should challenge user _just enough_. When they name no topic, deriv
 
 Lesson = one self-contained HTML file in `lessons/`, teaching one tightly-scoped thing tied to mission.
 
-Keep short and quickly completable — working memory small — but land one tangible win to build on. Make it **beautiful**, and make the set read as one course, not a pile of one-offs: on the first lesson, copy [`templates/lesson.css`](../../templates/lesson.css) and [`templates/quiz.js`](../../templates/quiz.js) into `assets/` (the templates live at `${CLAUDE_PLUGIN_ROOT}/templates/`), then build every lesson from [`templates/lesson.html`](../../templates/lesson.html), filling `{{placeholders}}` and linking both `assets/` files — nothing more. Design system and contracts in [DESIGN.md](references/DESIGN.md); its **retrieval-gate signature** (cold open seals the lesson body until every item answered) is load-bearing — keep it. User come back to these.
+Keep short and quickly completable — working memory small — but land one tangible win to build on. Make it **beautiful**, and make the set read as one course, not a pile of one-offs: on the first lesson, copy [`templates/assets/styles.css`](../../templates/assets/styles.css) and [`templates/assets/quiz.js`](../../templates/assets/quiz.js) into `assets/` (the templates live at `${CLAUDE_PLUGIN_ROOT}/templates/`), then build every lesson from [`templates/lesson.html`](../../templates/lesson.html), filling `{{placeholders}}` and linking both `assets/` files — nothing more. Design system and contracts in [DESIGN.md](references/DESIGN.md); its **retrieval-gate signature** (cold open seals the lesson body until every item answered) is load-bearing — keep it. User come back to these.
 
 `index.html` is how they come back — `teach.py index` rebuild it from workspace state; never hand-edit it.
 
@@ -93,7 +93,7 @@ Teach knowledge first, then user practise skill against feedback loop.
 
 Lesson not finished until:
 
-- Builds on shared stylesheet and any other component in `assets/` that fits
+- Builds on shared stylesheet (`assets/styles.css`) and any other component in `assets/` that fits
 - Every claim backed by citation linking out to resource
 - Recommends one primary source — highest-quality, highest-trust thing you found on topic
 - Links to related lessons and reference documents by HTML anchor
@@ -131,7 +131,7 @@ Lessons built from reusable components in `assets/`: stylesheets, quiz widgets, 
 
 You MUST read `assets/` before authoring and build from what already there. When a lesson needs something new and reusable, write it as a component and link to it — never inline code a future lesson would duplicate. Quiz widget contract (markup, result line, copy control, `data-releases` unseal): [`DESIGN.md`](references/DESIGN.md) § Components (authority).
 
-Shared stylesheet is first component every workspace earns: every lesson links it, which makes the set look like one course, not a pile of one-offs. Copy [`templates/lesson.css`](../../templates/lesson.css) into `assets/lesson.css` and [`templates/quiz.js`](../../templates/quiz.js) into `assets/quiz.js` on the first lesson — one canonical source each, same identity every workspace, moss-and-stone teaching manual with the retrieval-gate signature. Build lessons from [`templates/lesson.html`](../../templates/lesson.html). Design rationale in [DESIGN.md](references/DESIGN.md). Extend per-workspace only with topic components (simulators, pose diagrams); never override the templates' tokens or gate.
+Shared stylesheet is first component every workspace earns: every lesson links it, which makes the set look like one course, not a pile of one-offs. Copy [`templates/assets/styles.css`](../../templates/assets/styles.css) into `assets/styles.css` and [`templates/assets/quiz.js`](../../templates/assets/quiz.js) into `assets/quiz.js` on the first lesson — one canonical source each, same identity every workspace, moss-and-stone teaching manual with the retrieval-gate signature. Build lessons from [`templates/lesson.html`](../../templates/lesson.html). Design rationale in [DESIGN.md](references/DESIGN.md). Extend per-workspace only with topic components (simulators, pose diagrams); never override the templates' tokens or gate.
 
 A stdlib validator, `${CLAUDE_PLUGIN_ROOT}/skills/teach/scripts/check_lesson.py`, self-checks the templates and validates a generated lesson. Step 6 run it on every lesson before opening; run `--self` after any template edit (see [DESIGN.md](references/DESIGN.md) § Validation). Step 1's report name any `assets/` copy that fell behind the plugin as `STALE` — re-copy that template over the workspace copy before building, and leave every other file in `assets/` alone.
 

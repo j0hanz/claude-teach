@@ -13,14 +13,20 @@
   --sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
   --mono: 'SF Mono', 'Cascadia Code', 'JetBrains Mono', ui-monospace, Consolas, monospace;
 
+  /* Fluid typescale. Each rung stays between a floor (smallest expected viewport)
+     and a cap (what we want on wide reads), interpolated by viewport width with
+     clamp(). rungs keep their *relative* ratio on every screen, so the rhythm
+     of the page is the rhythm of the lesson at any size. Capped at the static
+     values the design was tuned to: the body has not been retuned for sizes
+     past 80rem or below 24rem, and the caps say so. */
   --fs-1: 0.75rem;
   --fs-2: 0.8125rem;
-  --fs-3: 0.875rem;
-  --fs-4: 1.0625rem;
-  --fs-5: 1.1875rem;
-  --fs-6: 1.3125rem;
-  --fs-7: 1.625rem;
-  --fs-8: 2.5rem;
+  --fs-3: clamp(0.84rem, 0.82rem + 0.1vw, 0.875rem);
+  --fs-4: clamp(1rem, 0.95rem + 0.4vw, 1.125rem);
+  --fs-5: clamp(1.125rem, 1.05rem + 0.5vw, 1.1875rem);
+  --fs-6: clamp(1.2rem, 1.05rem + 0.8vw, 1.375rem);
+  --fs-7: clamp(1.45rem, 1.25rem + 1vw, 1.75rem);
+  --fs-8: clamp(2rem, 1.5rem + 2.4vw, 2.75rem);
   --track: 0.14em;
 
   --s-1: 0.25rem;
@@ -34,8 +40,11 @@
   --s-9: 3rem;
   --s-10: 4rem;
   --s-11: 6rem;
-  --measure: 36rem;
-  --margin-w: 16rem;
+  /* Smart measure: column grows from 34rem on tablet to 42rem on a wide display,
+     but never past either cap. Margin column grows in proportion so the two
+     remain visually balanced across the range. */
+  --measure: clamp(34rem, 28rem + 12vw, 42rem);
+  --margin-w: clamp(13rem, 11rem + 5vw, 18rem);
   --gutter: var(--s-8);
   --radius: 10px;
   --radius-2: 5px;
@@ -44,6 +53,7 @@
   --lh-tight: 1.45;
   --dur-seal: 0.6s;
   --dur-control: 0.18s;
+  --dur-soft: 0.22s;
   --blur-seal: 0.3rem;
   --shadow: 0 1px 2px rgba(0, 0, 0, 0.35), 0 8px 22px -10px rgba(0, 0, 0, 0.5);
   --hi: inset 0 1px 0 rgba(255, 255, 255, 0.045);
@@ -56,6 +66,12 @@
 }
 html {
   -webkit-text-size-adjust: 100%;
+  scroll-behavior: smooth;
+}
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
 }
 body {
   margin: 0;
@@ -67,10 +83,12 @@ body {
   font-variant-numeric: oldstyle-nums;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+  text-wrap: pretty;
 }
 
 .lesson {
   width: fit-content;
+  max-width: calc(100% - 2 * var(--s-3));
   margin: 0 auto;
   padding: var(--s-10) var(--s-7) var(--s-11);
   display: grid;
@@ -235,6 +253,15 @@ a.cite:hover {
   padding: var(--s-7);
   margin: var(--s-8) 0 var(--s-9);
   box-shadow: var(--shadow), var(--hi);
+  transition: border-color var(--dur-soft) ease;
+}
+.cold-open:focus-within {
+  border-color: color-mix(in srgb, var(--rule-2) 60%, var(--accent-2));
+}
+@media (prefers-reduced-motion: reduce) {
+  .cold-open {
+    transition: none;
+  }
 }
 .cold-open h2 {
   font-size: var(--fs-6);
@@ -351,6 +378,26 @@ a.cite:hover {
 .quiz-item:not([data-pending], [data-answered]) .quiz-btn:hover {
   border-color: var(--accent-2);
 }
+@media (hover: none) {
+  /* Touch devices cannot "unhover"; without this guard a tap on a quiz option
+     leaves a sticky-out border after the tap target lifted. */
+  .quiz-item:not([data-pending], [data-answered]) .quiz-btn:hover {
+    border-color: var(--rule-2);
+  }
+  .quiz-undo:hover,
+  .quiz-copy:hover {
+    background: inherit;
+    border-color: inherit;
+    color: inherit;
+  }
+  .quiz-copy:hover {
+    background: var(--accent);
+    color: var(--paper);
+  }
+  a:hover {
+    text-decoration-thickness: 1px;
+  }
+}
 .quiz-item:is([data-pending], [data-answered]) .quiz-btn {
   cursor: default;
 }
@@ -440,6 +487,111 @@ a.cite:hover {
   border-width: 0;
 }
 
+/* Quiet horizontal section index, visible only on wide viewports. Three
+   sections (Knowledge / Skills / Where next) are enough that a stacked
+   sidebar would be ceremony; a thin strip across the top reads as a margin
+   tab, costs nothing on narrow screens, and prints away. */
+.toc {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2) var(--s-5);
+  align-items: baseline;
+  margin: var(--s-3) 0 var(--s-7);
+  padding: 0 0 var(--s-3);
+  border-bottom: 1px solid var(--rule);
+}
+.toc-eyebrow {
+  font-family: var(--sans);
+  font-size: var(--fs-1);
+  letter-spacing: var(--track);
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  font-variant-numeric: lining-nums;
+  margin-inline-end: var(--s-2);
+}
+.toc-list {
+  display: contents;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.toc a {
+  font-family: var(--sans);
+  font-size: var(--fs-1);
+  letter-spacing: var(--track);
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  text-decoration: none;
+  font-variant-numeric: lining-nums;
+  padding: var(--s-1) 0;
+}
+.toc a:hover {
+  color: var(--ink);
+}
+.toc a:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+@media (max-width: 80rem) {
+  .toc {
+    display: none;
+  }
+}
+
+/* Bottom-of-lesson prev/next. Stays out of the way of a reader who finishes;
+   the eye doesn't see it until they reach it. */
+.lesson-nav {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--gutter);
+  margin: var(--s-9) 0 0;
+  padding-top: var(--s-6);
+  border-top: 1px solid var(--rule);
+}
+.lesson-nav-cell {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  min-width: 0;
+}
+.lesson-nav-cell.next {
+  text-align: end;
+  align-items: end;
+}
+.lesson-nav-eyebrow {
+  font-family: var(--sans);
+  font-size: var(--fs-1);
+  letter-spacing: var(--track);
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  font-variant-numeric: lining-nums;
+}
+.lesson-nav-link {
+  font-family: var(--serif);
+  font-size: var(--fs-5);
+  color: var(--accent);
+  text-decoration: none;
+  word-break: break-word;
+  min-height: var(--tap);
+  display: inline-flex;
+  align-items: center;
+}
+.lesson-nav-link:hover {
+  text-decoration: underline;
+  text-underline-offset: 0.22em;
+}
+.lesson-nav-link:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
+  border-radius: var(--radius-2);
+}
+.lesson-nav-cell:empty {
+  display: none;
+}
+
 @media (max-width: 64rem) {
   .lesson,
   .lesson-content {
@@ -460,6 +612,14 @@ a.cite:hover {
   h1 {
     font-size: 2.125rem;
   }
+  .lesson-nav {
+    grid-template-columns: 1fr;
+    gap: var(--s-4);
+  }
+  .lesson-nav-cell.next {
+    text-align: start;
+    align-items: start;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -467,7 +627,8 @@ a.cite:hover {
   .lesson-content.sealed::after,
   .quiz-btn,
   .quiz-undo,
-  .quiz-copy {
+  .quiz-copy,
+  .cold-open {
     transition: none;
   }
 }
@@ -515,7 +676,9 @@ a.cite:hover {
     user-select: auto;
   }
 
-  .lesson-content::after {
+  .lesson-content::after,
+  .toc,
+  .lesson-nav {
     display: none;
   }
 
