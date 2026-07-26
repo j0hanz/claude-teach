@@ -1,4 +1,4 @@
-/* teach-template-version: 2 */
+/* teach-template-version: 3 */
 :root {
   color-scheme: light;
   --paper: #edf1ee;
@@ -508,6 +508,25 @@ a.cite:hover {
   background: var(--accent);
   color: #fff;
   border: 1px solid var(--accent);
+  opacity: 1;
+  transition:
+    transform var(--dur-press) var(--ease-out),
+    border-color var(--dur-control) var(--ease-out),
+    background var(--dur-control) var(--ease-out),
+    color var(--dur-control) var(--ease-out),
+    opacity var(--dur-control) var(--ease-out),
+    display var(--dur-control) allow-discrete;
+}
+
+.quiz-copy[hidden] {
+  opacity: 0;
+  display: none;
+}
+
+@starting-style {
+  .quiz-copy:not([hidden]) {
+    opacity: 0;
+  }
 }
 
 .quiz-fb {
@@ -525,6 +544,8 @@ a.cite:hover {
   background: color-mix(in srgb, var(--accent) 7%, var(--paper-2));
   border: 1px solid var(--rule-2);
   border-radius: var(--radius-2);
+  opacity: 1;
+  transition: opacity var(--dur-control) var(--ease-out);
 }
 
 .quiz-fb:empty,
@@ -535,6 +556,7 @@ a.cite:hover {
 .quiz-result:empty {
   padding: 0;
   border-width: 0;
+  opacity: 0;
 }
 
 .toc {
@@ -706,6 +728,7 @@ a.cite:hover {
   .quiz-btn,
   .quiz-undo,
   .quiz-copy,
+  .quiz-result,
   .cold-open {
     transition: none;
   }
