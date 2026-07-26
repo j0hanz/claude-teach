@@ -19,9 +19,11 @@ Edit template; don't fork per lesson. Lesson fill `{{placeholders}}` in skeleton
 
 ## Direction
 
-Study instrument, light. Pale ash page, graphite ink, cobalt navigation and calibration signal; muted brick only for wrong answer. Serif body carry sustained reading, sans label and marginalia, mono code and spaced-repetition result line. Single body column, wide right margin hold citation as sidenote — margin earn width, every claim cite, so citation live beside claim, not inline footnote bomb.
+Course-timetable study instrument, light. Cool blue-gray page, graphite ink, transit blue navigation and calibration signal; vermilion mark route stop and muted brick mark wrong answer. Serif body carry sustained reading, sans label and marginalia, mono code and spaced-repetition result line. Single body column, wide right margin hold citation as sidenote — margin earn width, every claim cite, so citation live beside claim, not inline footnote bomb.
 
-Not cream-and-terracotta default (ash not cream; cobalt not terracotta). Not dashboard blue: cobalt mark direction, control and calibration, never drown reading surface. Not broadsheet multi-column (single column + margin; rules are study structure, not newspaper).
+Not cream-and-terracotta default (blue-gray not cream; transit blue not terracotta). Not dashboard blue: transit blue mark route, control and calibration, never drown reading surface. Not broadsheet multi-column (single column + margin; rules are study structure, not newspaper).
+
+Lesson open as route card: header carry vertical transit rule and one vermilion stop, then route navigation name Recall, Understand, Practice and Continue before retrieval gate. This sequence explain lesson shape without expose sealed body.
 
 Voice: dropped-article style throughout this skill deliberate, load-bearing — preserve in edit; don't normalize to standard English.
 
@@ -31,14 +33,15 @@ Name and role only — no value here, on purpose. Value drift when restated.
 
 | Token        | Role                                 |
 | ------------ | ------------------------------------ |
-| `--paper`    | ash page surface                     |
-| `--paper-2`  | white panels, cold-open field, code  |
+| `--paper`    | cool blue-gray page surface          |
+| `--paper-2`  | pale field, cold-open field, code    |
 | `--ink`      | graphite body text                   |
 | `--ink-soft` | secondary text, marginalia           |
 | `--rule`     | hairlines                            |
 | `--rule-2`   | control boundaries (quiz options)    |
 | `--accent`   | cobalt — gate, correct, links        |
 | `--accent-2` | deep cobalt — hover, secondary marks |
+| `--signal`   | vermilion — route stop, release edge |
 | `--wrong`    | wrong (muted brick, never alarm-red) |
 | `--serif`    | body face (sustained reading)        |
 | `--sans`     | labels and marginalia face           |
@@ -62,7 +65,7 @@ Token value live in [`templates/assets/roots.css`](../../../templates/assets/roo
 
 ## Layout
 
-Body column (`--measure`) + sidenote column (`--margin-w`), fixed gap between. `.lesson` take `width: fit-content`, not restated `max-width`: track fixed length, so shrink-to-fit exactly both column plus gap plus element own padding — can't drift from token. Hand-written `max-width` that forget `box-sizing: border-box` count padding, hang margin column outside block, push whole composition off centre. Everything default into body column; sidenote and `.full` opt out. Hairline separate, never box. Sidenote sit right after paragraph that cite it — grid auto-placement land it column 2 same row, beside own claim. Narrow screen collapse below.
+Body column (`--measure`) + sidenote column (`--margin-w`), fixed gap between. `.lesson` take `width: fit-content`, plus bounded outer width, so desktop canvas breathe without outer whitespace swallowing course route. Everything default into body column; sidenote and `.full` opt out. Hairline separate, never box. Sidenote sit right after paragraph that cite it — grid auto-placement land it column 2 same row, beside own claim. Tablet and narrow screen collapse below.
 
 Sidenote live **inside** `.lesson-content`, not after. Two reason, both load-bearing: outside sealed wrapper they read plain while gate shut (citation text leak lesson); and — since sealed wrapper single grid item holding whole body — sidenote outside can only stack below entire lesson, never beside paragraph. So `.lesson-content` span both column, take `grid-template-columns: subgrid`, re-expose parent two column to paragraph and sidenote nested in it. Where subgrid unsupported, `@supports not` block block the wrapper, body fall back to one column with sidenote inline below anchor — narrow-screen layout, degradation not break. That fallback must be asked for. Left alone, dropped `subgrid` leave one explicit column, `grid-column: 2` open _implicit_ second track: note beside paragraph at whatever width it take, no gap (`column-gap` on `.lesson`, not wrapper), body squeeze. Not documented degradation — collision.
 
@@ -80,7 +83,8 @@ Quiet on purpose: faint veil, cobalt rule, small uppercase label. No confetti, n
 
 ## Components
 
-- **Cold open** — `.cold-open`, `--paper-2` calibration field, 4px cobalt top rule, fine frame. Hold quiz. Field span both column; what it hold stay bound to `--measure`, so cold-open quiz and practice quiz further down same lesson one component at one width, ✓ mark stay next to word it mark.
+- **Lesson route** — `.toc`, four ordered stops: Recall, Understand, Practice, Continue. Each anchor own square number; route show lesson scope before cold open, never use it as dense global navigation.
+- **Cold open** — `.cold-open`, `--paper-2` calibration field, transit-blue top rule, fine frame. Label it `Recall check`; one plain sentence explain answer-from-memory and release condition. Hold quiz. Field span both column; what it hold stay bound to `--measure`, so cold-open quiz and practice quiz further down same lesson one component at one width, ✓ mark stay next to word it mark.
 - **Lead** — `.lead` on opening paragraph. One thing lesson land, set above body size. At body size it read as first paragraph, not claim rest of page argue.
 - **Quiz** — shape only:
 
@@ -102,10 +106,10 @@ Quiet on purpose: faint veil, cobalt rule, small uppercase label. No confetti, n
 
   **Undo window.** Answer not final instant clicked. Chosen option go to neutral `data-state="chosen"` mark, `.quiz-undo` appear, item lock three second later. Nothing about answer reveal inside that window — no right/wrong, no correct option, no feedback. Reveal-then-undo would hand back free retry with answer already on screen, and that one thing retrieval measurement can't survive. Once locked, no retry: window buy back tap, never recall. Reason it exist: this line reschedule memory record, so mis-tap noise recorded as signal.
 
-  Copy control show only on first pass through gated cold open — revisit unseal from remembered state, practice quiz never gate, so neither produce line worth pasting. `data-lesson` bind line to own lesson.
+  Copy control show only on first pass through gated cold open — revisit unseal from remembered state, practice quiz never gate, so neither produce line worth pasting. Successful copy announce that learner paste result into next message to teacher. `data-lesson` bind line to own lesson.
 
 - **Citations** — inline `a.cite` number real link to own `.sidenote` (`id="n1"`, `n2`, … in order); note itself sans, small, `--ink-soft`, hairline left rule, and a `<p>` rather than `<aside>` — aside here scoped to no sectioning element, so each note would land as own `complementary` landmark, finished lesson would bury `<main>` under dozen of them. `a.cite` take inline padding with cancelling negative margin: vertical padding on inline box don't touch line box, so tap target grow from 8px to something findable without pixel of reflow. Matter on phone, one place note moved away from claim it belong to. Beside paragraph, pairing obvious; on phone and paper note moved below claim, matching numeral only thing tying claim to source. `sup.cite` stay styled for lesson generated before link existed.
-- **Knowledge / Skills** — `h2` section with `--rule` hairline above (structural divider, not decoration). Knowledge first, skill second.
+- **Knowledge / Skills** — `h2` section with route-stop mark and `--rule` hairline above (structural divider, not decoration). Knowledge first, skill second.
 - **Code** — `--mono` on `--paper-2`, 4px cobalt left rule, horizontal scroll.
 - **Where next** — final block: one primary source (highest-trust thing found), cross-link to related lesson and reference doc by anchor, line invite follow-up question.
 
@@ -114,7 +118,7 @@ Quiet on purpose: faint veil, cobalt rule, small uppercase label. No confetti, n
 - **Offline** — no `@import`, no remote `url()`, no external `<script src>`, no stylesheet `<link>` to anywhere but `assets/`. System font stack only. Cable unplugged, page render.
 - **Print** — collapse to one column (margin column no reader on paper), keep `--measure` (paper one medium where reader can't narrow window; unbounded page box 95-character line) _and drop block's own padding with it_, since `box-sizing` border-box and 2rem a side inside `max-width: --measure` 32rem column, not 36rem — page box has `@page` margin for that. Unseal content, drop sidenote inline as small footnote, drop `.seal-note` (on paper body already open, so line promising it sealed simply false), avoid page-break inside quiz item and `pre`. Colour not load-bearing (B&W print fine). Quiz option print as plain list, not hidden — hidden they leave question dangling on em-dash with nothing under it, and printed lesson meant to be worked through; only copy and undo control go. Sidenote link print URL after title: every claim cite, and citation whose URL never printed is citation reader can't follow.
 - **Motion** — reduced-motion mean no transition, instant release; blur stay (static mask, not movement). Default motion subtle (seal ~0.2s, quiz state ~0.15s). No scroll reveal, no ambient animation.
-- **Responsive** — below 64rem: single column, sidenote inline below anchor, cold-open full width, padding shrink, line length stay bounded.
+- **Responsive** — below desktop reading width: single column, sidenote inline below anchor, cold-open full width, padding shrink, line length stay bounded. Narrow phone shrink outer padding once more; route stay visible and wrap clean.
 - **a11y** — visible keyboard focus on every control **and every link**; control boundary on `--rule-2` (3:1), never `--rule`; quiz state signal by mark + border, not colour alone; answered option `aria-disabled`, still focusable; option grouped and labelled by own question; sealed body `inert`, not merely blurred; nothing inert subtree carry — `::after` label included — reach assistive technology, so gate instruction live outside it in `.seal-note`, and release announce there; state change that move no focus announce via `role="status"`, from live region empty and in tree before text arrive; focus never dropped by hiding control it sit on (`.quiz-undo` hand it back to chosen option); `prefers-reduced-motion` honoured; `forced-colors` opt-out on veil alone, whose background _is_ component (quiz state survive forced palette on its mark); sidenote are `<p>`, never `<aside>`, so citation don't each become landmark; `lang` set on `<html>`; `<main>` landmark wrap lesson.
 
 ## Validation

@@ -1,6 +1,6 @@
 /* quiz.js — reusable quiz widget for a lesson. Self-contained, works on file://.
  * Markup contract and behaviour: skills/teach/references/DESIGN.md § Components.
- * teach-template-version: 7
+ * teach-template-version: 9
  */
 (function () {
   'use strict';
@@ -29,15 +29,18 @@
     sealed.removeAttribute('inert');
     var note = document.querySelector('.seal-note');
     if (!note) return;
-    if (announce) note.textContent = note.getAttribute('data-unsealed-label') || 'Lesson unsealed.';
-    else note.remove();
+    if (announce) {
+      note.textContent = note.getAttribute('data-unsealed-label') || 'Lesson unsealed.';
+      note.classList.add('is-unsealed');
+    } else note.remove();
   }
 
-  function copyText(text, btn, copiedLabel, onFailure) {
+  function copyText(text, btn, copiedLabel, onSuccess, onFailure) {
     var done = function () {
       if (!btn) return;
       var original = btn.textContent;
       btn.textContent = copiedLabel;
+      if (onSuccess) onSuccess();
       setTimeout(function () {
         btn.textContent = original;
       }, 1200);
@@ -79,6 +82,9 @@
     var copyFailedLabel =
       root.getAttribute('data-copy-failed-label') ||
       'Copy failed. Result selected; copy it manually.';
+    var copiedStatus =
+      root.getAttribute('data-copied-status') ||
+      'Result copied. Paste it into your next message to your teacher.';
     var progressEl = null;
     var replay = !!releases && alreadyUnsealed();
     if (replay) unseal(releases);
@@ -221,10 +227,18 @@
         copyBtn.hidden = false;
         copyBtn.addEventListener('click', function () {
           if (copyStatus) copyStatus.textContent = '';
-          copyText(line, copyBtn, copiedLabel, function () {
-            selectResult();
-            if (copyStatus) copyStatus.textContent = copyFailedLabel;
-          });
+          copyText(
+            line,
+            copyBtn,
+            copiedLabel,
+            function () {
+              if (copyStatus) copyStatus.textContent = copiedStatus;
+            },
+            function () {
+              selectResult();
+              if (copyStatus) copyStatus.textContent = copyFailedLabel;
+            },
+          );
         });
       }
       if (releases) {
