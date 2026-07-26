@@ -68,6 +68,26 @@ def num_str(x):
     return str(int(f)) if f == int(f) else str(f)
 
 
+def _parse_interval(s):
+    """Interval is float-tolerant on reload. score_record writes fractional
+    intervals via num_str whenever doubling or ceiling is fractional, so an
+    int-only guard here rejects them on the next load and silently resets the
+    schedule to 1. Preserve int when integral to match num_str's output.
+
+    nan/inf fall back to 1: float() accepts them, but int(nan) raises
+    ValueError and int(inf) raises OverflowError, and a hand-edited
+    `interval: nan` must not crash load_record."""
+    if s is None:
+        return 1
+    try:
+        v = float(s)
+    except (ValueError, TypeError):
+        return 1
+    if v != v or v == float("inf") or v == float("-inf"):
+        return 1
+    return int(v) if v == int(v) else v
+
+
 def parse_date(s):
     try:
         return date.fromisoformat(s.strip())
@@ -167,11 +187,7 @@ def serialize_frontmatter(fm, raw, body, quotes, changed):
 def load_record(path):
     fm, raw, body, quotes = parse_frontmatter(read_text(path))
     rec = {"path": path, "fm": fm, "raw": raw, "body": body, "quotes": quotes}
-    rec["interval"] = (
-        int(fm["interval"])
-        if "interval" in fm and fm["interval"].lstrip("-").isdigit()
-        else 1
-    )
+    rec["interval"] = _parse_interval(fm.get("interval"))
     rec["lapses"] = (
         int(fm["lapses"])
         if "lapses" in fm and fm["lapses"].lstrip("-").isdigit()
@@ -304,20 +320,39 @@ def delete_ledger_line(notes_text):
     return "\n".join(out)
 
 
+def find_cold_open_comment(html):
+    """Text of the cold-open mapping comment, or None. Reuses check_lesson's
+    DocParser so the structural rule — the comment must sit inside a .cold-open
+    ancestor — is the same one the validator enforces, not a substring scan that
+    latches the first comment containing 'cold-open:' (a stray TODO note matches
+    that and steals the slot from the real mapping)."""
+    from check_lesson import DocParser
+
+    p = DocParser()
+    p.feed(html)
+    p.close()
+    return p.cold_open_comment[1] if p.cold_open_comment else None
+
+
 def parse_cold_open_comment(html):
-    """Return [(pos, record_id), ...] from <!-- cold-open: 1=X 2=Y -->."""
-    pairs = []
-    for m in re.finditer(r"<!--\s*(.*?)\s*-->", html, re.S):
-        text = m.group(1)
-        if "cold-open:" not in text:
-            continue
-        pairs = [(int(n), rid) for n, rid in COLD_OPEN_RE.findall(text)]
-        break
+    """Return [(pos, record_id), ...] from the cold-open mapping comment.
+
+    Positions may appear in any order — cmd_ledger sorts by position when it
+    builds the tests list, so order is not semantically meaningful and an
+    out-of-order comment is not a defect. Sorting here keeps the runtime
+    lenient, matching check_lesson's sorted contiguity check; only gaps and
+    repeats (1,1,3) are rejected."""
+    text = find_cold_open_comment(html)
+    pairs = (
+        [(int(n), rid) for n, rid in COLD_OPEN_RE.findall(text)]
+        if text
+        else []
+    )
     if not pairs:
         raise TeachError(
             1, "no <!-- cold-open: N=ID ... --> comment in lesson"
         )
-    positions = [p for p, _ in pairs]
+    positions = sorted(p for p, _ in pairs)
     if positions != list(range(1, len(pairs) + 1)):
         raise TeachError(
             1,
@@ -417,13 +452,12 @@ def prior_cold_opens(cwd, rec_id):
             html = read_text(p)
         except OSError:
             continue
-        for m in re.finditer(r"<!--\s*(.*?)\s*-->", html, re.S):
-            text = m.group(1)
-            if "cold-open:" in text:
-                for _, rid in COLD_OPEN_RE.findall(text):
-                    if rid == rec_id:
-                        hits.append(os.path.basename(p).split("-")[0])
-                break
+        text = find_cold_open_comment(html)
+        if not text:
+            continue
+        for _, rid in COLD_OPEN_RE.findall(text):
+            if rid == rec_id:
+                hits.append(os.path.basename(p).split("-")[0])
     return sorted(set(hits))
 
 
@@ -745,11 +779,9 @@ def cmd_score(args):
         plan.append(
             (rec, outcome, score_record(rec, outcome, doubling, ceiling))
         )
-    # commit: write records, delete the ledger line — the Stop guard re-arms
-    # itself the next time it sees no open ledger
+    write_text(os.path.join(cwd, "NOTES.md"), delete_ledger_line(notes))
     for rec, _, changed in plan:
         save_record(rec, changed)
-    write_text(os.path.join(cwd, "NOTES.md"), delete_ledger_line(notes))
     for rec, outcome, _ in plan:
         print(
             f"{os.path.basename(rec['path'])}: {outcome} -> "
