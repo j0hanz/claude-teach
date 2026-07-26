@@ -13,6 +13,7 @@ Exit: 0 always for a well-formed event; 2 on usage error (argparse).
 """
 
 import argparse
+import contextlib
 import json
 import os
 import sys
@@ -61,8 +62,11 @@ def event_session_start(cwd):
     ledger = parse_ledger_line(read_notes(cwd))
     t = today()
     due = len(split_records(load_records(cwd))[2])
+    ms = mission_status(cwd)
     mission = (
-        "provisional" if mission_status(cwd) == "provisional" else "settled"
+        "provisional"
+        if ms == "provisional"
+        else ("absent" if ms == "absent" else "settled")
     )
     lines = [
         "teach: workspace live",
@@ -115,7 +119,8 @@ def event_stop(cwd, payload):
         return 0
     if ledger is None:
         if os.path.isfile(guard):
-            os.remove(guard)  # loop closed => re-arm for the next lesson
+            with contextlib.suppress(OSError):
+                os.remove(guard)  # loop closed => re-arm for the next lesson
         return 0
     try:
         last = read_text(guard).strip() if os.path.isfile(guard) else ""

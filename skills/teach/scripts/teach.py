@@ -132,7 +132,7 @@ def _parse_interval(s: str | None) -> int | float:
         v = float(s)
     except (ValueError, TypeError):
         return 1
-    if v != v or v == float("inf") or v == float("-inf"):
+    if v < 1 or v != v or v == float("inf") or v == float("-inf"):
         return 1
     return int(v) if v == int(v) else v
 
@@ -224,12 +224,14 @@ def serialize_frontmatter(
 ) -> str:
     """Re-emit raw byte-for-byte except lines whose key is in `changed`."""
     out = []
+    written: set[str] = set()
     for ln in raw:
         s = ln.strip()
         key = None
         if s and not s.startswith("#") and ":" in s:
             key = s.partition(":")[0].strip()
         if key in changed:
+            written.add(key)
             v = fm[key]
             qs = quotes.get(key)
             vstr = (qs + str(v) + qs) if qs else str(v)
@@ -239,6 +241,11 @@ def serialize_frontmatter(
             out.append(line)
         else:
             out.append(ln)
+    for key in sorted(changed - written):
+        v = fm[key]
+        qs = quotes.get(key)
+        vstr = (qs + str(v) + qs) if qs else str(v)
+        out.append(f"{key}: {vstr}")
     return "\n".join(["---"] + out + ["---"]) + "\n" + body
 
 
