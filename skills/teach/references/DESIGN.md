@@ -10,11 +10,12 @@ Maintainable split — spec here, code as real file skill copy:
 
 | File                                                                  | Role                           | Copied into workspace as |
 | --------------------------------------------------------------------- | ------------------------------ | ------------------------ |
-| [`templates/assets/styles.css`](../../../templates/assets/styles.css) | Canonical stylesheet           | `assets/styles.css`      |
+| [`templates/assets/roots.css`](../../../templates/assets/roots.css)   | Root variables                 | `assets/roots.css`       |
+| [`templates/assets/styles.css`](../../../templates/assets/styles.css) | Screen and print rules         | `assets/styles.css`      |
 | [`templates/assets/quiz.js`](../../../templates/assets/quiz.js)       | Reusable quiz widget           | `assets/quiz.js`         |
 | [`templates/lesson.html`](../../../templates/lesson.html)             | Lesson skeleton (placeholders) | `lessons/NNNN-slug.html` |
 
-Edit template; don't fork per lesson. Lesson fill `{{placeholders}}` in skeleton, link two `assets/` file — nothing more.
+Edit template; don't fork per lesson. Lesson fill `{{placeholders}}` in skeleton, link three local `assets/` file — nothing more.
 
 ## Direction
 
@@ -28,29 +29,25 @@ Voice: dropped-article style throughout this skill deliberate, load-bearing — 
 
 Name and role only — no value here, on purpose. Value drift when restated.
 
-| Token        | Role                                  |
-| ------------ | ------------------------------------- |
-| `--paper`    | ash page surface                      |
-| `--paper-2`  | white panels, cold-open field, code   |
-| `--ink`      | graphite body text                    |
-| `--ink-soft` | secondary text, marginalia            |
-| `--rule`     | hairlines                             |
-| `--rule-2`   | control boundaries (quiz options)     |
-| `--accent`   | cobalt — gate, correct, links         |
-| `--accent-2` | deep cobalt — hover, secondary marks  |
-| `--wrong`    | wrong (muted brick, never alarm-red)  |
-| `--serif`    | body face (sustained reading)         |
-| `--sans`     | labels and marginalia face            |
-| `--mono`     | code and result-line face             |
-| `--fs-1`…`7` | type ladder, small to large           |
-| `--track`    | tracking every uppercase label shares |
-| `--s-1`…`9`  | space ladder — margins and padding    |
-| `--measure`  | body line length                      |
-| `--margin-w` | sidenote column width                 |
-| `--gutter`   | body ↔ margin gap                     |
-| `--radius`   | corner radius, controls and code      |
-| `--tap`      | minimum touch target (44px)           |
-| `--tint`     | state wash strength over `--paper`    |
+| Token        | Role                                 |
+| ------------ | ------------------------------------ |
+| `--paper`    | ash page surface                     |
+| `--paper-2`  | white panels, cold-open field, code  |
+| `--ink`      | graphite body text                   |
+| `--ink-soft` | secondary text, marginalia           |
+| `--rule`     | hairlines                            |
+| `--rule-2`   | control boundaries (quiz options)    |
+| `--accent`   | cobalt — gate, correct, links        |
+| `--accent-2` | deep cobalt — hover, secondary marks |
+| `--wrong`    | wrong (muted brick, never alarm-red) |
+| `--serif`    | body face (sustained reading)        |
+| `--sans`     | labels and marginalia face           |
+| `--mono`     | code and result-line face            |
+| `--s-1`…`7`  | space ladder — margins and padding   |
+| `--measure`  | body line length                     |
+| `--margin-w` | sidenote column width                |
+| `--radius`   | corner radius, controls and code     |
+| `--tap`      | minimum touch target (44px)          |
 
 Why these token, not others:
 
@@ -58,16 +55,16 @@ Why these token, not others:
 - **`--measure` bound line length** for sustained reading. Width typographic decision, not layout accident — body column past ~36rem stop being read, start being scanned.
 - **`--margin-w` earn its width** because every claim cite. Citation live beside claim as sidenote, not bunch as inline footnote bomb. Margin structural, not decorative.
 - **`--wrong` muted oxblood, never alarm-red.** Wrong answer teaching signal, not emergency. Red shout; oxblood correct quiet, keep page calm.
-- **Two ladder, not free value.** Every size and gap come off `--fs-*` or `--s-*`, so panel inset and prose beside it can't land sixteenth of rem apart. Rung ranked, never named for component that reach for one first — `--fs-eyebrow` one reuse away from lying. Value wanted in two rule is token, or value that drift.
+- **One space ladder, not free value.** Structural gap come off `--s-*`; rare quarter-rem optical adjustment stay beside component it tune. Type size live at use — page has few roles, named ladder hide more than it help.
 - **`--rule-2` exist because `--rule` too faint to be edge.** Hairline separate; control boundary must be _found_. Quiz option border only thing saying "this is clickable", `--rule` sit near 1.5:1 on paper — under 3:1 control boundary owe. Two token, two job; never use `--rule` on interactive edge.
 
-Token value live in [`templates/assets/styles.css`](../../../templates/assets/styles.css) `:root` — single source. Edit there; never restate value here.
+Token value live in [`templates/assets/roots.css`](../../../templates/assets/roots.css) `:root` — single source. Edit there; never restate value here.
 
 ## Layout
 
-Body column (`--measure`) + sidenote column (`--margin-w`), gutter between. `.lesson` take `width: fit-content`, not restated `max-width`: track fixed length, so shrink-to-fit exactly both column plus gutter plus element own padding — can't drift from token. Hand-written `max-width` that forget `box-sizing: border-box` count padding, hang margin column outside block, push whole composition off centre. Everything default into body column; sidenote and `.full` opt out. Hairline separate, never box. Sidenote sit right after paragraph that cite it — grid auto-placement land it column 2 same row, beside own claim. Narrow screen collapse below.
+Body column (`--measure`) + sidenote column (`--margin-w`), fixed gap between. `.lesson` take `width: fit-content`, not restated `max-width`: track fixed length, so shrink-to-fit exactly both column plus gap plus element own padding — can't drift from token. Hand-written `max-width` that forget `box-sizing: border-box` count padding, hang margin column outside block, push whole composition off centre. Everything default into body column; sidenote and `.full` opt out. Hairline separate, never box. Sidenote sit right after paragraph that cite it — grid auto-placement land it column 2 same row, beside own claim. Narrow screen collapse below.
 
-Sidenote live **inside** `.lesson-content`, not after. Two reason, both load-bearing: outside sealed wrapper they read plain while gate shut (citation text leak lesson); and — since sealed wrapper single grid item holding whole body — sidenote outside can only stack below entire lesson, never beside paragraph. So `.lesson-content` span both column, take `grid-template-columns: subgrid`, re-expose parent two column to paragraph and sidenote nested in it. Where subgrid unsupported, `@supports not` block block the wrapper, body fall back to one column with sidenote inline below anchor — narrow-screen layout, degradation not break. That fallback must be asked for. Left alone, dropped `subgrid` leave one explicit column, `grid-column: 2` open _implicit_ second track: note beside paragraph at whatever width it take, no gutter (`column-gap` on `.lesson`, not wrapper), body squeeze. Not documented degradation — collision.
+Sidenote live **inside** `.lesson-content`, not after. Two reason, both load-bearing: outside sealed wrapper they read plain while gate shut (citation text leak lesson); and — since sealed wrapper single grid item holding whole body — sidenote outside can only stack below entire lesson, never beside paragraph. So `.lesson-content` span both column, take `grid-template-columns: subgrid`, re-expose parent two column to paragraph and sidenote nested in it. Where subgrid unsupported, `@supports not` block block the wrapper, body fall back to one column with sidenote inline below anchor — narrow-screen layout, degradation not break. That fallback must be asked for. Left alone, dropped `subgrid` leave one explicit column, `grid-column: 2` open _implicit_ second track: note beside paragraph at whatever width it take, no gap (`column-gap` on `.lesson`, not wrapper), body squeeze. Not documented degradation — collision.
 
 ## Signature — the retrieval gate
 
@@ -130,7 +127,7 @@ Quiet on purpose: faint veil, cobalt rule, small uppercase label. No confetti, n
 - `python "${CLAUDE_PLUGIN_ROOT}/skills/teach/scripts/check_lesson.py" <lesson-path>` — validate generated lesson for conformance (quiz structure, offline no-remote-refs, a11y static check). Step 6 of [SKILL.md](../SKILL.md) run this on every lesson before opening it.
 - `python "${CLAUDE_PLUGIN_ROOT}/skills/teach/scripts/check_lesson.py" --type=reference <path>` — same for reference document; skip quiz and cold-open rule.
 
-Shared assets carry a `teach-template-version` stamp. Bump both asset stamps on a release that requires copied workspace assets to change; `teach.py state` reports a stale copy (detect-only; never overwrite per-workspace topic component). This validator only checks document contract.
+Shared assets carry a `teach-template-version` stamp. Bump every shared asset stamp on a release that requires copied workspace assets to change; `teach.py state` reports a stale copy (detect-only; never overwrite per-workspace topic component). This validator only checks document contract.
 
 Static subset (quiz structure, offline, a11y) machine-enforced here. Non-static concern (result-line shape, print layout, motion) enforced by template-as-source, not this script.
 

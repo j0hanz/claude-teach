@@ -717,9 +717,11 @@ def asset_status(cwd: str) -> list[tuple[str, str]]:
 
     assets_dir = os.path.join(cwd, "assets")
     out = []
-    for name in ("styles.css", "quiz.js"):
+    for name in ("roots.css", "styles.css", "quiz.js"):
         ws = os.path.join(assets_dir, name)
         if not os.path.isfile(ws):
+            if name == "roots.css":
+                out.append((name, "STALE (missing) — copy the template"))
             continue
         tmpl = os.path.join(TEMPLATES_DIR, "assets", name)
         try:
@@ -907,12 +909,13 @@ def build_index(cwd: str) -> str:
     resume = resume_section(cwd)
     if not lessons and not resume:
         raise TeachError(1, "no lessons yet — nothing to index")
-    if not os.path.isfile(os.path.join(cwd, "assets", "styles.css")):
-        raise TeachError(
-            1,
-            "assets/styles.css missing — copy templates/assets/styles.css "
-            "into assets/ first",
-        )
+    for name in ("roots.css", "styles.css"):
+        if not os.path.isfile(os.path.join(cwd, "assets", name)):
+            raise TeachError(
+                1,
+                f"assets/{name} missing — copy templates/assets/{name} "
+                "into assets/ first",
+            )
     reference = sorted(glob.glob(os.path.join(cwd, "reference", "*.html")))
 
     t = today()
@@ -931,6 +934,7 @@ def build_index(cwd: str) -> str:
         '  <meta charset="utf-8">',
         '  <meta name="viewport" content="width=device-width, initial-scale=1">',
         f"  <title>{esc(_topic(cwd))} — course</title>",
+        '  <link rel="stylesheet" href="assets/roots.css">',
         '  <link rel="stylesheet" href="assets/styles.css">',
         "</head>",
         "<body>",

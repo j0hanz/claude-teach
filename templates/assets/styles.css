@@ -1,54 +1,4 @@
-/* teach-template-version: 4 */
-:root {
-  color-scheme: light;
-  --paper: #edf1ee;
-  --paper-2: #fbfcfa;
-  --ink: #17231e;
-  --ink-soft: #5c6a62;
-  --rule: #c8d1ca;
-  --rule-2: #6c7b72;
-  --accent: #0d5a7a;
-  --accent-2: #08435d;
-  --wrong: #a84540;
-  --serif: 'Iowan Old Style', 'Palatino Linotype', 'Book Antiqua', Palatino, Georgia, serif;
-  --sans: Aptos, 'Segoe UI Variable', 'Segoe UI', system-ui, sans-serif;
-  --mono: 'SF Mono', 'Cascadia Code', 'JetBrains Mono', ui-monospace, Consolas, monospace;
-  --fs-1: 0.75rem;
-  --fs-2: 0.875rem;
-  --fs-3: clamp(1rem, 0.95rem + 0.4vw, 1.125rem);
-  --fs-4: clamp(1.125rem, 1.05rem + 0.5vw, 1.25rem);
-  --fs-5: clamp(1.25rem, 1.1rem + 0.8vw, 1.45rem);
-  --fs-6: clamp(1.55rem, 1.3rem + 1vw, 1.9rem);
-  --fs-7: clamp(2.5rem, 2rem + 2.4vw, 4rem);
-  --track: 0.12em;
-  --s-1: 0.25rem;
-  --s-2: 0.5rem;
-  --s-3: 0.75rem;
-  --s-4: 1rem;
-  --s-5: 1.5rem;
-  --s-6: 2rem;
-  --s-7: 3rem;
-  --s-8: 4rem;
-  --s-9: 6rem;
-  --measure: clamp(34rem, 29rem + 12vw, 44rem);
-  --margin-w: clamp(12rem, 10rem + 5vw, 17rem);
-  --gutter: var(--s-7);
-  --radius: 0.25rem;
-  --tap: 2.75rem;
-  --tint: 8%;
-  --lh-tight: 1.45;
-  --dur-seal: 0.2s;
-  --dur-control: 0.18s;
-  --dur-soft: 0.22s;
-  --dur-press: 0.14s;
-  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
-  --transition-control:
-    transform var(--dur-press) var(--ease-out), border-color var(--dur-control) var(--ease-out),
-    background var(--dur-control) var(--ease-out), color var(--dur-control) var(--ease-out);
-  --blur-seal: 0.18rem;
-  --shadow: 0 1px 0 rgba(23, 35, 30, 0.08), 0 12px 26px -22px rgba(23, 35, 30, 0.44);
-  --hi: inset 0 1px 0 rgba(255, 255, 255, 0.9);
-}
+/* teach-template-version: 7 */
 
 /* Base */
 *,
@@ -67,7 +17,7 @@ body {
   background: linear-gradient(#f7f9f6 0, var(--paper) 15rem);
   color: var(--ink);
   font-family: var(--serif);
-  font-size: var(--fs-3);
+  font-size: clamp(1rem, 0.95rem + 0.4vw, 1.125rem);
   line-height: 1.68;
   font-variant-numeric: oldstyle-nums;
   -webkit-font-smoothing: antialiased;
@@ -80,10 +30,10 @@ body {
   width: fit-content;
   max-width: calc(100% - 2 * var(--s-3));
   margin: 0 auto;
-  padding: var(--s-8) var(--s-6) var(--s-9);
+  padding: var(--s-6) var(--s-4) var(--s-7);
   display: grid;
   grid-template-columns: var(--measure) var(--margin-w);
-  column-gap: var(--gutter);
+  column-gap: var(--s-5);
 }
 
 .lesson::before {
@@ -91,7 +41,7 @@ body {
   grid-column: 1 / -1;
   width: min(15rem, 45%);
   height: 0.375rem;
-  margin-bottom: var(--s-7);
+  margin-bottom: var(--s-5);
   background: var(--accent);
 }
 
@@ -133,16 +83,16 @@ h4 {
 }
 
 h1 {
-  font-size: var(--fs-7);
+  font-size: clamp(2.5rem, 2rem + 2.4vw, 4rem);
   letter-spacing: 0;
   margin-bottom: var(--s-2);
 }
 
 h2 {
-  font-size: var(--fs-6);
+  font-size: clamp(1.55rem, 1.3rem + 1vw, 1.9rem);
   letter-spacing: 0;
-  margin: var(--s-8) 0 var(--s-4);
-  padding-top: var(--s-4);
+  margin: var(--s-6) 0 var(--s-2);
+  padding-top: var(--s-2);
   border-top: 2px solid var(--ink);
 }
 
@@ -154,18 +104,18 @@ h2:first-of-type {
 
 /* Content */
 h3 {
-  font-size: var(--fs-4);
-  margin: var(--s-6) 0 var(--s-3);
+  font-size: clamp(1.125rem, 1.05rem + 0.5vw, 1.25rem);
+  margin: var(--s-4) 0 var(--s-2);
 }
 
 p {
-  margin: 0 0 var(--s-4);
+  margin: 0 0 var(--s-2);
 }
 
 .lead {
-  font-size: var(--fs-5);
-  line-height: var(--lh-tight);
-  margin: 0 0 var(--s-6);
+  font-size: clamp(1.25rem, 1.1rem + 0.8vw, 1.45rem);
+  line-height: 1.45;
+  margin: 0 0 var(--s-4);
   color: var(--ink);
 }
 
@@ -176,9 +126,9 @@ p {
 .quiz-undo,
 .quiz-copy {
   font-family: var(--sans);
-  font-size: var(--fs-1);
+  font-size: 0.75rem;
   font-weight: 700;
-  letter-spacing: var(--track);
+  letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--accent);
   font-variant-numeric: lining-nums;
@@ -195,15 +145,15 @@ pre {
   border: 1px solid var(--rule);
   border-inline-start: 4px solid var(--accent);
   border-radius: var(--radius);
-  padding: var(--s-4) var(--s-5);
+  padding: var(--s-2) var(--s-3);
   overflow-x: auto;
   line-height: 1.5;
-  margin: var(--s-5) 0;
-  box-shadow: var(--hi);
+  margin: var(--s-3) 0;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
 }
 
 :not(pre) > code {
-  background: color-mix(in srgb, var(--accent) var(--tint), var(--paper-2));
+  background: color-mix(in srgb, var(--accent) 8%, var(--paper-2));
   padding: 0.12em 0.4em;
   border-radius: var(--radius);
 }
@@ -258,8 +208,8 @@ a.cite:hover {
 
 .sidenote {
   border-inline-start: 2px solid var(--accent);
-  padding-inline-start: var(--s-3);
-  margin: 0 0 var(--s-5);
+  padding-inline-start: var(--s-2);
+  margin: 0 0 var(--s-3);
 }
 
 .sidenote,
@@ -267,8 +217,8 @@ a.cite:hover {
 .quiz-progress,
 .quiz-copy-status {
   font-family: var(--sans);
-  font-size: var(--fs-2);
-  line-height: var(--lh-tight);
+  font-size: 0.875rem;
+  line-height: 1.45;
   color: var(--ink-soft);
 }
 
@@ -280,10 +230,13 @@ a.cite:hover {
   border: 1px solid var(--rule);
   border-top: 4px solid var(--accent);
   border-radius: var(--radius);
-  padding: var(--s-6) var(--s-6) var(--s-7);
-  margin: var(--s-7) 0;
-  box-shadow: var(--shadow), var(--hi);
-  transition: border-color var(--dur-soft) var(--ease-out);
+  padding: var(--s-4) var(--s-4) var(--s-5);
+  margin: var(--s-5) 0;
+  box-shadow:
+    0 1px 0 rgba(23, 35, 30, 0.08),
+    0 12px 26px -22px rgba(23, 35, 30, 0.44),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  transition: border-color 0.18s var(--ease-out);
 }
 
 .cold-open:focus-within {
@@ -291,10 +244,10 @@ a.cite:hover {
 }
 
 .cold-open h2 {
-  font-size: var(--fs-5);
+  font-size: clamp(1.25rem, 1.1rem + 0.8vw, 1.45rem);
   border-top: 0;
   padding-top: 0;
-  margin: var(--s-2) 0 var(--s-5);
+  margin: var(--s-1) 0 var(--s-3);
 }
 
 .cold-open > * {
@@ -306,7 +259,7 @@ a.cite:hover {
 }
 
 .seal-note {
-  margin: var(--s-5) 0 0;
+  margin: var(--s-3) 0 0;
 }
 
 .lesson-content::after {
@@ -316,21 +269,21 @@ a.cite:hover {
   inset: 0;
   display: grid;
   place-items: start center;
-  padding-top: var(--s-6);
+  padding-top: var(--s-4);
   font-family: var(--sans);
-  font-size: var(--fs-2);
+  font-size: 0.875rem;
   font-weight: 700;
-  letter-spacing: var(--track);
+  letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--accent-2);
   background: linear-gradient(var(--paper), color-mix(in srgb, var(--paper) 70%, transparent) 48%);
-  -webkit-backdrop-filter: blur(var(--blur-seal));
-  backdrop-filter: blur(var(--blur-seal));
+  -webkit-backdrop-filter: blur(0.18rem);
+  backdrop-filter: blur(0.18rem);
   opacity: 0;
   visibility: hidden;
   transition:
-    opacity var(--dur-seal) var(--ease-out),
-    visibility 0s var(--dur-seal);
+    opacity 0.18s var(--ease-out),
+    visibility 0s 0.18s;
 }
 
 .lesson-content[data-seal-label]::after {
@@ -345,7 +298,7 @@ a.cite:hover {
 .lesson-content.sealed::after {
   opacity: 1;
   visibility: visible;
-  transition: opacity var(--dur-seal) var(--ease-out);
+  transition: opacity 0.18s var(--ease-out);
 }
 
 @supports not (backdrop-filter: blur(1px)) {
@@ -359,15 +312,15 @@ a.cite:hover {
 
 /* Quiz */
 .quiz {
-  margin: var(--s-5) 0;
+  margin: var(--s-3) 0;
 }
 
 .quiz-progress {
-  margin: 0 0 var(--s-3);
+  margin: 0 0 var(--s-2);
 }
 
 .quiz-copy-status {
-  margin: var(--s-2) 0 0;
+  margin: var(--s-1) 0 0;
 }
 
 .quiz-copy-status:empty {
@@ -375,7 +328,7 @@ a.cite:hover {
 }
 
 .quiz-item {
-  margin: 0 0 var(--s-5);
+  margin: 0 0 var(--s-3);
 }
 
 .quiz > .quiz-item:last-of-type {
@@ -384,7 +337,7 @@ a.cite:hover {
 
 .quiz-q {
   font-weight: 700;
-  margin: 0 0 var(--s-3);
+  margin: 0 0 var(--s-2);
 }
 
 .quiz-options {
@@ -393,7 +346,7 @@ a.cite:hover {
   margin: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--s-2);
+  gap: var(--s-1);
   counter-reset: option;
 }
 
@@ -406,19 +359,23 @@ a.cite:hover {
   font: inherit;
   text-align: left;
   display: grid;
-  grid-template-columns: var(--quiz-option-marker) minmax(0, 1fr) var(--s-4);
-  gap: var(--s-2);
+  grid-template-columns: var(--quiz-option-marker) minmax(0, 1fr) var(--s-2);
+  gap: var(--s-1);
   align-items: center;
   width: 100%;
   min-height: var(--tap);
-  padding: var(--s-2) var(--s-4);
+  padding: var(--s-1) var(--s-2);
   overflow-wrap: anywhere;
   background: var(--paper-2);
   color: var(--ink);
   border: 1px solid var(--rule-2);
   border-radius: var(--radius);
   cursor: pointer;
-  transition: var(--transition-control);
+  transition:
+    transform 0.18s var(--ease-out),
+    border-color 0.18s var(--ease-out),
+    background 0.18s var(--ease-out),
+    color 0.18s var(--ease-out);
 }
 
 .quiz-btn::before {
@@ -432,7 +389,7 @@ a.cite:hover {
   border-radius: 50%;
   color: var(--accent-2);
   font-family: var(--sans);
-  font-size: var(--fs-1);
+  font-size: 0.75rem;
   font-weight: 700;
   line-height: 1;
 }
@@ -450,7 +407,7 @@ a.cite:hover {
 /* Quiz state mirrors the attributes quiz.js owns. */
 .quiz-btn[data-state] {
   border-color: var(--state);
-  background: color-mix(in srgb, var(--state) var(--tint), var(--paper-2));
+  background: color-mix(in srgb, var(--state) 8%, var(--paper-2));
 }
 
 .quiz-btn[data-state]::after {
@@ -479,18 +436,22 @@ a.cite:hover {
 .quiz-undo,
 .quiz-copy {
   min-height: var(--tap);
-  margin-top: var(--s-2);
-  padding: var(--s-2) var(--s-4);
+  margin-top: var(--s-1);
+  padding: var(--s-1) var(--s-2);
   border-radius: var(--radius);
   cursor: pointer;
-  transition: var(--transition-control);
+  transition:
+    transform 0.18s var(--ease-out),
+    border-color 0.18s var(--ease-out),
+    background 0.18s var(--ease-out),
+    color 0.18s var(--ease-out);
 }
 
 .quiz-undo {
   background: transparent;
   color: var(--accent-2);
   border: 1px solid var(--rule-2);
-  min-width: var(--s-9);
+  min-width: var(--s-7);
 }
 
 .quiz-copy {
@@ -499,9 +460,12 @@ a.cite:hover {
   border: 1px solid var(--accent);
   opacity: 1;
   transition:
-    var(--transition-control),
-    opacity var(--dur-control) var(--ease-out),
-    display var(--dur-control) allow-discrete;
+    transform 0.18s var(--ease-out),
+    border-color 0.18s var(--ease-out),
+    background 0.18s var(--ease-out),
+    color 0.18s var(--ease-out),
+    opacity 0.18s var(--ease-out),
+    display 0.18s allow-discrete;
 }
 
 .quiz-copy[hidden] {
@@ -517,21 +481,21 @@ a.cite:hover {
 
 .quiz-fb {
   font-family: var(--sans);
-  font-size: var(--fs-2);
+  font-size: 0.875rem;
   color: var(--ink-soft);
-  margin: var(--s-2) 0 0;
+  margin: var(--s-1) 0 0;
 }
 
 .quiz-result {
   font-family: var(--mono);
-  font-size: var(--fs-2);
-  margin-top: var(--s-5);
-  padding: var(--s-3) var(--s-4);
+  font-size: 0.875rem;
+  margin-top: var(--s-3);
+  padding: var(--s-2);
   background: color-mix(in srgb, var(--accent) 7%, var(--paper-2));
   border: 1px solid var(--rule-2);
   border-radius: var(--radius);
   opacity: 1;
-  transition: opacity var(--dur-control) var(--ease-out);
+  transition: opacity 0.18s var(--ease-out);
 }
 
 .quiz-fb:empty,
@@ -550,17 +514,17 @@ a.cite:hover {
   grid-column: 1 / -1;
   display: flex;
   flex-wrap: wrap;
-  gap: var(--s-2) var(--s-5);
+  gap: var(--s-1) var(--s-3);
   align-items: baseline;
-  margin: var(--s-3) 0 var(--s-7);
-  padding: 0 0 var(--s-3);
+  margin: var(--s-2) 0 var(--s-5);
+  padding: 0 0 var(--s-2);
   border-bottom: 1px solid var(--rule);
 }
 
 .toc-list {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--s-2) var(--s-5);
+  gap: var(--s-1) var(--s-3);
   align-items: baseline;
   list-style: none;
   padding: 0;
@@ -571,23 +535,23 @@ a.cite:hover {
   color: var(--ink-soft);
   text-decoration: none;
   font-variant-numeric: lining-nums;
-  padding: var(--s-1) 0;
+  padding: 0.25rem 0;
 }
 
 .lesson-nav {
   grid-column: 1 / -1;
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: var(--gutter);
-  margin: var(--s-8) 0 0;
-  padding-top: var(--s-5);
+  gap: var(--s-5);
+  margin: var(--s-6) 0 0;
+  padding-top: var(--s-3);
   border-top: 2px solid var(--ink);
 }
 
 .lesson-nav-cell {
   display: flex;
   flex-direction: column;
-  gap: var(--s-1);
+  gap: 0.25rem;
   min-width: 0;
 }
 
@@ -598,7 +562,7 @@ a.cite:hover {
 
 .lesson-nav-link {
   font-family: var(--serif);
-  font-size: var(--fs-4);
+  font-size: clamp(1.125rem, 1.05rem + 0.5vw, 1.25rem);
   color: var(--accent);
   text-decoration: none;
   word-break: break-word;
@@ -661,22 +625,22 @@ a.cite:hover {
 
   .lesson {
     width: auto;
-    padding: var(--s-7) var(--s-5) var(--s-8);
+    padding: var(--s-5) var(--s-3) var(--s-6);
   }
 
   .lesson::before {
     display: block;
     width: 9rem;
-    margin-bottom: var(--s-6);
+    margin-bottom: var(--s-4);
   }
 
   .sidenote {
-    margin: calc(-1 * var(--s-2)) 0 var(--s-5);
+    margin: calc(-1 * var(--s-1)) 0 var(--s-3);
   }
 
   .cold-open {
-    padding: var(--s-5);
-    margin: var(--s-6) 0 var(--s-7);
+    padding: var(--s-3);
+    margin: var(--s-4) 0 var(--s-5);
   }
 
   h1 {
@@ -685,7 +649,7 @@ a.cite:hover {
 
   .lesson-nav {
     grid-template-columns: 1fr;
-    gap: var(--s-4);
+    gap: var(--s-2);
   }
 
   .lesson-nav-cell.next {
@@ -725,21 +689,6 @@ a.cite:hover {
 
 /* Print */
 @media print {
-  :root {
-    color-scheme: light;
-    --paper: #fff;
-    --paper-2: #fff;
-    --ink: #111;
-    --ink-soft: #4f4f4f;
-    --rule: #b8b8b8;
-    --rule-2: #666;
-    --accent: #174f69;
-    --accent-2: #174f69;
-    --wrong: #7d302c;
-    --shadow: none;
-    --hi: none;
-  }
-
   body {
     background: var(--paper);
   }
@@ -770,15 +719,16 @@ a.cite:hover {
     user-select: auto;
   }
 
-  .cold-open > * {
-    max-width: none;
-  }
-
   .cold-open {
     box-shadow: none;
   }
 
+  .cold-open > * {
+    max-width: none;
+  }
+
   .quiz-btn {
+    display: inline;
     width: auto;
     min-height: 0;
     padding: 0;
@@ -788,37 +738,28 @@ a.cite:hover {
   }
 
   .quiz-btn::before {
-    position: static;
     display: inline;
     width: auto;
     height: auto;
     margin-right: 0.5em;
     border: 0;
-    transform: none;
   }
 
   .quiz-options {
     display: block;
     list-style: disc;
-    padding-left: var(--s-5);
-  }
-
-  .quiz-options > li {
-    display: list-item;
+    padding-left: var(--s-3);
   }
 
   .quiz-btn[data-state]::after {
-    position: static;
     margin-left: 0.5em;
-    transform: none;
   }
 
   .sidenote {
-    display: block;
     border-inline-start: 0;
     padding-inline-start: 0;
-    margin: var(--s-1) 0 var(--s-4);
-    font-size: var(--fs-1);
+    margin: 0.25rem 0 var(--s-2);
+    font-size: 0.75rem;
   }
 
   .sidenote a[href]::after {
