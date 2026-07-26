@@ -582,6 +582,18 @@ def verify(type_, parser, css_blocks, html_dir, self_mode=False, html_name=""):
                                 f"with no gaps or repeats",
                             )
                         )
+                    elif len({rid for _, rid in pairs}) != len(pairs):
+                        errors.append(
+                            (
+                                cline,
+                                "cold-open-comment-duplicate",
+                                "comment maps one learning record to more "
+                                "than one position; a cold open tests one "
+                                "item per record, and scoring would write "
+                                "that record twice keeping only the last "
+                                "outcome",
+                            )
+                        )
     return errors
 
 

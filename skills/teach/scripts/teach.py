@@ -340,8 +340,9 @@ def parse_cold_open_comment(html):
     Positions may appear in any order — cmd_ledger sorts by position when it
     builds the tests list, so order is not semantically meaningful and an
     out-of-order comment is not a defect. Sorting here keeps the runtime
-    lenient, matching check_lesson's sorted contiguity check; only gaps and
-    repeats (1,1,3) are rejected."""
+    lenient, matching check_lesson's sorted contiguity check. Position gaps
+    and repeats (1,1,3) are rejected, and so is one record id appearing at
+    two positions — scoring would write that record twice."""
     text = find_cold_open_comment(html)
     pairs = (
         [(int(n), rid) for n, rid in COLD_OPEN_RE.findall(text)]
@@ -358,6 +359,17 @@ def parse_cold_open_comment(html):
             1,
             f"cold-open positions {positions} must be 1..{len(pairs)} "
             f"contiguous",
+        )
+    ids = [rid for _, rid in pairs]
+    dupes = sorted({r for r in ids if ids.count(r) > 1})
+    if dupes:
+        raise TeachError(
+            1,
+            f"cold-open comment maps {', '.join(dupes)} to more than one "
+            f"position; a cold open tests one learning record per item, and "
+            f"scoring would write that record twice keeping only the last "
+            f"outcome. Fix the lesson's cold-open comment and quiz, then "
+            f"re-run ledger.",
         )
     return pairs
 
