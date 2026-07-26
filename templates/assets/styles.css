@@ -6,8 +6,8 @@
   --ink-soft: #9a9ba0;
   --rule: #262a31;
   --rule-2: #6e747c;
-  --accent: #e0a44a;
-  --accent-2: #c98a36;
+  --accent: #b4bd83;
+  --accent-2: #879358;
   --wrong: #c8625a;
   --serif: 'Iowan Old Style', 'Palatino Linotype', 'Book Antiqua', Palatino, Georgia, serif;
   --sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
@@ -40,9 +40,10 @@
   --tap: 2.75rem;
   --tint: 12%;
   --lh-tight: 1.45;
-  --dur-seal: 0.6s;
+  --dur-seal: 0.24s;
   --dur-control: 0.18s;
   --dur-soft: 0.22s;
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   --blur-seal: 0.3rem;
   --shadow: 0 1px 2px rgba(0, 0, 0, 0.35), 0 8px 22px -10px rgba(0, 0, 0, 0.5);
   --hi: inset 0 1px 0 rgba(255, 255, 255, 0.045);
@@ -185,9 +186,6 @@ a {
   text-underline-offset: 0.2em;
   text-decoration-thickness: 1px;
 }
-a:hover {
-  text-decoration-thickness: 2px;
-}
 a:focus-visible,
 .quiz-btn:focus-visible,
 .quiz-undo:focus-visible,
@@ -232,17 +230,18 @@ a.cite:hover {
   margin: 0 0 var(--s-6);
 }
 
-/* Cold open — the raised threshold panel. Elevation + hairline frame mark the
-   gate; the amber eyebrow carries the accent, not a colored bar. */
+/* Cold open — the raised threshold panel. Elevation, moss rule, and hairline
+  frame mark the gate. */
 .cold-open {
   grid-column: 1 / -1;
   background: var(--paper-2);
   border: 1px solid var(--rule);
+  border-inline-start: 3px solid var(--accent);
   border-radius: var(--radius);
   padding: var(--s-7);
   margin: var(--s-8) 0 var(--s-9);
   box-shadow: var(--shadow), var(--hi);
-  transition: border-color var(--dur-soft) ease;
+  transition: border-color var(--dur-soft) var(--ease-out);
 }
 .cold-open:focus-within {
   border-color: color-mix(in srgb, var(--rule-2) 60%, var(--accent-2));
@@ -297,7 +296,7 @@ a.cite:hover {
   opacity: 0;
   visibility: hidden;
   transition:
-    opacity var(--dur-seal) ease,
+    opacity var(--dur-seal) var(--ease-out),
     visibility 0s var(--dur-seal);
 }
 
@@ -311,7 +310,7 @@ a.cite:hover {
 .lesson-content.sealed::after {
   opacity: 1;
   visibility: visible;
-  transition: opacity var(--dur-seal) ease;
+  transition: opacity var(--dur-seal) var(--ease-out);
 }
 
 @supports not (backdrop-filter: blur(1px)) {
@@ -361,7 +360,7 @@ a.cite:hover {
   gap: var(--s-2);
 }
 /* Option chips read as fields inset into the raised gate: page-colour fill on
-   the panel, 3:1 boundary so the edge is found, amber on hover. */
+  the panel, 3:1 boundary so the edge is found, moss on hover. */
 .quiz-btn {
   font: inherit;
   text-align: left;
@@ -376,31 +375,40 @@ a.cite:hover {
   min-height: var(--tap);
   cursor: pointer;
   transition:
-    border-color var(--dur-control) ease,
-    background var(--dur-control) ease;
+    transform 0.14s var(--ease-out),
+    border-color var(--dur-control) var(--ease-out),
+    background var(--dur-control) var(--ease-out);
 }
 
-.quiz-item:not([data-pending], [data-answered]) .quiz-btn:hover {
-  border-color: var(--accent-2);
+.quiz-btn:not([aria-disabled='true']):active,
+.quiz-undo:active,
+.quiz-copy:active {
+  transform: scale(0.97);
 }
-@media (hover: none) {
-  /* Touch devices cannot "unhover"; without this guard a tap on a quiz option
-     leaves a sticky-out border after the tap target lifted. */
+
+@media (hover: hover) and (pointer: fine) {
+  a:hover {
+    text-decoration-thickness: 2px;
+  }
   .quiz-item:not([data-pending], [data-answered]) .quiz-btn:hover {
-    border-color: var(--rule-2);
+    border-color: var(--accent-2);
   }
   .quiz-undo:hover,
   .quiz-copy:hover {
-    background: inherit;
-    border-color: inherit;
-    color: inherit;
+    color: var(--ink);
+    border-color: var(--ink-soft);
   }
   .quiz-copy:hover {
-    background: var(--accent);
+    background: color-mix(in srgb, var(--accent) 85%, #fff);
     color: var(--paper);
+    border-color: transparent;
   }
-  a:hover {
-    text-decoration-thickness: 1px;
+  .toc a:hover {
+    color: var(--ink);
+  }
+  .lesson-nav-link:hover {
+    text-decoration: underline;
+    text-underline-offset: 0.22em;
   }
 }
 .quiz-item:is([data-pending], [data-answered]) .quiz-btn {
@@ -444,9 +452,10 @@ a.cite:hover {
   border-radius: var(--radius-2);
   cursor: pointer;
   transition:
-    border-color var(--dur-control) ease,
-    background var(--dur-control) ease,
-    color var(--dur-control) ease;
+    transform 0.14s var(--ease-out),
+    border-color var(--dur-control) var(--ease-out),
+    background var(--dur-control) var(--ease-out),
+    color var(--dur-control) var(--ease-out);
 }
 .quiz-undo {
   background: none;
@@ -454,20 +463,12 @@ a.cite:hover {
   border: 1px solid var(--rule-2);
   min-width: 5.75rem;
 }
-.quiz-undo:hover {
-  color: var(--ink);
-  border-color: var(--ink-soft);
-}
 .quiz-copy {
   background: var(--accent);
   color: var(--paper);
   border: 0;
   font-weight: 600;
 }
-.quiz-copy:hover {
-  background: color-mix(in srgb, var(--accent) 85%, #fff);
-}
-
 .quiz-fb {
   font-family: var(--sans);
   font-size: var(--fs-3);
@@ -517,7 +518,10 @@ a.cite:hover {
   margin-inline-end: var(--s-2);
 }
 .toc-list {
-  display: contents;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2) var(--s-5);
+  align-items: baseline;
   list-style: none;
   padding: 0;
   margin: 0;
@@ -531,9 +535,6 @@ a.cite:hover {
   text-decoration: none;
   font-variant-numeric: lining-nums;
   padding: var(--s-1) 0;
-}
-.toc a:hover {
-  color: var(--ink);
 }
 .toc a:focus-visible {
   outline: 2px solid var(--accent);
@@ -585,10 +586,6 @@ a.cite:hover {
   display: inline-flex;
   align-items: center;
 }
-.lesson-nav-link:hover {
-  text-decoration: underline;
-  text-underline-offset: 0.22em;
-}
 .lesson-nav-link:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 4px;
@@ -636,6 +633,11 @@ a.cite:hover {
   .quiz-copy,
   .cold-open {
     transition: none;
+  }
+  .quiz-btn:active,
+  .quiz-undo:active,
+  .quiz-copy:active {
+    transform: none;
   }
 }
 
