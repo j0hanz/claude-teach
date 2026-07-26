@@ -256,7 +256,9 @@ def read_notes(cwd):
 
 def load_records(cwd):
     """Every learning record, sorted by filename. A malformed one is skipped
-    rather than raised — it must not cost the learner the report or the index."""
+    rather than raised — it must not cost the learner the report or the index
+    — but never silently: a skipped record vanishes from the due pool, from
+    the report's counts and from index.html, and nothing else would say so."""
     lr_dir = os.path.join(cwd, "learning-records")
     out = []
     if os.path.isdir(lr_dir):
@@ -264,8 +266,13 @@ def load_records(cwd):
             if name.endswith(".md"):
                 try:
                     out.append(load_record(os.path.join(lr_dir, name)))
-                except TeachError:
-                    continue
+                except (TeachError, OSError) as e:
+                    # stderr, not the report: cmd_state's stdout has a fixed
+                    # shape its readers parse positionally.
+                    print(
+                        f"teach: skipping learning-records/{name}: {e}",
+                        file=sys.stderr,
+                    )
     return out
 
 
