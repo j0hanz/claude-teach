@@ -19,13 +19,13 @@ lapses: 0
 {1-3 sentences: what was learned (or what prior knowledge was established), and why it matters for future sessions.}
 ```
 
-Frontmatter required. `next` = date record due for retest; `interval` = current gap in days; `lesson` = `NNNN-slug` of lesson this record learned from (lets step 5 of [SKILL.md](SKILL.md) interleave by distinct source lesson; missing = unknown, counts as distinct); `lapses` = times cold-open item answered wrong since last correct answer (missing = 0; step 8 increments on Wrong, resets to 0 on Right, step 4 reads it). Record written today seeds `interval: 1`, `next` = tomorrow, `lapses: 0` — all from system clock, never memory. `interval` and `lapses` rewrite only when user actually answered that item; `next` also move when cold open abandoned unscored, so pool keep rotating — see [Scoring](#scoring) and steps 5 and 8 in [SKILL.md](SKILL.md).
+Frontmatter required. `next` = date record due for retest; `interval` = current gap in days; `lesson` = `NNNN-slug` of lesson this record learned from (lets step 5 of [SKILL.md](../SKILL.md) interleave by distinct source lesson; missing = unknown, counts as distinct); `lapses` = times cold-open item answered wrong since last correct answer (missing = 0; step 8 increments on Wrong, resets to 0 on Right, step 4 reads it). Record written today seeds `interval: 1`, `next` = tomorrow, `lapses: 0` — all from system clock, never memory. `interval` and `lapses` rewrite only when user actually answered that item; `next` also move when cold open abandoned unscored, so pool keep rotating — see [Scoring](#scoring) and steps 5 and 8 in [SKILL.md](../SKILL.md).
 
 Below frontmatter, that whole format. Learning record can be single paragraph. Value = recording _that_ this now known and _why_ it changes what to teach next — not filling out sections.
 
 ## Scoring
 
-`skills/teach/scripts/teach.py score` applies this table to every record an open cold-open ledger names — the five rows, first match wins. `teach.py` rewrites the frontmatter atomically and deletes the ledger line; it preserves unknown keys and the body byte-for-byte. It refuses on any parse ambiguity (no open ledger, position-count mismatch, unparseable result line) and writes nothing. The judgement — _did I actually see this line_ — stays in [SKILL.md](SKILL.md) step 8; only the model can make it.
+`skills/teach/scripts/teach.py score` applies this table to every record an open cold-open ledger names — the five rows, first match wins. `teach.py` rewrites the frontmatter atomically and deletes the ledger line; it preserves unknown keys and the body byte-for-byte. It refuses on any parse ambiguity (no open ledger, position-count mismatch, unparseable result line) and writes nothing. The judgement — _did I actually see this line_ — stays in [SKILL.md](../SKILL.md) step 8; only the model can make it.
 
 `doubling` defaults to 2, `ceiling` to 90; override both via `spacing: { doubling: N, ceiling: N }` under `NOTES.md` `## Preferences` — exact shape only, any other shape does not parse and the built-in 2/90 stands.
 
@@ -43,7 +43,7 @@ The "no answer reported" row is not a `score` invocation — the ledger stays op
 
 Include only when genuine value added. Most records won't need them.
 
-- **`status`** — optional frontmatter key (`active | retired | superseded by NNNN-slug`). Absent means `active`. `retired` set by step 8 of [SKILL.md](SKILL.md) when record hit 90-day ceiling and answered right again; `superseded` when earlier understanding turns out wrong. Both leave cold-open pool. Step 1 of [SKILL.md](SKILL.md) reads `active` records full; `retired`/`superseded` read as title lines only — title still signals what learned for zone of proximal development, but banked/wrong body no longer costs full read every session.
+- **`status`** — optional frontmatter key (`active | retired | superseded by NNNN-slug`). Absent means `active`. `retired` set by step 8 of [SKILL.md](../SKILL.md) when record hit 90-day ceiling and answered right again; `superseded` when earlier understanding turns out wrong. Both leave cold-open pool. Step 1 of [SKILL.md](../SKILL.md) reads `active` records full; `retired`/`superseded` read as title lines only — title still signals what learned for zone of proximal development, but banked/wrong body no longer costs full read every session.
 - **Evidence** — how user demonstrated understanding (question answered, exercise completed, prior experience cited). Useful when claim might get revisited.
 - **Implications** — what unlocked or ruled out for future sessions. Worth recording when non-obvious.
 

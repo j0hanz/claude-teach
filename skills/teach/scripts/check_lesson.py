@@ -488,7 +488,7 @@ def verify(type_, parser, css_blocks, html_dir, self_mode=False, html_name=""):
             )
 
         if not self_mode:
-            # cold-open mapping comment (SKILL.md:107 — step 8 scoring depends on it)
+            # cold-open mapping comment (SKILL.md § Cold open — step 8 scoring depends on it)
             co_q = next(
                 (
                     q

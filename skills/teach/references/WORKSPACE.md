@@ -9,7 +9,7 @@ Four root docs capture workspace stable content state — created lazy, each whe
 | `GLOSSARY.md`  | Canonical language of topic.                           | [Glossary](#glossary)   |
 | `NOTES.md`     | User preferences and your working notes.               | [Notes](#notes)         |
 
-All four live at workspace root. Create each when session flow in [SKILL.md](SKILL.md) first need it — never speculative. [Learning record](RECORDS.md) format separate; tracks what learned, not what workspace knows.
+All four live at workspace root. Create each when session flow in [SKILL.md](../SKILL.md) first need it — never speculative. [Learning record](RECORDS.md) format separate; tracks what learned, not what workspace knows.
 
 ---
 
@@ -54,7 +54,7 @@ All four live at workspace root. Create each when session flow in [SKILL.md](SKI
 
 ## Resources
 
-`RESOURCES.md` curated set of trusted sources for topic. Lesson knowledge come from here, never parametric guess. Wisdom come from communities listed here. See [SKILL.md](SKILL.md) step 3 — thin resources means find sources before teach anything.
+`RESOURCES.md` curated set of trusted sources for topic. Lesson knowledge come from here, never parametric guess. Wisdom come from communities listed here. See [SKILL.md](../SKILL.md) step 3 — thin resources means find sources before teach anything.
 
 ### Template
 
@@ -80,7 +80,7 @@ All four live at workspace root. Create each when session flow in [SKILL.md](SKI
 
 - **High-trust only.** Prefer primary sources, recognised experts, peer-reviewed work, communities strong moderation. Resource marketing dressed as education: leave out.
 - **Annotate every entry.** Bare link useless in three months. Add one line: what covers, when reach for it.
-- **Group by Knowledge / Wisdom.** Mirrors philosophy in [SKILL.md](SKILL.md) — knowledge captured, wisdom borrowed from practitioners. Fine for resource appear in one group only.
+- **Group by Knowledge / Wisdom.** Mirrors philosophy in [SKILL.md](../SKILL.md) — knowledge captured, wisdom borrowed from practitioners. Fine for resource appear in one group only.
 - **Surface gaps explicitly.** No good resource for area mission needs: write `## Gaps` section listing what missing. Drives future search.
 - **Prune ruthlessly.** Resource wrong, shallow, or off-mission: remove, not bury. Better five sharp sources than thirty mediocre.
 - **Record community preferences.** User opt out joining communities: note here so future sessions stop proposing them.
@@ -91,7 +91,7 @@ All four live at workspace root. Create each when session flow in [SKILL.md](SKI
 
 `GLOSSARY.md` canonical language for this teaching workspace. All lessons, exercises, learning records follow its terms. Building it _is_ learning: compress concept into tight definition prove user understands it.
 
-Term enter glossary only after user demonstrates understanding — see [SKILL.md](SKILL.md) step 8, where evidence exists. Once term in, use it every lesson. Promotion before evidence = dictionary user reads to learn, not record of what they know.
+Term enter glossary only after user demonstrates understanding — see [SKILL.md](../SKILL.md) step 8, where evidence exists. Once term in, use it every lesson. Promotion before evidence = dictionary user reads to learn, not record of what they know.
 
 ### Template
 
@@ -151,7 +151,7 @@ _Avoid_: Effort score, intensity rating
 ### Rules
 
 - **Preference goes under `## Preferences`, never buried in prose.** Preference buried in prose is preference you miss. Read every session, obeyed.
-- **One structured value, exact shape.** `spacing: { doubling: N, ceiling: N }` override cold-open schedule — `doubling` default 2, `ceiling` default 90. Step 8 of [SKILL.md](SKILL.md) read it as value, not as prose; any other shape not parse. Everything else under `## Preferences` is free text.
-- **Working notes are scratch that must outlive the session.** Cold-open ledger line live here — see [SKILL.md](SKILL.md) § Cold-open ledger. Anything that die with the session belong in the session, not in the file.
+- **One structured value, exact shape.** `spacing: { doubling: N, ceiling: N }` override cold-open schedule — `doubling` default 2, `ceiling` default 90. Step 8 of [SKILL.md](../SKILL.md) read it as value, not as prose; any other shape not parse. Everything else under `## Preferences` is free text.
+- **Working notes are scratch that must outlive the session.** Cold-open ledger line live here — see [SKILL.md](../SKILL.md) § Cold-open ledger. Anything that die with the session belong in the session, not in the file.
 - **Prune.** Preference user reverse: delete it, do not annotate it. Working note whose session is done: delete it.
 - **Never a journal.** Session-by-session activity log belong nowhere in this workspace — not here, not in [learning records](RECORDS.md).

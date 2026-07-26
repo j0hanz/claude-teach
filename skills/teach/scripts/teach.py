@@ -41,7 +41,7 @@ PROJECT_MARKERS = (
     ".svn",
 )
 
-# Notes line, exact shape only — any other shape does not parse (WORKSPACE.md:154).
+# Notes line, exact shape only — any other shape does not parse (WORKSPACE.md § Notes).
 SPACING_RE = re.compile(
     r"^-?\s*spacing:\s*\{\s*doubling:\s*([0-9]+(?:\.[0-9]+)?)\s*,\s*"
     r"ceiling:\s*([0-9]+(?:\.[0-9]+)?)\s*\}\s*$"
@@ -404,7 +404,7 @@ def parse_result_line(line):
 
 
 def score_record(rec, outcome, doubling, ceiling):
-    """Apply one scoring row (SKILL.md:46-52). Mutates rec; returns set(changed keys)."""
+    """Apply one scoring row (RECORDS.md § Scoring). Mutates rec; returns set(changed keys)."""
     changed = set()
     t = today()
     if outcome == "right":
@@ -712,7 +712,7 @@ def build_index(cwd):
     """Write the learner-facing course home page. Returns its path.
 
     Deterministic by construction — same workspace state, same bytes — which is
-    why it lives here and not in the model's judgement (SKILL.md:8).
+    why it lives here and not in the model's judgement (SKILL.md intro).
     """
     from html import escape as esc
 

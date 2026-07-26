@@ -2,17 +2,17 @@
 
 Design system for HTML this skill generates. One course identity across every `lessons/*.html` and `reference/*.html` in workspace, so set reads as course, not pile one-offs.
 
-Hard constraints from [SKILL.md](SKILL.md) shape every choice: lessons open on `file://` with network off — no CDN, no remote font, no external script. Print must work. Every claim cites. Cold open seals new content until answered.
+Hard constraints from [SKILL.md](../SKILL.md) shape every choice: lessons open on `file://` with network off — no CDN, no remote font, no external script. Print must work. Every claim cites. Cold open seals new content until answered.
 
 ## Artifacts
 
 Maintainable split — spec here, code as real files skill copies:
 
-| File                                                   | Role                           | Copied into workspace as |
-| ------------------------------------------------------ | ------------------------------ | ------------------------ |
-| [`templates/lesson.css`](../../templates/lesson.css)   | Canonical stylesheet           | `assets/lesson.css`      |
-| [`templates/quiz.js`](../../templates/quiz.js)         | Reusable quiz widget           | `assets/quiz.js`         |
-| [`templates/lesson.html`](../../templates/lesson.html) | Lesson skeleton (placeholders) | `lessons/NNNN-slug.html` |
+| File                                                      | Role                           | Copied into workspace as |
+| --------------------------------------------------------- | ------------------------------ | ------------------------ |
+| [`templates/lesson.css`](../../../templates/lesson.css)   | Canonical stylesheet           | `assets/lesson.css`      |
+| [`templates/quiz.js`](../../../templates/quiz.js)         | Reusable quiz widget           | `assets/quiz.js`         |
+| [`templates/lesson.html`](../../../templates/lesson.html) | Lesson skeleton (placeholders) | `lessons/NNNN-slug.html` |
 
 Edit templates; don't fork per lesson. Lesson fills `{{placeholders}}` in skeleton, links two `assets/` files — nothing more.
 
@@ -61,7 +61,7 @@ Why these tokens, not others:
 - **Two ladders, not free values.** Every size and every gap comes off `--fs-*` or `--s-*`, so a panel's inset and the prose beside it cannot land a sixteenth of a rem apart. Rungs are ranked, never named for the component that reaches for one first — a `--fs-eyebrow` is one reuse away from lying. A value wanted in two rules is a token or it is a value that drifts.
 - **`--rule-2` exists because `--rule` is too faint to be an edge.** Hairlines separate; control boundaries must be _found_. A quiz option's border is the only thing saying "this is clickable", and `--rule` sits near 1.5:1 on paper — under the 3:1 a control boundary owes. Two tokens, two jobs; never use `--rule` on an interactive edge.
 
-Token values live in [`templates/lesson.css`](../../templates/lesson.css) `:root` — the single source. Edit there; never restate values here.
+Token values live in [`templates/lesson.css`](../../../templates/lesson.css) `:root` — the single source. Edit there; never restate values here.
 
 ## Layout
 
@@ -99,7 +99,7 @@ Quiet on purpose: faint veil, hairline frame, small uppercase label. No confetti
 
   `.quiz-result` carries **no** `hidden` — `quiz.js` never unhides it, so a hidden one is a result line, and a scoring affordance, that nobody ever sees. `role="group"` + `aria-labelledby` is what ties options to their own question: three sibling buttons carry no question with them, so on item 2 of 3 a screen reader otherwise offers a bare option list.
 
-  Equal-width `.quiz-btn` options so formatting never leaks the answer (rule from [SKILL.md](SKILL.md) `## Skills`; same character-count per option where possible). Right/wrong carries a mono ✓/✗ mark as well as border + tint — border colour and tint are both colour, so the mark is what keeps the state readable without it. Answered options carry `aria-disabled`: still focusable, so the mark stay reachable, but no longer offering an action that do nothing. Result line and per-item feedback are `role="status"`: both appear without focus moving, and an unannounced result line is a result line a screen-reader user never learns exists — so both start **empty and in the tree**, and `quiz.js` fill them. A live region that arrive already full is the case screen readers most often miss. `.quiz-fb` keep its `hidden` and its authored text in markup, which is what a no-JS page need; init hoist that text into JS and empty the element. Copy control must work on `file://` — no copy control, no spaced-repetition loop. This section is the quiz contract; [`templates/quiz.js`](../../templates/quiz.js) implements it.
+  Equal-width `.quiz-btn` options so formatting never leaks the answer (rule from [SKILL.md](../SKILL.md) `## Skills`; same character-count per option where possible). Right/wrong carries a mono ✓/✗ mark as well as border + tint — border colour and tint are both colour, so the mark is what keeps the state readable without it. Answered options carry `aria-disabled`: still focusable, so the mark stay reachable, but no longer offering an action that do nothing. Result line and per-item feedback are `role="status"`: both appear without focus moving, and an unannounced result line is a result line a screen-reader user never learns exists — so both start **empty and in the tree**, and `quiz.js` fill them. A live region that arrive already full is the case screen readers most often miss. `.quiz-fb` keep its `hidden` and its authored text in markup, which is what a no-JS page need; init hoist that text into JS and empty the element. Copy control must work on `file://` — no copy control, no spaced-repetition loop. This section is the quiz contract; [`templates/quiz.js`](../../../templates/quiz.js) implements it.
 
   **Undo window.** Answer is not final the instant it is clicked. Chosen option go to a neutral `data-state="chosen"` mark, `.quiz-undo` appear, item lock three seconds later. Nothing about the answer is revealed inside that window — no right/wrong, no correct option, no feedback. Reveal-then-undo would hand back a free retry with the answer already on screen, and that is the one thing retrieval measurement cannot survive. Once locked there is no retry: the window buy back the tap, never the recall. Reason it exist: this line reschedule a memory record, so a mis-tap is noise recorded as signal.
 
@@ -120,12 +120,12 @@ Quiet on purpose: faint veil, hairline frame, small uppercase label. No confetti
 
 ## Validation
 
-[`check_lesson.py`](scripts/check_lesson.py) is the executable contract for the static subset of this design — the script is the spec, so this section does not restate its rules.
+[`check_lesson.py`](../scripts/check_lesson.py) is the executable contract for the static subset of this design — the script is the spec, so this section does not restate its rules.
 
 `scripts/` and `templates/` live at the plugin root, alongside `skills/`. During a session the working directory is the learner's workspace, never the plugin, so call the script through `${CLAUDE_PLUGIN_ROOT}` (which substitutes directly in this skill content), not by a hand-resolved path.
 
 - `python "${CLAUDE_PLUGIN_ROOT}/skills/teach/scripts/check_lesson.py" --self` — run after editing templates; validates `templates/lesson.html` against the contract (must pass; catches spec/validator mismatch).
-- `python "${CLAUDE_PLUGIN_ROOT}/skills/teach/scripts/check_lesson.py" <lesson-path>` — validate a generated lesson for conformance (quiz structure, offline no-remote-refs, a11y static checks). Step 6 of [SKILL.md](SKILL.md) run this on every lesson before opening it.
+- `python "${CLAUDE_PLUGIN_ROOT}/skills/teach/scripts/check_lesson.py" <lesson-path>` — validate a generated lesson for conformance (quiz structure, offline no-remote-refs, a11y static checks). Step 6 of [SKILL.md](../SKILL.md) run this on every lesson before opening it.
 - `python "${CLAUDE_PLUGIN_ROOT}/skills/teach/scripts/check_lesson.py" --type=reference <path>` — same for a reference document; skips the quiz and cold-open rules.
 
 Stale copied assets are reported by `teach.py state` (detect-only; it never overwrites per-workspace topic components), not by this script.
