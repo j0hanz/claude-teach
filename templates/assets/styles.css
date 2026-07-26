@@ -326,6 +326,22 @@ a.cite:hover {
 .quiz {
   margin: var(--s-6) 0;
 }
+.quiz-progress,
+.quiz-copy-status {
+  font-family: var(--sans);
+  font-size: var(--fs-2);
+  line-height: var(--lh-tight);
+  color: var(--ink-soft);
+}
+.quiz-progress {
+  margin: 0 0 var(--s-3);
+}
+.quiz-copy-status {
+  margin: var(--s-2) 0 0;
+}
+.quiz-copy-status:empty {
+  display: none;
+}
 .quiz-item {
   margin: 0 0 var(--s-6);
 }
@@ -436,6 +452,7 @@ a.cite:hover {
   background: none;
   color: var(--ink-soft);
   border: 1px solid var(--rule-2);
+  min-width: 5.75rem;
 }
 .quiz-undo:hover {
   color: var(--ink);

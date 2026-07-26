@@ -1,6 +1,5 @@
 /* quiz.js — reusable quiz widget for a lesson. Self-contained, works on file://.
  * Markup contract and behaviour: skills/teach/references/DESIGN.md § Components.
- * teach-template-version: 5
  */
 (function () {
   'use strict';
@@ -33,7 +32,7 @@
     else note.remove();
   }
 
-  function copyText(text, btn, copiedLabel) {
+  function copyText(text, btn, copiedLabel, onFailure) {
     var done = function () {
       if (!btn) return;
       var original = btn.textContent;
@@ -43,6 +42,7 @@
       }, 1200);
     };
     var fallback = function () {
+      var copied = false;
       var ta = document.createElement('textarea');
       ta.value = text;
       ta.style.position = 'fixed';
@@ -50,10 +50,11 @@
       document.body.appendChild(ta);
       ta.select();
       try {
-        document.execCommand('copy');
+        copied = document.execCommand('copy');
       } catch (e) {}
       document.body.removeChild(ta);
-      done();
+      if (copied) done();
+      else if (onFailure) onFailure();
     };
     try {
       if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -70,11 +71,42 @@
     var outcomes = new Array(items.length).fill(null);
     var resultEl = root.querySelector('.quiz-result');
     var copyBtn = root.querySelector('.quiz-copy');
+    var copyStatus = root.querySelector('.quiz-copy-status');
     var releases = root.getAttribute('data-releases');
     var undoLabel = root.getAttribute('data-undo-label') || 'Undo';
     var copiedLabel = root.getAttribute('data-copied-label') || 'Copied';
+    var copyFailedLabel =
+      root.getAttribute('data-copy-failed-label') ||
+      'Copy failed. Result selected; copy it manually.';
+    var progressEl = null;
     var replay = !!releases && alreadyUnsealed();
     if (replay) unseal(releases);
+
+    if (items.length > 1) {
+      progressEl = document.createElement('p');
+      progressEl.className = 'quiz-progress';
+      root.insertBefore(progressEl, items[0]);
+    }
+
+    function updateProgress() {
+      if (!progressEl) return;
+      var answered = outcomes.filter(function (outcome) {
+        return outcome !== null;
+      }).length;
+      progressEl.textContent = answered + ' of ' + items.length + ' answered';
+    }
+
+    function selectResult() {
+      if (!resultEl) return;
+      var selection = window.getSelection();
+      if (!selection) return;
+      var range = document.createRange();
+      range.selectNodeContents(resultEl);
+      selection.removeAllRanges();
+      selection.addRange(range);
+    }
+
+    updateProgress();
 
     items.forEach(function (item, i) {
       var correct = parseInt(item.getAttribute('data-correct'), 10);
@@ -87,6 +119,7 @@
         fb.hidden = false;
       }
       var timer = null;
+      var countdownTimer = null;
       var chosen = -1;
 
       var undo = document.createElement('button');
@@ -103,8 +136,20 @@
         });
       }
 
+      function clearCountdown() {
+        if (countdownTimer !== null) clearInterval(countdownTimer);
+        countdownTimer = null;
+        undo.textContent = undoLabel;
+      }
+
+      function updateCountdown(commitAt) {
+        var seconds = Math.max(0, Math.ceil((commitAt - Date.now()) / 1000));
+        undo.textContent = undoLabel + ' (' + seconds + ')';
+      }
+
       function lock() {
         timer = null;
+        clearCountdown();
         item.removeAttribute('data-pending');
         item.setAttribute('data-answered', '');
         var focusWasOnUndo = document.activeElement === undo;
@@ -116,6 +161,7 @@
         if (fb) fb.textContent = fbText;
         if (focusWasOnUndo) buttons[chosen].focus();
         outcomes[i] = right ? 'right' : 'wrong';
+        updateProgress();
         if (
           outcomes.every(function (o) {
             return o !== null;
@@ -128,6 +174,7 @@
         if (timer === null) return;
         clearTimeout(timer);
         timer = null;
+        clearCountdown();
         item.removeAttribute('data-pending');
         buttons.forEach(function (b) {
           b.removeAttribute('data-state');
@@ -147,6 +194,11 @@
           btn.setAttribute('data-state', 'chosen');
           setDisabled(true);
           undo.hidden = false;
+          var commitAt = Date.now() + UNDO_MS;
+          updateCountdown(commitAt);
+          countdownTimer = setInterval(function () {
+            updateCountdown(commitAt);
+          }, 250);
           timer = setTimeout(lock, UNDO_MS);
         });
       });
@@ -167,7 +219,11 @@
       if (copyBtn && releases && !replay) {
         copyBtn.hidden = false;
         copyBtn.addEventListener('click', function () {
-          copyText(line, copyBtn, copiedLabel);
+          if (copyStatus) copyStatus.textContent = '';
+          copyText(line, copyBtn, copiedLabel, function () {
+            selectResult();
+            if (copyStatus) copyStatus.textContent = copyFailedLabel;
+          });
         });
       }
       if (releases) {

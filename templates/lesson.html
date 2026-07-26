@@ -31,6 +31,7 @@
           data-releases="content"
           data-label="Cold open"
           data-lesson="{{LESSON-ID}}"
+          data-copy-failed-label="Copy failed. Result selected; copy it manually."
         >
           <div class="quiz-item" role="group" aria-labelledby="q1" data-correct="0">
             <p class="quiz-q" id="q1">{{QUESTION}}</p>
@@ -44,6 +45,7 @@
 
           <p class="quiz-result" role="status"></p>
           <button class="quiz-copy" type="button" hidden>Copy result</button>
+          <p class="quiz-copy-status" role="status"></p>
         </div>
 
         <p
