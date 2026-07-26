@@ -1,6 +1,6 @@
 /* quiz.js — reusable quiz widget for a lesson. Self-contained, works on file://.
  * Markup contract and behaviour: skills/teach/references/DESIGN.md § Components.
- * teach-template-version: 9
+ * teach-template-version: 12
  */
 (function () {
   'use strict';
@@ -205,7 +205,7 @@
           updateCountdown(commitAt);
           countdownTimer = setInterval(function () {
             updateCountdown(commitAt);
-          }, 250);
+          }, 1000);
           timer = setTimeout(lock, UNDO_MS);
         });
       });
