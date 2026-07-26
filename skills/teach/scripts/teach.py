@@ -731,8 +731,15 @@ def asset_status(cwd: str) -> list[tuple[str, str]]:
             # invisible for the life of the file
             out.append((name, "UNKNOWN (template unreadable)"))
             continue
-        if wt is None or tt is None:
-            out.append((name, "UNKNOWN (no version stamp)"))
+        if tt is None:
+            out.append((name, "UNKNOWN (template has no version stamp)"))
+        elif wt is None:
+            out.append(
+                (
+                    name,
+                    f"STALE (unversioned, current v{tt}) — re-copy the template",
+                )
+            )
         elif wt == tt:
             out.append((name, "ok"))
         else:

@@ -18,9 +18,9 @@ Edit template; don't fork per lesson. Lesson fill `{{placeholders}}` in skeleton
 
 ## Direction
 
-Moss-and-stone teaching manual, dark. Warm near-black stone page, warm off-white ink, single light-moss accent. Serif body for sustained reading, sans for label, mono for code and spaced-repetition result line. Single body column, wide right margin hold citation as sidenote — margin earn width, every claim cite, so citation live beside claim, not inline footnote bomb.
+Study instrument, light. Pale ash page, graphite ink, cobalt navigation and calibration signal; muted brick only for wrong answer. Serif body carry sustained reading, sans label and marginalia, mono code and spaced-repetition result line. Single body column, wide right margin hold citation as sidenote — margin earn width, every claim cite, so citation live beside claim, not inline footnote bomb.
 
-Not cream-and-terracotta default (stone not cream; moss not terracotta). Not black-and-acid-green — dark here warm stone, not pure black; accent muted moss, not single bright signal colour; calm, reading-first. Not broadsheet multi-column (single column + margin; hairline as structure, not newspaper).
+Not cream-and-terracotta default (ash not cream; cobalt not terracotta). Not dashboard blue: cobalt mark direction, control and calibration, never drown reading surface. Not broadsheet multi-column (single column + margin; rules are study structure, not newspaper).
 
 Voice: dropped-article style throughout this skill deliberate, load-bearing — preserve in edit; don't normalize to standard English.
 
@@ -28,29 +28,29 @@ Voice: dropped-article style throughout this skill deliberate, load-bearing — 
 
 Name and role only — no value here, on purpose. Value drift when restated.
 
-| Token        | Role                                   |
-| ------------ | -------------------------------------- |
-| `--paper`    | page surface                           |
-| `--paper-2`  | panels, cold-open field, code          |
-| `--ink`      | body text                              |
-| `--ink-soft` | secondary text, marginalia             |
-| `--rule`     | hairlines                              |
-| `--rule-2`   | control boundaries (quiz options)      |
-| `--accent`   | light moss — gate, correct, links      |
-| `--accent-2` | deep moss — hover, secondary marks     |
-| `--wrong`    | wrong (muted oxblood, never alarm-red) |
-| `--serif`    | body face (sustained reading)          |
-| `--sans`     | labels and marginalia face             |
-| `--mono`     | code and result-line face              |
-| `--fs-1`…`8` | type ladder, small to large            |
-| `--track`    | tracking every uppercase label shares  |
-| `--s-1`…`11` | space ladder — margins and padding     |
-| `--measure`  | body line length                       |
-| `--margin-w` | sidenote column width                  |
-| `--gutter`   | body ↔ margin gap                      |
-| `--radius`   | corner radius, controls and code       |
-| `--tap`      | minimum touch target (44px)            |
-| `--tint`     | state wash strength over `--paper`     |
+| Token        | Role                                  |
+| ------------ | ------------------------------------- |
+| `--paper`    | ash page surface                      |
+| `--paper-2`  | white panels, cold-open field, code   |
+| `--ink`      | graphite body text                    |
+| `--ink-soft` | secondary text, marginalia            |
+| `--rule`     | hairlines                             |
+| `--rule-2`   | control boundaries (quiz options)     |
+| `--accent`   | cobalt — gate, correct, links         |
+| `--accent-2` | deep cobalt — hover, secondary marks  |
+| `--wrong`    | wrong (muted brick, never alarm-red)  |
+| `--serif`    | body face (sustained reading)         |
+| `--sans`     | labels and marginalia face            |
+| `--mono`     | code and result-line face             |
+| `--fs-1`…`8` | type ladder, small to large           |
+| `--track`    | tracking every uppercase label shares |
+| `--s-1`…`11` | space ladder — margins and padding    |
+| `--measure`  | body line length                      |
+| `--margin-w` | sidenote column width                 |
+| `--gutter`   | body ↔ margin gap                     |
+| `--radius`   | corner radius, controls and code      |
+| `--tap`      | minimum touch target (44px)           |
+| `--tint`     | state wash strength over `--paper`    |
 
 Why these token, not others:
 
@@ -71,7 +71,7 @@ Sidenote live **inside** `.lesson-content`, not after. Two reason, both load-bea
 
 ## Signature — the retrieval gate
 
-Cold open lesson's threshold. Body content below it **sealed**: dimmed, blurred, `inert`, small hairline label ("Answer the cold open to unseal the lesson"). Every cold-open item answered, `quiz.js` drop `.sealed` and `inert` together, body quiet release. One moment page assert itself — embody retrieval-before-instruction, brief core mechanism.
+Cold open lesson's calibration surface. Body content below it **sealed**: dimmed, blurred, `inert`, small label ("Answer the cold open to unseal the lesson"). Every cold-open item answered, `quiz.js` drop `.sealed` and `inert` together, body quiet release. Cobalt top rule make one required action visible without turning it into a game show — embody retrieval-before-instruction, brief core mechanism.
 
 Seal two halves, need both. Blur visible half; `inert` half that hold. Blur alone gate eye only — Tab still walk sealed lesson, screen reader still read it out, signature become decoration for exact reader who can't see it. `check_lesson.py` enforce pairing (`quiz-releases-not-inert`). Label text come from `data-seal-label` on sealed element so non-English lesson can translate it; CSS literal stay as fallback.
 
@@ -79,11 +79,11 @@ Instruction need third piece, same reason `inert` exist. Veil label CSS content 
 
 Swap text come from `data-unsealed-label` on `.seal-note`, so translate with lesson, carry one instruction page otherwise never give: **paste result line back**. Without it, cold open end in mono box reading `Cold open 0007-x: 1 right, 2 wrong` beside Copy button, nothing on page say what either for — spaced-repetition loop depend on learner action lesson never ask for. Slot cost nothing: release announcement had to happen anyway.
 
-Quiet on purpose: faint veil, hairline frame, small uppercase label. No confetti, no green flash. `prefers-reduced-motion` mean no transition, instant release; veil stay, blur static mask not movement — cancel it, reduced-motion reader read whole sealed lesson at 35% opacity. Seal state, not performance.
+Quiet on purpose: faint veil, cobalt rule, small uppercase label. No confetti, no green flash. `prefers-reduced-motion` mean no transition, instant release; veil stay, blur static mask not movement — cancel it, reduced-motion reader read whole sealed lesson at 35% opacity. Seal state, not performance.
 
 ## Components
 
-- **Cold open** — `.cold-open`, `--paper-2` field, 3px moss left rule, hairline frame, moss eyebrow. Hold quiz. Field span both column; what it hold stay bound to `--measure`, so cold-open quiz and practice quiz further down same lesson one component at one width, ✓ mark stay next to word it mark.
+- **Cold open** — `.cold-open`, `--paper-2` calibration field, 4px cobalt top rule, fine frame. Hold quiz. Field span both column; what it hold stay bound to `--measure`, so cold-open quiz and practice quiz further down same lesson one component at one width, ✓ mark stay next to word it mark.
 - **Lead** — `.lead` on opening paragraph. One thing lesson land, set above body size. At body size it read as first paragraph, not claim rest of page argue.
 - **Quiz** — shape only:
 
@@ -109,7 +109,7 @@ Quiet on purpose: faint veil, hairline frame, small uppercase label. No confetti
 
 - **Citations** — inline `a.cite` number real link to own `.sidenote` (`id="n1"`, `n2`, … in order); note itself sans, small, `--ink-soft`, hairline left rule, and a `<p>` rather than `<aside>` — aside here scoped to no sectioning element, so each note would land as own `complementary` landmark, finished lesson would bury `<main>` under dozen of them. `a.cite` take inline padding with cancelling negative margin: vertical padding on inline box don't touch line box, so tap target grow from 8px to something findable without pixel of reflow. Matter on phone, one place note moved away from claim it belong to. Beside paragraph, pairing obvious; on phone and paper note moved below claim, matching numeral only thing tying claim to source. `sup.cite` stay styled for lesson generated before link existed.
 - **Knowledge / Skills** — `h2` section with `--rule` hairline above (structural divider, not decoration). Knowledge first, skill second.
-- **Code** — `--mono` on `--paper-2`, 2px moss left rule, horizontal scroll.
+- **Code** — `--mono` on `--paper-2`, 4px cobalt left rule, horizontal scroll.
 - **Where next** — final block: one primary source (highest-trust thing found), cross-link to related lesson and reference doc by anchor, line invite follow-up question.
 
 ## Constraints
@@ -130,7 +130,7 @@ Quiet on purpose: faint veil, hairline frame, small uppercase label. No confetti
 - `python "${CLAUDE_PLUGIN_ROOT}/skills/teach/scripts/check_lesson.py" <lesson-path>` — validate generated lesson for conformance (quiz structure, offline no-remote-refs, a11y static check). Step 6 of [SKILL.md](../SKILL.md) run this on every lesson before opening it.
 - `python "${CLAUDE_PLUGIN_ROOT}/skills/teach/scripts/check_lesson.py" --type=reference <path>` — same for reference document; skip quiz and cold-open rule.
 
-Stale copied asset reported by `teach.py state` (detect-only; never overwrite per-workspace topic component), not by this script.
+Shared assets carry a `teach-template-version` stamp. Bump both asset stamps on a release that requires copied workspace assets to change; `teach.py state` reports a stale copy (detect-only; never overwrite per-workspace topic component). This validator only checks document contract.
 
 Static subset (quiz structure, offline, a11y) machine-enforced here. Non-static concern (result-line shape, print layout, motion) enforced by template-as-source, not this script.
 
