@@ -117,10 +117,10 @@ _Avoid_: Effort score, intensity rating
 
 ### Rules
 
-- **Add a term only when the user understands it.** Glossary records compressed knowledge, not dictionary user reads to learn. User just met concept: wait til they use it correctly before promoting here.
-- **Be opinionated.** Many words for same concept: pick best, list rest as aliases to avoid. That how language compresses.
+- **Add term only when user understands it.** Glossary records compressed knowledge, not dictionary user reads to learn. User just met concept: wait til use it correctly before promote here.
+- **Be opinionated.** Many words same concept: pick best, list rest as aliases to avoid. That how language compresses.
 - **Keep definitions tight.** One or two sentences. Define what term _is_, not what it does or how to do it.
-- **Use the glossary's own terms inside definitions.** Term in glossary: prefer it everywhere, including inside other definitions. Makes complex terms easier later.
+- **Use glossary's own terms inside definitions.** Term in glossary: prefer it everywhere, including inside other definitions. Makes complex terms easier later.
 - **Group under subheadings** when natural clusters emerge (e.g. `## Anatomy`, `## Programming`). Flat list fine when terms cohere.
 - **Flag ambiguities explicitly.** Term used loosely in wider field: note resolution: "In this workspace, 'set' always means a working set — warm-ups are tracked separately."
 - **Revise as understanding deepens.** Definition from week one may be wrong by week six. Update in place; no stale entries.
@@ -129,7 +129,7 @@ _Avoid_: Effort score, intensity rating
 
 ## Notes
 
-`NOTES.md` hold two things that steer sessions but belong in no other doc: what user prefer, and what you must remember across a session boundary. Two headings, nothing else.
+`NOTES.md` hold two things steer sessions but belong in no other doc: what user prefer, what you must remember across session boundary. Two headings, nothing else.
 
 ### Template
 
@@ -151,7 +151,7 @@ _Avoid_: Effort score, intensity rating
 ### Rules
 
 - **Preference goes under `## Preferences`, never buried in prose.** Preference buried in prose is preference you miss. Read every session, obeyed.
-- **One structured value, exact shape.** `spacing: { doubling: N, ceiling: N }` override cold-open schedule — `doubling` default 2, `ceiling` default 90. Step 8 of [SKILL.md](../SKILL.md) read it as value, not as prose; any other shape not parse. Everything else under `## Preferences` is free text.
-- **Working notes are scratch that must outlive the session.** Cold-open ledger line live here — see [SKILL.md](../SKILL.md) § Cold-open ledger. Anything that die with the session belong in the session, not in the file.
-- **Prune.** Preference user reverse: delete it, do not annotate it. Working note whose session is done: delete it.
-- **Never a journal.** Session-by-session activity log belong nowhere in this workspace — not here, not in [learning records](RECORDS.md).
+- **One structured value, exact shape.** `spacing: { doubling: N, ceiling: N }` override cold-open schedule — `doubling` default 2, `ceiling` default 90. Step 8 of [SKILL.md](../SKILL.md) read it as value, not prose; any other shape not parse. Everything else under `## Preferences` free text.
+- **Working notes scratch that must outlive session.** Cold-open ledger line live here — see [SKILL.md](../SKILL.md) § Cold-open ledger. Anything die with session belong in session, not file.
+- **Prune.** Preference user reverse: delete it, don't annotate. Working note whose session done: delete it.
+- **Never journal.** Session-by-session activity log belong nowhere in workspace — not here, not in [learning records](RECORDS.md).
