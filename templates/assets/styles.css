@@ -42,11 +42,15 @@
   --dur-soft: 0.22s;
   --dur-press: 0.14s;
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --transition-control:
+    transform var(--dur-press) var(--ease-out), border-color var(--dur-control) var(--ease-out),
+    background var(--dur-control) var(--ease-out), color var(--dur-control) var(--ease-out);
   --blur-seal: 0.18rem;
   --shadow: 0 1px 0 rgba(23, 35, 30, 0.08), 0 12px 26px -22px rgba(23, 35, 30, 0.44);
   --hi: inset 0 1px 0 rgba(255, 255, 255, 0.9);
 }
 
+/* Base */
 *,
 *::before,
 *::after {
@@ -71,6 +75,7 @@ body {
   text-wrap: pretty;
 }
 
+/* Layout */
 .lesson {
   width: fit-content;
   max-width: calc(100% - 2 * var(--s-3));
@@ -147,6 +152,7 @@ h2:first-of-type {
   margin-top: 0;
 }
 
+/* Content */
 h3 {
   font-size: var(--fs-4);
   margin: var(--s-6) 0 var(--s-3);
@@ -165,7 +171,10 @@ p {
 
 .eyebrow,
 .toc-eyebrow,
-.lesson-nav-eyebrow {
+.lesson-nav-eyebrow,
+.toc a,
+.quiz-undo,
+.quiz-copy {
   font-family: var(--sans);
   font-size: var(--fs-1);
   font-weight: 700;
@@ -210,7 +219,9 @@ a {
 a:focus-visible,
 .quiz-btn:focus-visible,
 .quiz-undo:focus-visible,
-.quiz-copy:focus-visible {
+.quiz-copy:focus-visible,
+.toc a:focus-visible,
+.lesson-nav-link:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 3px;
   border-radius: var(--radius);
@@ -246,15 +257,22 @@ a.cite:hover {
 }
 
 .sidenote {
-  font-family: var(--sans);
-  font-size: var(--fs-2);
-  line-height: var(--lh-tight);
-  color: var(--ink-soft);
   border-inline-start: 2px solid var(--accent);
   padding-inline-start: var(--s-3);
   margin: 0 0 var(--s-5);
 }
 
+.sidenote,
+.seal-note,
+.quiz-progress,
+.quiz-copy-status {
+  font-family: var(--sans);
+  font-size: var(--fs-2);
+  line-height: var(--lh-tight);
+  color: var(--ink-soft);
+}
+
+/* Retrieval gate */
 /* The cold open is a calibration surface, not a decorative card. */
 .cold-open {
   grid-column: 1 / -1;
@@ -288,10 +306,6 @@ a.cite:hover {
 }
 
 .seal-note {
-  font-family: var(--sans);
-  font-size: var(--fs-2);
-  line-height: var(--lh-tight);
-  color: var(--ink-soft);
   margin: var(--s-5) 0 0;
 }
 
@@ -343,16 +357,9 @@ a.cite:hover {
   }
 }
 
+/* Quiz */
 .quiz {
   margin: var(--s-5) 0;
-}
-
-.quiz-progress,
-.quiz-copy-status {
-  font-family: var(--sans);
-  font-size: var(--fs-2);
-  line-height: var(--lh-tight);
-  color: var(--ink-soft);
 }
 
 .quiz-progress {
@@ -407,11 +414,7 @@ a.cite:hover {
   border: 1px solid var(--rule-2);
   border-radius: var(--radius);
   cursor: pointer;
-  transition:
-    transform var(--dur-press) var(--ease-out),
-    border-color var(--dur-control) var(--ease-out),
-    background var(--dur-control) var(--ease-out),
-    color var(--dur-control) var(--ease-out);
+  transition: var(--transition-control);
 }
 
 .quiz-btn::before {
@@ -443,6 +446,7 @@ a.cite:hover {
   cursor: default;
 }
 
+/* Quiz state mirrors the attributes quiz.js owns. */
 .quiz-btn[data-state] {
   border-color: var(--state);
   background: color-mix(in srgb, var(--state) var(--tint), var(--paper-2));
@@ -476,21 +480,12 @@ a.cite:hover {
 
 .quiz-undo,
 .quiz-copy {
-  font-family: var(--sans);
-  font-size: var(--fs-1);
-  font-weight: 700;
-  letter-spacing: var(--track);
-  text-transform: uppercase;
   min-height: var(--tap);
   margin-top: var(--s-2);
   padding: var(--s-2) var(--s-4);
   border-radius: var(--radius);
   cursor: pointer;
-  transition:
-    transform var(--dur-press) var(--ease-out),
-    border-color var(--dur-control) var(--ease-out),
-    background var(--dur-control) var(--ease-out),
-    color var(--dur-control) var(--ease-out);
+  transition: var(--transition-control);
 }
 
 .quiz-undo {
@@ -506,10 +501,7 @@ a.cite:hover {
   border: 1px solid var(--accent);
   opacity: 1;
   transition:
-    transform var(--dur-press) var(--ease-out),
-    border-color var(--dur-control) var(--ease-out),
-    background var(--dur-control) var(--ease-out),
-    color var(--dur-control) var(--ease-out),
+    var(--transition-control),
     opacity var(--dur-control) var(--ease-out),
     display var(--dur-control) allow-discrete;
 }
@@ -555,6 +547,7 @@ a.cite:hover {
   opacity: 0;
 }
 
+/* Navigation */
 .toc {
   grid-column: 1 / -1;
   display: flex;
@@ -577,21 +570,10 @@ a.cite:hover {
 }
 
 .toc a {
-  font-family: var(--sans);
-  font-size: var(--fs-1);
-  font-weight: 700;
-  letter-spacing: var(--track);
-  text-transform: uppercase;
   color: var(--ink-soft);
   text-decoration: none;
   font-variant-numeric: lining-nums;
   padding: var(--s-1) 0;
-}
-
-.toc a:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 3px;
-  border-radius: var(--radius);
 }
 
 .lesson-nav {
@@ -628,15 +610,14 @@ a.cite:hover {
 }
 
 .lesson-nav-link:focus-visible {
-  outline: 2px solid var(--accent);
   outline-offset: 4px;
-  border-radius: var(--radius);
 }
 
 .lesson-nav-cell:empty {
   display: none;
 }
 
+/* Pointer interactions */
 @media (hover: hover) and (pointer: fine) {
   a:hover {
     text-decoration-thickness: 2px;
@@ -673,6 +654,7 @@ a.cite:hover {
   }
 }
 
+/* Responsive */
 @media (max-width: 64rem) {
   .lesson,
   .lesson-content {
@@ -714,6 +696,7 @@ a.cite:hover {
   }
 }
 
+/* Accessibility preferences */
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
@@ -742,6 +725,7 @@ a.cite:hover {
   }
 }
 
+/* Print */
 @media print {
   :root {
     color-scheme: light;
