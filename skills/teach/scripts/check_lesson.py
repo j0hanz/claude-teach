@@ -15,6 +15,7 @@ and TEMPLATES_DIR from here — this script does not check them a second time.
 Exit: 0 pass, 1 violations found, 2 usage/parse error.
 """
 
+import contextlib
 import os
 import re
 import sys
@@ -604,6 +605,12 @@ def parse_stamp(text):
 
 
 def main(argv):
+    # ponytail: same stream guard as teach.py — two fix messages carry an em
+    # dash, and a cp437/cp932 console cannot encode it. Module-level there
+    # because a hook imports it; here main() is the only entry.
+    for stream in (sys.stdout, sys.stderr):
+        with contextlib.suppress(AttributeError, OSError, ValueError):
+            stream.reconfigure(errors="replace")
     type_ = "lesson"
     self_mode = False
     path = None

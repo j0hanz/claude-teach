@@ -20,11 +20,24 @@ teach workspace if MISSION.md or learning-records/ exists in it.
 Exit: 0 ok, 1 ambiguity/workspace-violation (refuse, write nothing), 2 usage/parse error.
 """
 
+import contextlib
 import glob
 import os
 import re
 import sys
 from datetime import date, timedelta
+
+# ponytail: one guard at the stream, not an ASCII hunt through every string.
+# The report prints em dashes; a cp437 console (still the OEM default in
+# cmd.exe) and cp932 cannot encode U+2014, and `teach.py state` is step 1 of
+# every session — a traceback there kills the session before it starts. This
+# sits at module level on purpose: hooks/teach_hook.py imports this module and
+# prints the same characters, so importing teach fixes the hook process too.
+# Ceiling: an unencodable character becomes "?", not a transliteration.
+# File writes are unaffected — write_text pins encoding="utf-8".
+for _stream in (sys.stdout, sys.stderr):
+    with contextlib.suppress(AttributeError, OSError, ValueError):
+        _stream.reconfigure(errors="replace")
 
 # --- constants ---------------------------------------------------------------
 DEFAULT_DOUBLING = 2
