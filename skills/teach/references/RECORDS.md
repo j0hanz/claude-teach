@@ -37,7 +37,7 @@ Below frontmatter, that whole format. Learning record can be single paragraph. V
 | No answer reported, ledger open | leave `next` and `interval` untouched — record stays overdue, which is correct while an answer may still come                                                           |
 | Ledger abandoned (`asked: 2`)   | `interval` and `lapses` untouched; `next` → today + current `interval` — no credit, no lapse, but the pool keeps rotating instead of freezing on the same three records |
 
-The "no answer reported" row is not a `score` invocation — the ledger stays open and `asked:` increments; at `asked: 2` the model runs `teach.py score "abandon"` and the abandoned row applies. The result-line shape is `Cold open NNNN-slug: 1 right, 2 wrong, 3 right` (positions 1..N contiguous). The `NNNN-slug` is the lesson that produced the line; `score` refuse a line whose id do not match the open ledger, and refuse a line with no id at all — that one come from an `assets/quiz.js` older than template v3.
+The "no answer reported" row is not a `score` invocation — the ledger stays open and `teach.py asked` increments the counter; at `asked: 2` the model runs `teach.py score "abandon"` and the abandoned row applies. The result-line shape is `Cold open NNNN-slug: 1 right, 2 wrong, 3 right` (positions 1..N contiguous). The `NNNN-slug` is the lesson that produced the line; `score` refuse a line whose id do not match the open ledger, and refuse a line with no id at all — that one come from an `assets/quiz.js` older than template v3.
 
 ## Optional sections
 

@@ -9,6 +9,7 @@ Usage:
   python teach.py state
   python teach.py score "<result line verbatim>"
   python teach.py ledger lessons/NNNN-slug.html
+  python teach.py asked
   python teach.py index
 
 The SessionStart/Stop hooks are a separate entry point — hooks/teach_hook.py at the
@@ -331,6 +332,40 @@ def delete_ledger_line(notes_text):
     if removed != 1:
         raise TeachError(1, f"expected exactly 1 ledger line, found {removed}")
     return "\n".join(out)
+
+
+def bump_asked(notes_text):
+    """Rewrite the open ledger line with asked+1. Returns (text, new_asked).
+
+    Rebuilt from the regex's own groups, never from a hand-edit: the shape is
+    strict (LEDGER_RE) and a line that stops matching is a cold open no
+    consumer can see any more. Preserves the list marker, the indentation and
+    a trailing \\r, so a CRLF NOTES.md round-trips.
+    """
+    out = []
+    hits = 0
+    new_asked = None
+    for ln in notes_text.split("\n"):
+        s = ln.strip()
+        prefix = ""
+        if s.startswith("- "):
+            prefix = "- "
+            s = s[2:].strip()
+        m = LEDGER_RE.match(s)
+        if not m:
+            out.append(ln)
+            continue
+        hits += 1
+        new_asked = int(m.group(3)) + 1
+        indent = ln[: len(ln) - len(ln.lstrip())]
+        tail = "\r" if ln.endswith("\r") else ""
+        out.append(
+            f"{indent}{prefix}unscored cold open: {m.group(1)} "
+            f"tests {m.group(2)} (asked: {new_asked}){tail}"
+        )
+    if hits != 1:
+        raise TeachError(1, f"expected exactly 1 ledger line, found {hits}")
+    return "\n".join(out), new_asked
 
 
 def find_cold_open_comment(html):
@@ -924,6 +959,33 @@ def cmd_ledger(args):
     return 0
 
 
+def cmd_asked(args):
+    cwd = args.workspace
+    if not is_workspace(cwd):
+        raise TeachError(1, f"not a teach workspace ({cwd})")
+    notes = read_notes(cwd)
+    ledger = parse_ledger_line(notes)
+    if ledger is None:
+        raise TeachError(1, "no open cold-open ledger line in NOTES.md")
+    text, n = bump_asked(notes)
+    write_text(os.path.join(cwd, "NOTES.md"), text)
+    print(
+        f"asked: {n}  {ledger['lesson']} tests "
+        f"{', '.join(ledger['tests'])}"
+    )
+    if n >= 2:
+        print(
+            'abandon it now: teach.py score "abandon" — reschedules each '
+            "record at its current interval, no credit and no lapse, and "
+            "deletes the line"
+        )
+    try:
+        print(f"index: {os.path.relpath(build_index(cwd), cwd)}")
+    except TeachError as e:
+        print(f"index: skipped ({e.msg})")
+    return 0
+
+
 def append_working_note(notes, line):
     """Append `line` under NOTES.md ## Working notes (create heading if missing)."""
     lines = notes.split("\n")
@@ -974,6 +1036,13 @@ def main(argv):
     ld.add_argument("lesson", help="lessons/NNNN-slug.html")
     ld.add_argument("--workspace", default=os.getcwd())
     ld.set_defaults(func=cmd_ledger)
+
+    ak = sub.add_parser(
+        "asked",
+        help="record one unanswered request for the cold-open result line",
+    )
+    ak.add_argument("--workspace", default=os.getcwd())
+    ak.set_defaults(func=cmd_asked)
 
     ix = sub.add_parser(
         "index", help="write the learner-facing course home page"
