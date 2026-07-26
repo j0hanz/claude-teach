@@ -1,0 +1,541 @@
+/* lesson.css — shared stylesheet for a {Topic} course.
+ * Design system: moss-and-stone teaching manual. See DESIGN.md.
+ * One course identity across every lesson + reference doc in the workspace.
+ * Constraints: works on file:// (no remote font/CDN/script), prints, a11y baseline.
+ * Extend per-workspace only with topic components; never override tokens or gate.
+ * teach-template-version: 6
+ */
+
+:root {
+  color-scheme: dark;
+  --paper: #1a1b19;
+  --paper-2: #232420;
+  --ink: #e6e7e1;
+  --ink-soft: #9b9b92;
+  --rule: #34352f;
+  --rule-2: #6b6c62;
+  --accent: #8fb89a;
+  --accent-2: #5c7d66;
+  --wrong: #d98878;
+  --serif: 'Iowan Old Style', 'Palatino Linotype', 'Book Antiqua', Palatino, Georgia, serif;
+  --sans: 'Avenir Next', 'Segoe UI', system-ui, sans-serif;
+  --mono: 'SF Mono', 'Cascadia Code', 'JetBrains Mono', Consolas, monospace;
+
+  --fs-1: 0.75rem;
+  --fs-2: 0.8125rem;
+  --fs-3: 0.875rem;
+  --fs-4: 1.0625rem;
+  --fs-5: 1.1875rem;
+  --fs-6: 1.25rem;
+  --fs-7: 1.5rem;
+  --fs-8: 2.25rem;
+  --track: 0.12em;
+
+  --s-1: 0.25rem;
+  --s-2: 0.5rem;
+  --s-3: 0.75rem;
+  --s-4: 1rem;
+  --s-5: 1.25rem;
+  --s-6: 1.5rem;
+  --s-7: 2rem;
+  --s-8: 2.5rem;
+  --s-9: 3rem;
+  --s-10: 4rem;
+  --s-11: 6rem;
+  --measure: 36rem;
+  --margin-w: 16rem;
+  --gutter: var(--s-8);
+  --radius: 2px;
+  --tap: 2.75rem;
+  --tint: 10%;
+  --lh-tight: 1.45;
+  --dur-seal: 0.6s;
+  --dur-control: 0.15s;
+  --blur-seal: 0.18rem;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+html {
+  -webkit-text-size-adjust: 100%;
+}
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--serif);
+  font-size: var(--fs-4);
+  line-height: 1.6;
+  font-variant-numeric: oldstyle-nums;
+}
+
+.lesson {
+  width: fit-content;
+  margin: 0 auto;
+  padding: var(--s-10) var(--s-7) var(--s-11);
+  display: grid;
+  grid-template-columns: var(--measure) var(--margin-w);
+  column-gap: var(--gutter);
+}
+
+:is(.lesson, .lesson-content) > * {
+  grid-column: 1;
+}
+:is(.lesson, .lesson-content) > .sidenote {
+  grid-column: 2;
+}
+:is(.lesson, .lesson-content) > .full {
+  grid-column: 1 / -1;
+}
+
+.lesson-content {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: subgrid;
+  align-content: start;
+  position: relative;
+}
+
+@supports not (grid-template-columns: subgrid) {
+  .lesson-content {
+    display: block;
+    max-width: var(--measure);
+  }
+}
+
+h1,
+h2,
+h3,
+h4 {
+  font-family: var(--serif);
+  font-weight: 700;
+  line-height: 1.2;
+  margin: 0 0 var(--s-2);
+}
+h1 {
+  font-size: var(--fs-8);
+  letter-spacing: -0.01em;
+  margin-bottom: var(--s-1);
+}
+h2 {
+  font-size: var(--fs-7);
+  margin: var(--s-9) 0 var(--s-4);
+  padding-top: var(--s-5);
+  border-top: 1px solid var(--rule);
+}
+
+h2:first-of-type {
+  border-top: 0;
+  padding-top: 0;
+  margin-top: 0;
+}
+h3 {
+  font-size: var(--fs-5);
+  margin: var(--s-7) 0 var(--s-3);
+}
+p {
+  margin: 0 0 var(--s-4);
+}
+
+.lead {
+  font-size: var(--fs-6);
+  line-height: var(--lh-tight);
+  margin: 0 0 var(--s-6);
+}
+.eyebrow {
+  font-family: var(--sans);
+  font-size: var(--fs-1);
+  letter-spacing: var(--track);
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  font-variant-numeric: lining-nums;
+}
+code,
+pre {
+  font-family: var(--mono);
+  font-size: 0.9375em;
+}
+pre {
+  background: var(--paper-2);
+  border-left: 2px solid var(--accent);
+  padding: var(--s-4) var(--s-5);
+  overflow-x: auto;
+  line-height: 1.5;
+  margin: var(--s-6) 0;
+}
+:not(pre) > code {
+  background: var(--paper-2);
+  padding: 0.12em 0.35em;
+  border-radius: var(--radius);
+}
+a {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
+  text-decoration-thickness: 1px;
+}
+a:hover {
+  text-decoration-thickness: 2px;
+}
+a:focus-visible,
+.quiz-btn:focus-visible,
+.quiz-undo:focus-visible,
+.quiz-copy:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--radius);
+}
+.quiz-copy:focus-visible {
+  outline-color: var(--ink);
+}
+
+sup.cite,
+a.cite {
+  font-family: var(--sans);
+  font-size: 0.7em;
+  font-weight: 600;
+  color: var(--accent);
+  line-height: 1;
+  font-variant-numeric: lining-nums;
+}
+sup.cite {
+  padding: 0 0.12em;
+}
+
+a.cite {
+  text-decoration: none;
+  vertical-align: super;
+  padding: 0.55em 0.3em;
+  margin: 0 -0.18em;
+}
+a.cite:hover {
+  text-decoration: underline;
+}
+.sidenote {
+  font-family: var(--sans);
+  font-size: var(--fs-2);
+  line-height: var(--lh-tight);
+  color: var(--ink-soft);
+  border-inline-start: 1px solid var(--rule);
+  padding-inline-start: var(--s-3);
+  margin: 0 0 var(--s-6);
+}
+
+.cold-open {
+  grid-column: 1 / -1;
+  background: var(--paper-2);
+  border: 1px solid var(--rule);
+  border-left: 3px solid var(--accent);
+  padding: var(--s-7);
+  margin: var(--s-8) 0 var(--s-9);
+}
+.cold-open h2 {
+  font-size: var(--fs-6);
+}
+.cold-open .eyebrow {
+  color: var(--accent);
+}
+
+.cold-open > * {
+  max-width: var(--measure);
+}
+.cold-open > :last-child {
+  margin-bottom: 0;
+}
+
+.seal-note {
+  font-family: var(--sans);
+  font-size: var(--fs-2);
+  color: var(--ink-soft);
+  margin: var(--s-5) 0 0;
+}
+
+.lesson-content::after {
+  content: 'Answer the cold open to unseal the lesson.';
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  display: grid;
+  place-items: start center;
+  padding-top: var(--s-7);
+  font-family: var(--sans);
+  font-size: var(--fs-2);
+  letter-spacing: var(--track);
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  background: linear-gradient(var(--paper), color-mix(in srgb, var(--paper) 65%, transparent) 45%);
+  -webkit-backdrop-filter: blur(var(--blur-seal));
+  backdrop-filter: blur(var(--blur-seal));
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity var(--dur-seal) ease,
+    visibility 0s var(--dur-seal);
+}
+
+.lesson-content[data-seal-label]::after {
+  content: attr(data-seal-label);
+}
+.lesson-content.sealed {
+  pointer-events: none;
+  user-select: none;
+}
+.lesson-content.sealed::after {
+  opacity: 1;
+  visibility: visible;
+  transition: opacity var(--dur-seal) ease;
+}
+
+@supports not (backdrop-filter: blur(1px)) {
+  .lesson-content.sealed::after {
+    background: linear-gradient(
+      var(--paper),
+      color-mix(in srgb, var(--paper) 88%, transparent) 45%
+    );
+  }
+}
+
+.quiz {
+  margin: var(--s-6) 0;
+}
+.quiz-item {
+  margin: 0 0 var(--s-6);
+}
+.quiz > .quiz-item:last-of-type {
+  margin-bottom: 0;
+}
+.quiz-q {
+  font-weight: 600;
+  margin: 0 0 var(--s-3);
+}
+.quiz-options {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+.quiz-btn {
+  font: inherit;
+  text-align: left;
+  display: block;
+  position: relative;
+  width: 100%;
+  background: var(--paper);
+  color: var(--ink);
+  border: 1px solid var(--rule-2);
+  border-radius: var(--radius);
+  padding: var(--s-2) var(--s-8) var(--s-2) var(--s-4);
+  min-height: var(--tap);
+  cursor: pointer;
+  transition:
+    border-color var(--dur-control),
+    background var(--dur-control);
+}
+
+.quiz-item:not([data-pending], [data-answered]) .quiz-btn:hover {
+  border-color: var(--accent-2);
+}
+.quiz-item:is([data-pending], [data-answered]) .quiz-btn {
+  cursor: default;
+}
+
+.quiz-btn[data-state] {
+  border-color: var(--state);
+  background: color-mix(in srgb, var(--state) var(--tint), var(--paper));
+}
+.quiz-btn[data-state]::after {
+  content: var(--mark);
+  color: var(--state);
+  position: absolute;
+  right: var(--s-4);
+  top: var(--s-2);
+  font-family: var(--mono);
+}
+.quiz-btn[data-state='chosen'] {
+  --state: var(--ink-soft);
+  --mark: '•';
+}
+.quiz-btn[data-state='right'] {
+  --state: var(--accent);
+  --mark: '✓';
+}
+.quiz-btn[data-state='wrong'] {
+  --state: var(--wrong);
+  --mark: '✗';
+}
+
+.quiz-undo,
+.quiz-copy {
+  font-family: var(--sans);
+  font-size: var(--fs-1);
+  letter-spacing: var(--track);
+  text-transform: uppercase;
+  margin-top: var(--s-2);
+  min-height: var(--tap);
+  padding: var(--s-2) var(--s-4);
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+.quiz-undo {
+  background: none;
+  color: var(--ink-soft);
+  border: 1px solid var(--rule-2);
+}
+.quiz-undo:hover {
+  color: var(--ink);
+  border-color: var(--ink-soft);
+}
+.quiz-copy {
+  background: var(--accent);
+  color: var(--paper);
+  border: 0;
+}
+.quiz-copy:hover {
+  background: color-mix(in srgb, var(--accent) 82%, #fff);
+}
+
+.quiz-fb {
+  font-family: var(--sans);
+  font-size: var(--fs-3);
+  color: var(--ink-soft);
+  margin: var(--s-2) 0 0;
+}
+.quiz-result {
+  font-family: var(--mono);
+  font-size: var(--fs-3);
+  margin-top: var(--s-5);
+  padding: var(--s-3) var(--s-4);
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+}
+.quiz-fb:empty,
+.quiz-result:empty {
+  margin: 0;
+}
+.quiz-result:empty {
+  padding: 0;
+  border-width: 0;
+}
+
+@media (max-width: 64rem) {
+  .lesson,
+  .lesson-content {
+    display: block;
+  }
+  .lesson {
+    width: auto;
+    padding: var(--s-8) var(--s-5) var(--s-10);
+  }
+  .sidenote {
+    margin: -0.5rem 0 var(--s-6);
+  }
+
+  .cold-open {
+    padding: var(--s-5);
+    margin: var(--s-7) 0 var(--s-8);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lesson-content::after,
+  .lesson-content.sealed::after,
+  .quiz-btn {
+    transition: none;
+  }
+}
+
+@media (forced-colors: active) {
+  .lesson-content::after {
+    forced-color-adjust: none;
+  }
+}
+
+@media print {
+  :root {
+    color-scheme: light;
+    --paper: #fff;
+    --paper-2: #eceee7;
+    --ink: #20211f;
+    --ink-soft: #56564f;
+    --rule: #c9c7bd;
+    --rule-2: #8a887a;
+    --accent: #3d5c4a;
+    --accent-2: #7a9a82;
+    --wrong: #8a3b2e;
+  }
+
+  .lesson,
+  .lesson-content {
+    display: block;
+  }
+
+  .lesson {
+    width: auto;
+    max-width: var(--measure);
+    padding: 0;
+  }
+  .cold-open > * {
+    max-width: none;
+  }
+  .lesson-content.sealed {
+    pointer-events: auto;
+    user-select: auto;
+  }
+
+  .lesson-content::after {
+    display: none;
+  }
+
+  .quiz-btn {
+    width: auto;
+    padding: 0;
+    background: none;
+    color: inherit;
+    border: 0;
+  }
+  .quiz-options {
+    list-style: disc;
+    padding-left: var(--s-5);
+  }
+  .quiz-btn[data-state]::after {
+    position: static;
+    margin-left: 0.5em;
+  }
+
+  .quiz-copy,
+  .quiz-undo,
+  .seal-note {
+    display: none;
+  }
+  .sidenote {
+    display: block;
+    border-inline-start: 0;
+    padding-inline-start: 0;
+    margin: var(--s-1) 0 var(--s-4);
+    font-size: var(--fs-1);
+  }
+
+  .sidenote a[href^='http']::after {
+    content: ' ' attr(href);
+    font-family: var(--mono);
+    font-size: 0.85em;
+    word-break: break-all;
+  }
+  pre,
+  .quiz-item {
+    page-break-inside: avoid;
+  }
+  a {
+    color: var(--ink);
+    text-decoration: underline;
+  }
+  a.cite {
+    text-decoration: none;
+  }
+}

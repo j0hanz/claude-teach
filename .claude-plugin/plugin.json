@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "claude-teach",
+  "displayName": "Claude Teach",
+  "version": "0.1.0",
+  "description": "Teach one topic across many sessions. Mission, sources, glossary and a spaced-repetition schedule live in a workspace directory; every lesson is a self-contained offline HTML page sealed behind a retrieval quiz.",
+  "author": { "name": "j0hanz", "email": "l.johansson93@outlook.com" },
+  "homepage": "https://github.com/j0hanz/claude-teach",
+  "repository": "https://github.com/j0hanz/claude-teach",
+  "license": "MIT",
+  "keywords": [
+    "learning",
+    "teaching",
+    "tutor",
+    "spaced-repetition",
+    "retrieval-practice",
+    "study",
+    "curriculum",
+    "offline"
+  ]
+}

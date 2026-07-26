@@ -1,0 +1,11 @@
+{
+  "name": "claude-teach",
+  "private": true,
+  "description": "Dev tooling only — plugin metadata lives in .claude-plugin/plugin.json.",
+  "scripts": {
+    "format": "prettier --write ."
+  },
+  "devDependencies": {
+    "prettier": "^3.8.4"
+  }
+}

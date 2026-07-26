@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-marketplace.json",
+  "name": "claude-teach",
+  "description": "Marketplace for the teach plugin — spaced-repetition teaching across many sessions.",
+  "owner": { "name": "j0hanz", "email": "l.johansson93@outlook.com" },
+  "plugins": [
+    {
+      "name": "claude-teach",
+      "source": "./",
+      "description": "Teach one topic across many sessions, with spaced repetition and offline HTML lessons.",
+      "category": "productivity",
+      "keywords": ["learning", "teaching", "spaced-repetition", "tutor"]
+    }
+  ]
+}

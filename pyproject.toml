@@ -1,0 +1,13 @@
+[tool.ruff]
+# Minimum interpreter the shipped scripts must run on, not just a lint dialect:
+# hooks/teach_hook.py and skills/teach/scripts/*.py are invoked with whatever
+# python is on the user's PATH. Keep this at the real floor so `ruff check .`
+# rejects syntax that floor cannot parse.
+target-version = "py311"
+line-length = 79
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I", "B", "UP", "SIM", "RET"]
+
+[dependency-groups]
+dev = ["ruff>=0.12"]

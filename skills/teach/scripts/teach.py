@@ -1,0 +1,861 @@
+#!/usr/bin/env python3
+"""teach.py — stdlib-only course runtime for the teach plugin.
+
+Owns the deterministic state over a learner workspace: schedule, ledger, scoring
+arithmetic, invariants. The judgement stays in SKILL.md; this is the half with one
+right answer that does not depend on the learner.
+
+Usage:
+  python teach.py state
+  python teach.py score "<result line verbatim>"
+  python teach.py ledger lessons/NNNN-slug.html
+  python teach.py index
+
+The SessionStart/Stop hooks are a separate entry point — hooks/teach_hook.py at the
+plugin root — which imports this module for state and owns nothing itself.
+
+Workspace = the current working directory (the learner's project). A directory is a
+teach workspace if MISSION.md or learning-records/ exists in it.
+
+Exit: 0 ok, 1 ambiguity/workspace-violation (refuse, write nothing), 2 usage/parse error.
+"""
+
+import glob
+import os
+import re
+import sys
+from datetime import date, timedelta
+
+# --- constants ---------------------------------------------------------------
+DEFAULT_DOUBLING = 2
+DEFAULT_CEILING = 90
+PROJECT_MARKERS = (
+    ".git",
+    "package.json",
+    "pyproject.toml",
+    "Cargo.toml",
+    "go.mod",
+    "pom.xml",
+    "build.gradle",
+    ".hg",
+    ".svn",
+)
+
+# Notes line, exact shape only — any other shape does not parse (WORKSPACE.md:154).
+SPACING_RE = re.compile(
+    r"^-?\s*spacing:\s*\{\s*doubling:\s*([0-9]+(?:\.[0-9]+)?)\s*,\s*"
+    r"ceiling:\s*([0-9]+(?:\.[0-9]+)?)\s*\}\s*$"
+)
+
+# ledger: "unscored cold open: lessons/NNNN-x.html tests 0003-a, 0005-b (asked: 0)"
+LEDGER_RE = re.compile(
+    r"^unscored cold open:\s+(lessons/\S+)\s+tests\s+(.+?)\s+\(asked:\s*(\d+)\)\s*$"
+)
+
+# lesson cold-open comment: "cold-open: 1=0003-slug 2=0007-slug"
+COLD_OPEN_RE = re.compile(r"(\d+)=([0-9A-Za-z][0-9A-Za-z\-]*)")
+
+TODAY = None  # tests override; None => datetime.date.today()
+
+
+def today():
+    return TODAY if TODAY is not None else date.today()
+
+
+def num_str(x):
+    """'4' not '4.0'; '4.5' stays."""
+    f = float(x)
+    return str(int(f)) if f == int(f) else str(f)
+
+
+def parse_date(s):
+    try:
+        return date.fromisoformat(s.strip())
+    except (ValueError, AttributeError):
+        raise TeachError(
+            2, f'unparseable date "{s}" (want YYYY-MM-DD)'
+        ) from None
+
+
+class TeachError(Exception):
+    """carry exit code + message; 2 = usage/parse, 1 = ambiguity/violation."""
+
+    def __init__(self, code, msg):
+        super().__init__(msg)
+        self.code = code
+        self.msg = msg
+
+
+# --- IO ---------------------------------------------------------------------
+def read_text(path):
+    with open(path, encoding="utf-8", newline="") as f:
+        return f.read()
+
+
+def write_text(path, text):
+    """atomic write — the multi-file score write is the load-bearing reason."""
+    d = os.path.dirname(path)
+    if d and not os.path.isdir(d):
+        os.makedirs(d, exist_ok=True)
+    tmp = path + ".tmp"
+    with open(tmp, "w", encoding="utf-8", newline="") as f:
+        f.write(text)
+    os.replace(tmp, path)
+
+
+# --- frontmatter (the load-bearing contract) -------------------------------
+def parse_frontmatter(text):
+    """Return (fm_dict, raw_lines, body, quotes).
+
+    raw_lines are the lines between the fences, verbatim (trailing \\r preserved
+    so CRLF round-trips). body is the bytes after the closing fence, verbatim.
+    fm_dict maps key->value for non-comment, non-blank lines. quotes maps key->
+    '"'|"'"|None for the value's quote style.
+    """
+    lines = text.split("\n")
+    if not lines or lines[0].strip() != "---":
+        return {}, [], text, {}
+    close = None
+    for i in range(1, len(lines)):
+        if lines[i].strip() == "---":
+            close = i
+            break
+    if close is None:
+        raise TeachError(2, "unterminated frontmatter (no closing ---)")
+    raw = lines[1:close]
+    body = "\n".join(lines[close + 1 :])
+    fm, quotes = {}, {}
+    for ln in raw:
+        s = ln.strip()
+        if not s or s.startswith("#"):
+            continue
+        if ":" not in s:
+            continue
+        k, _, v = s.partition(":")
+        k = k.strip()
+        v = v.strip()
+        q = None
+        if len(v) >= 2 and v[0] == v[-1] and v[0] in ('"', "'"):
+            q = v[0]
+            v = v[1:-1]
+        fm[k] = v
+        quotes[k] = q
+    return fm, raw, body, quotes
+
+
+def serialize_frontmatter(fm, raw, body, quotes, changed):
+    """Re-emit raw byte-for-byte except lines whose key is in `changed`."""
+    out = []
+    for ln in raw:
+        s = ln.strip()
+        key = None
+        if s and not s.startswith("#") and ":" in s:
+            key = s.partition(":")[0].strip()
+        if key in changed:
+            v = fm[key]
+            qs = quotes.get(key)
+            vstr = (qs + str(v) + qs) if qs else str(v)
+            line = f"{key}: {vstr}"
+            if ln.endswith("\r"):
+                line += "\r"
+            out.append(line)
+        else:
+            out.append(ln)
+    return "\n".join(["---"] + out + ["---"]) + "\n" + body
+
+
+def load_record(path):
+    fm, raw, body, quotes = parse_frontmatter(read_text(path))
+    rec = {"path": path, "fm": fm, "raw": raw, "body": body, "quotes": quotes}
+    rec["interval"] = (
+        int(fm["interval"])
+        if "interval" in fm and fm["interval"].lstrip("-").isdigit()
+        else 1
+    )
+    rec["lapses"] = (
+        int(fm["lapses"])
+        if "lapses" in fm and fm["lapses"].lstrip("-").isdigit()
+        else 0
+    )
+    rec["lesson"] = fm.get("lesson")
+    rec["status"] = fm.get("status", "active")
+    if "next" in fm and fm["next"].strip():
+        rec["next"] = parse_date(fm["next"])
+    else:
+        rec["next"] = None
+    rec["title"] = _title(body)
+    return rec
+
+
+def _title(body):
+    for ln in body.split("\n"):
+        s = ln.strip()
+        if s.startswith("# "):
+            return s[2:].strip()
+    return "(no title)"
+
+
+def save_record(rec, changed):
+    out = serialize_frontmatter(
+        rec["fm"], rec["raw"], rec["body"], rec["quotes"], changed
+    )
+    write_text(rec["path"], out)
+
+
+# --- spacing ----------------------------------------------------------------
+def resolve_spacing(notes_text):
+    """NOTES.md spacing: (exact shape) > built-in. Returns (d, c, source)."""
+    for ln in notes_text.split("\n"):
+        m = SPACING_RE.match(ln.strip())
+        if m:
+            return float(m.group(1)), float(m.group(2)), "NOTES.md"
+    return float(DEFAULT_DOUBLING), float(DEFAULT_CEILING), "built-in"
+
+
+# --- workspace / NNNN / ledger ----------------------------------------------
+def is_workspace(cwd):
+    return os.path.isfile(os.path.join(cwd, "MISSION.md")) or os.path.isdir(
+        os.path.join(cwd, "learning-records")
+    )
+
+
+def read_notes(cwd):
+    p = os.path.join(cwd, "NOTES.md")
+    return read_text(p) if os.path.isfile(p) else ""
+
+
+def load_records(cwd):
+    """Every learning record, sorted by filename. A malformed one is skipped
+    rather than raised — it must not cost the learner the report or the index."""
+    lr_dir = os.path.join(cwd, "learning-records")
+    out = []
+    if os.path.isdir(lr_dir):
+        for name in sorted(os.listdir(lr_dir)):
+            if name.endswith(".md"):
+                try:
+                    out.append(load_record(os.path.join(lr_dir, name)))
+                except TeachError:
+                    continue
+    return out
+
+
+def split_records(records):
+    """(active, retired, due) — one status rule, so every caller agrees."""
+    active = [
+        r for r in records if r["status"] not in ("retired", "superseded")
+    ]
+    retired = [r for r in records if r["status"] in ("retired", "superseded")]
+    t = today()
+    due = [r for r in active if r["next"] is not None and r["next"] <= t]
+    return active, retired, due
+
+
+def due_pool(due):
+    """At most three due records, distinct source lessons first — a cold open
+    interleaves rather than retesting one lesson three times (SKILL.md step 5)."""
+    seen, first, rest = set(), [], []
+    for r in due:
+        if r["lesson"] in seen:
+            rest.append(r)
+        else:
+            seen.add(r["lesson"])
+            first.append(r)
+    return (first + rest)[:3]
+
+
+def next_number(dirpath):
+    hi = 0
+    if os.path.isdir(dirpath):
+        for name in os.listdir(dirpath):
+            m = re.match(r"(\d{4})-", name)
+            if m:
+                hi = max(hi, int(m.group(1)))
+    return hi + 1
+
+
+def parse_ledger_line(notes_text):
+    """Return {'lesson':..., 'tests':[id,...], 'asked':N} or None."""
+    for ln in notes_text.split("\n"):
+        s = ln.strip()
+        if s.startswith("- "):
+            s = s[2:].strip()
+        m = LEDGER_RE.match(s)
+        if m:
+            lesson = m.group(1)
+            tests = [t.strip() for t in m.group(2).split(",") if t.strip()]
+            asked = int(m.group(3))
+            return {"lesson": lesson, "tests": tests, "asked": asked}
+    return None
+
+
+def delete_ledger_line(notes_text):
+    out = []
+    removed = 0
+    for ln in notes_text.split("\n"):
+        s = ln.strip()
+        if s.startswith("- "):
+            s = s[2:].strip()
+        if LEDGER_RE.match(s):
+            removed += 1
+            continue
+        out.append(ln)
+    if removed != 1:
+        raise TeachError(1, f"expected exactly 1 ledger line, found {removed}")
+    return "\n".join(out)
+
+
+def parse_cold_open_comment(html):
+    """Return [(pos, record_id), ...] from <!-- cold-open: 1=X 2=Y -->."""
+    pairs = []
+    for m in re.finditer(r"<!--\s*(.*?)\s*-->", html, re.S):
+        text = m.group(1)
+        if "cold-open:" not in text:
+            continue
+        pairs = [(int(n), rid) for n, rid in COLD_OPEN_RE.findall(text)]
+        break
+    if not pairs:
+        raise TeachError(
+            1, "no <!-- cold-open: N=ID ... --> comment in lesson"
+        )
+    positions = [p for p, _ in pairs]
+    if positions != list(range(1, len(pairs) + 1)):
+        raise TeachError(
+            1,
+            f"cold-open positions {positions} must be 1..{len(pairs)} "
+            f"contiguous",
+        )
+    return pairs
+
+
+# --- result line / scoring ---------------------------------------------------
+def parse_result_line(line):
+    """'Cold open 0007-x: 1 right, 2 wrong' -> ('0007-x', [(1,'right'),(2,'wrong')]).
+
+    The id in the head binds the line to the lesson that produced it. A line
+    without one comes from a quiz.js older than template v3; cmd_score refuses it
+    rather than guessing which ledger it belongs to.
+    Abandon is a separate invocation (result arg == 'abandon'), not parsed here.
+    """
+    s = line.strip()
+    if ":" not in s:
+        raise TeachError(2, f'unparseable result line "{line}"')
+    head, _, rest = s.partition(":")
+    m = re.search(r"(\d{4}[0-9A-Za-z\-]*)\s*$", head.strip())
+    lesson_id = m.group(1) if m else None
+    rest = rest.strip()
+    results = []
+    for tok in rest.split(","):
+        parts = tok.split()
+        if len(parts) != 2:
+            raise TeachError(2, f'unparseable outcome "{tok}" in "{line}"')
+        pos_s, outcome = parts
+        try:
+            pos = int(pos_s)
+        except ValueError:
+            raise TeachError(
+                2, f'bad position "{pos_s}" in "{line}"'
+            ) from None
+        if outcome not in ("right", "wrong"):
+            raise TeachError(
+                2, f'outcome "{outcome}" not right/wrong in "{line}"'
+            )
+        results.append((pos, outcome))
+    positions = [p for p, _ in results]
+    if positions != list(range(1, len(results) + 1)):
+        raise TeachError(
+            2, f"positions {positions} must be 1..{len(results)} contiguous"
+        )
+    return lesson_id, results
+
+
+def score_record(rec, outcome, doubling, ceiling):
+    """Apply one scoring row (SKILL.md:46-52). Mutates rec; returns set(changed keys)."""
+    changed = set()
+    t = today()
+    if outcome == "right":
+        if rec["interval"] < ceiling:
+            new_iv = min(rec["interval"] * doubling, ceiling)
+            rec["fm"]["interval"] = num_str(new_iv)
+            rec["interval"] = (
+                int(new_iv) if float(new_iv).is_integer() else new_iv
+            )
+            rec["fm"]["next"] = (t + timedelta(days=new_iv)).isoformat()
+            rec["next"] = t + timedelta(days=new_iv)
+            rec["fm"]["lapses"] = "0"
+            rec["lapses"] = 0
+            changed |= {"interval", "next", "lapses"}
+        else:  # at/over ceiling -> retire
+            rec["fm"]["status"] = "retired"
+            rec["status"] = "retired"
+            rec["fm"]["lapses"] = "0"
+            rec["lapses"] = 0
+            changed |= {"status", "lapses"}
+    elif outcome == "wrong":
+        rec["fm"]["interval"] = "1"
+        rec["interval"] = 1
+        rec["fm"]["next"] = (t + timedelta(days=1)).isoformat()
+        rec["next"] = t + timedelta(days=1)
+        rec["fm"]["lapses"] = str(rec["lapses"] + 1)
+        rec["lapses"] = rec["lapses"] + 1
+        changed |= {"interval", "next", "lapses"}
+    elif outcome == "abandon":
+        rec["fm"]["next"] = (t + timedelta(days=rec["interval"])).isoformat()
+        rec["next"] = t + timedelta(days=rec["interval"])
+        changed.add("next")
+    else:
+        raise TeachError(2, f"unknown outcome {outcome}")
+    return changed
+
+
+def prior_cold_opens(cwd, rec_id):
+    """Lesson numbers whose cold-open comment names this record — the per-record
+    Grep that used to live in SKILL.md, now in the report so the model reads titles,
+    not bodies, for everything except the due few."""
+    hits = []
+    for p in glob.glob(os.path.join(cwd, "lessons", "*.html")):
+        try:
+            html = read_text(p)
+        except OSError:
+            continue
+        for m in re.finditer(r"<!--\s*(.*?)\s*-->", html, re.S):
+            text = m.group(1)
+            if "cold-open:" in text:
+                for _, rid in COLD_OPEN_RE.findall(text):
+                    if rid == rec_id:
+                        hits.append(os.path.basename(p).split("-")[0])
+                break
+    return sorted(set(hits))
+
+
+def resolve_record_path(cwd, rec_id):
+    direct = os.path.join(cwd, "learning-records", rec_id + ".md")
+    if os.path.isfile(direct):
+        return direct
+    m = re.match(r"(\d{4})", rec_id)
+    if not m:
+        raise TeachError(1, f'record id "{rec_id}" has no NNNN prefix')
+    matches = glob.glob(
+        os.path.join(cwd, "learning-records", m.group(1) + "-*.md")
+    )
+    matches = [x for x in matches if not x.endswith(".tmp")]
+    if len(matches) == 1:
+        return matches[0]
+    if not matches:
+        raise TeachError(1, f'no learning record matching "{rec_id}"')
+    raise TeachError(1, f'ambiguous record id "{rec_id}": {matches}')
+
+
+# --- subcommands ------------------------------------------------------------
+def cmd_state(args):
+    cwd = args.workspace
+    if not is_workspace(cwd):
+        print(f"teach-state 0  not a teach workspace  ({cwd})")
+        return 0
+    notes = read_notes(cwd)
+    doubling, ceiling, src = resolve_spacing(notes)
+    ledger = parse_ledger_line(notes)
+    active, retired, due = split_records(load_records(cwd))
+    t = today()
+    due.sort(key=lambda r: ((t - r["next"]).days, r["lesson"] or ""))
+    pool = due_pool(due)
+    distinct = len({r["lesson"] for r in pool})
+    assets = asset_status(cwd)
+    inv = inventory(cwd)
+    print(f"teach-state 1  workspace={cwd}  today={t.isoformat()}")
+    print(f"mission     {mission_status(cwd)}")
+    print(f"project     {project_markers(cwd)}")
+    print(
+        f"spacing     doubling={num_str(doubling)} ceiling={num_str(ceiling)}  "
+        f"(source: {src})"
+    )
+    if ledger:
+        print(
+            f"ledger      OPEN  {ledger['lesson']} tests "
+            f"{', '.join(ledger['tests'])}  asked={ledger['asked']}"
+        )
+    else:
+        print("ledger      closed")
+    print(
+        f"due         {len(due)} of {len(active)} active records, "
+        f"{distinct} distinct source lessons"
+    )
+    for r in pool:
+        over = (t - r["next"]).days
+        over_s = "today" if over == 0 else f"{over}d over"
+        reteach = "  RE-TEACH" if r["lapses"] >= 3 else ""
+        rid = os.path.splitext(os.path.basename(r["path"]))[0]
+        prior = prior_cold_opens(cwd, rid)
+        prior_s = ", ".join(prior) if prior else "—"
+        print(
+            f"  {rid:<16} {over_s:<8} interval={r['interval']:<3} lapses={r['lapses']}  "
+            f"from {r['lesson'] or '—'}  prior cold opens: {prior_s}{reteach}"
+        )
+    print(f"records     {len(active)} active, {len(retired)} retired")
+    nl = next_number(os.path.join(cwd, "lessons"))
+    nr = next_number(os.path.join(cwd, "learning-records"))
+    print(f"next        lessons/{nl:04d}-   learning-records/{nr:04d}-")
+    print("assets     " + "   ".join(f"{n} {st}" for n, st in assets))
+    print("inventory   " + inv)
+    return 0
+
+
+def mission_status(cwd):
+    p = os.path.join(cwd, "MISSION.md")
+    if not os.path.isfile(p):
+        return "absent"
+    txt = read_text(p)
+    if re.search(r"\*\*provisional\*\*", txt, re.I):
+        return "provisional"
+    return "ok, not provisional"
+
+
+def project_markers(cwd):
+    found = [
+        m for m in PROJECT_MARKERS if os.path.exists(os.path.join(cwd, m))
+    ]
+    return ", ".join(found) if found else "no code-project markers in cwd"
+
+
+def asset_status(cwd):
+    """Reuse check_lesson's stamp parser and templates dir; per-asset ok/STALE."""
+    from check_lesson import TEMPLATES_DIR, parse_stamp
+
+    assets_dir = os.path.join(cwd, "assets")
+    out = []
+    for name in ("lesson.css", "quiz.js"):
+        ws = os.path.join(assets_dir, name)
+        if not os.path.isfile(ws):
+            continue
+        tmpl = os.path.join(TEMPLATES_DIR, name)
+        try:
+            wt = parse_stamp(read_text(ws))
+            tt = parse_stamp(read_text(tmpl))
+        except OSError:
+            # loud on purpose: this check used to report 'ok' when it could not
+            # read the template, which is how a wrong templates path stayed
+            # invisible for the life of the file
+            out.append((name, "UNKNOWN (template unreadable)"))
+            continue
+        if wt is None or tt is None:
+            out.append((name, "UNKNOWN (no version stamp)"))
+        elif wt == tt:
+            out.append((name, "ok"))
+        else:
+            out.append(
+                (name, f"STALE (v{wt}, current v{tt}) — re-copy the template")
+            )
+    if not out:
+        return [("assets", "(none copied)")]
+    return out
+
+
+def inventory(cwd):
+    lessons = len(glob.glob(os.path.join(cwd, "lessons", "*.html")))
+    reference = len(glob.glob(os.path.join(cwd, "reference", "*.html")))
+    know, comm = 0, 0
+    rp = os.path.join(cwd, "RESOURCES.md")
+    if os.path.isfile(rp):
+        section = None
+        for ln in read_text(rp).split("\n"):
+            h = ln.strip().lower()
+            if h.startswith("## "):
+                section = h[3:]
+            elif ln.strip().startswith("- ") and section:
+                if "knowledge" in section:
+                    know += 1
+                elif "community" in section:
+                    comm += 1
+    return f"{lessons} lessons, {reference} reference docs, {know} knowledge + {comm} community sources"
+
+
+def _doc_title(path):
+    """First <h1>, else <title>, else the file stem. Tags stripped, entities
+    decoded, space collapsed — esc() in build_index re-escapes, so decode here
+    or an `&amp;` in a title ends up double-escaped on the page."""
+    from html import unescape
+
+    try:
+        text = read_text(path)
+    except OSError:
+        return os.path.splitext(os.path.basename(path))[0]
+    m = re.search(r"<h1[^>]*>(.*?)</h1>", text, re.S | re.I) or re.search(
+        r"<title[^>]*>(.*?)</title>", text, re.S | re.I
+    )
+    if not m:
+        return os.path.splitext(os.path.basename(path))[0]
+    return " ".join(unescape(re.sub(r"<[^>]+>", "", m.group(1))).split())
+
+
+def _topic(cwd):
+    p = os.path.join(cwd, "MISSION.md")
+    if os.path.isfile(p):
+        m = re.search(r"^#\s*Mission:\s*(.+)$", read_text(p), re.M)
+        if m:
+            return m.group(1).strip()
+    return os.path.basename(os.path.abspath(cwd)) or "Course"
+
+
+def _lang(cwd):
+    """Match the course's own language rather than assuming English."""
+    for p in sorted(
+        glob.glob(os.path.join(cwd, "lessons", "*.html")), reverse=True
+    ):
+        try:
+            m = re.search(r'<html[^>]*\blang="([^"]+)"', read_text(p))
+        except OSError:
+            continue
+        if m:
+            return m.group(1)
+    return "en"
+
+
+def build_index(cwd):
+    """Write the learner-facing course home page. Returns its path.
+
+    Deterministic by construction — same workspace state, same bytes — which is
+    why it lives here and not in the model's judgement (SKILL.md:8).
+    """
+    from html import escape as esc
+
+    if not is_workspace(cwd):
+        raise TeachError(1, f"not a teach workspace ({cwd})")
+    lessons = sorted(glob.glob(os.path.join(cwd, "lessons", "*.html")))
+    if not lessons:
+        raise TeachError(1, "no lessons yet — nothing to index")
+    if not os.path.isfile(os.path.join(cwd, "assets", "lesson.css")):
+        raise TeachError(
+            1,
+            "assets/lesson.css missing — copy templates/lesson.css "
+            "into assets/ first",
+        )
+    reference = sorted(glob.glob(os.path.join(cwd, "reference", "*.html")))
+
+    t = today()
+    records = load_records(cwd)
+    active, _, due = split_records(records)
+
+    def links(paths, prefix):
+        return "\n".join(
+            f'      <li><a href="{esc(prefix + os.path.basename(p))}">'
+            f"{esc(_doc_title(p))}</a></li>"
+            for p in paths
+        )
+
+    def when(r):
+        if r["status"] in ("retired", "superseded"):
+            return "banked"
+        if r["next"] is None:
+            return "unscheduled"
+        d = (r["next"] - t).days
+        if d < 0:
+            return f"{-d} d overdue"
+        return "due today" if d == 0 else f"in {d} d"
+
+    learned = "\n".join(
+        f'      <li>{esc(r["title"])} <span class="eyebrow">{esc(when(r))}</span></li>'
+        for r in records
+    )
+
+    parts = [
+        "<!doctype html>",
+        f'<html lang="{esc(_lang(cwd))}">',
+        "<head>",
+        '  <meta charset="utf-8">',
+        '  <meta name="viewport" content="width=device-width, initial-scale=1">',
+        f"  <title>{esc(_topic(cwd))} — course</title>",
+        '  <link rel="stylesheet" href="assets/lesson.css">',
+        "</head>",
+        "<body>",
+        '  <main class="lesson">',
+        f'    <p class="eyebrow">Course · {t.isoformat()}</p>',
+        f"    <h1>{esc(_topic(cwd))}</h1>",
+        f"    <p>{len(lessons)} lessons · {len(reference)} reference documents · "
+        f"{len(active)} tracked, {len(due)} due today.</p>",
+        "",
+        "    <h2>Lessons</h2>",
+        "    <ul>",
+        links(lessons, "lessons/"),
+        "    </ul>",
+    ]
+    if reference:
+        parts += [
+            "",
+            "    <h2>Reference</h2>",
+            "    <ul>",
+            links(reference, "reference/"),
+            "    </ul>",
+        ]
+    if records:
+        parts += [
+            "",
+            "    <h2>What you have worked through</h2>",
+            "    <ul>",
+            learned,
+            "    </ul>",
+        ]
+    parts += ["  </main>", "</body>", "</html>", ""]
+    out = os.path.join(cwd, "index.html")
+    write_text(out, "\n".join(parts))
+    return out
+
+
+def cmd_index(args):
+    print(f"index: {build_index(args.workspace)}")
+    return 0
+
+
+def cmd_score(args):
+    cwd = args.workspace
+    if not is_workspace(cwd):
+        raise TeachError(1, f"not a teach workspace ({cwd})")
+    notes = read_notes(cwd)
+    ledger = parse_ledger_line(notes)
+    if ledger is None:
+        raise TeachError(1, "no open cold-open ledger line in NOTES.md")
+    doubling, ceiling, _ = resolve_spacing(notes)
+    if args.result.strip().lower() == "abandon":
+        outcomes = [(i + 1, "abandon") for i in range(len(ledger["tests"]))]
+    else:
+        lesson_id, results = parse_result_line(args.result)
+        ledger_id = os.path.splitext(os.path.basename(ledger["lesson"]))[0]
+        if lesson_id is None:
+            raise TeachError(
+                1,
+                "result line carries no lesson id — this workspace's "
+                "assets/quiz.js predates template v3. Re-copy templates/quiz.js "
+                "into assets/, rebuild the cold open, and ask for a fresh line.",
+            )
+        if lesson_id != ledger_id:
+            raise TeachError(
+                1,
+                f'result line came from lesson "{lesson_id}" but the open ledger '
+                f'tests "{ledger_id}" — scoring it would reschedule records the '
+                f"learner never answered. Paste the line from {ledger['lesson']}.",
+            )
+        if len(results) != len(ledger["tests"]):
+            raise TeachError(
+                1,
+                f"result has {len(results)} positions but ledger "
+                f"tests {len(ledger['tests'])} records",
+            )
+        outcomes = results
+    plan = []
+    for pos, outcome in outcomes:
+        rec = load_record(resolve_record_path(cwd, ledger["tests"][pos - 1]))
+        plan.append(
+            (rec, outcome, score_record(rec, outcome, doubling, ceiling))
+        )
+    # commit: write records, delete the ledger line — the Stop guard re-arms
+    # itself the next time it sees no open ledger
+    for rec, _, changed in plan:
+        save_record(rec, changed)
+    write_text(os.path.join(cwd, "NOTES.md"), delete_ledger_line(notes))
+    for rec, outcome, _ in plan:
+        print(
+            f"{os.path.basename(rec['path'])}: {outcome} -> "
+            f"interval={rec['fm'].get('interval')} next={rec['fm'].get('next')} "
+            f"lapses={rec['fm'].get('lapses')} status={rec['fm'].get('status', 'active')}"
+        )
+    try:
+        print(f"index: {os.path.relpath(build_index(cwd), cwd)}")
+    except TeachError as e:
+        print(f"index: skipped ({e.msg})")
+    return 0
+
+
+def cmd_ledger(args):
+    cwd = args.workspace
+    lesson_path = args.lesson
+    if not os.path.isabs(lesson_path):
+        lesson_path = os.path.normpath(os.path.join(cwd, lesson_path))
+    if not os.path.isfile(lesson_path):
+        raise TeachError(2, f"lesson not found: {lesson_path}")
+    notes = read_notes(cwd)
+    if parse_ledger_line(notes) is not None:
+        raise TeachError(
+            1,
+            "a cold-open ledger line is already open — score or "
+            "abandon it first",
+        )
+    pairs = parse_cold_open_comment(read_text(lesson_path))
+    tests = [rid for _, rid in sorted(pairs)]
+    lesson_rel = os.path.relpath(lesson_path, cwd).replace(os.sep, "/")
+    line = (
+        f"- unscored cold open: {lesson_rel} "
+        f"tests {', '.join(tests)} (asked: 0)"
+    )
+    write_text(os.path.join(cwd, "NOTES.md"), append_working_note(notes, line))
+    print(f"ledger: {line}")
+    return 0
+
+
+def append_working_note(notes, line):
+    """Append `line` under NOTES.md ## Working notes (create heading if missing)."""
+    lines = notes.split("\n")
+    # find ## Working notes
+    idx = None
+    for i, ln in enumerate(lines):
+        if ln.strip().lower() == "## working notes":
+            idx = i
+            break
+    if idx is None:
+        if lines and lines[-1].strip() != "":
+            lines.append("")
+        lines.append("## Working notes")
+        lines.append("")
+        lines.append(line)
+        return "\n".join(lines)
+    # insert after heading + following blank line
+    j = idx + 1
+    if j < len(lines) and lines[j].strip() == "":
+        j += 1
+    lines.insert(j, line)
+    return "\n".join(lines)
+
+
+# --- entry ------------------------------------------------------------------
+def main(argv):
+    import argparse
+
+    p = argparse.ArgumentParser(
+        prog="teach.py", description="teach course runtime"
+    )
+    sub = p.add_subparsers(dest="cmd", required=True)
+
+    sp = sub.add_parser("state", help="print the workspace state report")
+    sp.add_argument("--workspace", default=os.getcwd())
+    sp.set_defaults(func=cmd_state)
+
+    sc = sub.add_parser(
+        "score", help="apply the scoring table to an open cold open"
+    )
+    sc.add_argument("result", help='result line verbatim, or "abandon"')
+    sc.add_argument("--workspace", default=os.getcwd())
+    sc.set_defaults(func=cmd_score)
+
+    ld = sub.add_parser(
+        "ledger", help="open a cold-open ledger line from a lesson"
+    )
+    ld.add_argument("lesson", help="lessons/NNNN-slug.html")
+    ld.add_argument("--workspace", default=os.getcwd())
+    ld.set_defaults(func=cmd_ledger)
+
+    ix = sub.add_parser(
+        "index", help="write the learner-facing course home page"
+    )
+    ix.add_argument("--workspace", default=os.getcwd())
+    ix.set_defaults(func=cmd_index)
+
+    args = p.parse_args(argv[1:])
+    try:
+        return args.func(args)
+    except TeachError as e:
+        print(f"teach: {e.msg}", file=sys.stderr)
+        return e.code
+    except BrokenPipeError:
+        return 0
+
+
+if __name__ == "__main__":
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    sys.exit(main(sys.argv))

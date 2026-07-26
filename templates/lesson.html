@@ -1,0 +1,79 @@
+<!-- lesson.html — skeleton for a single lesson.
+     Placeholders in {{ }} are filled by the teach skill per lesson.
+     Copy ../templates/lesson.css and ../templates/quiz.js into the workspace
+     assets/ on first use; every lesson links both.
+     Design system, component and quiz markup contracts: DESIGN.md (authority).
+     teach-template-version: 6 -->
+<!doctype html>
+<html lang="{{LANG}}">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{{TITLE}} — {{TOPIC}}</title>
+    <link rel="stylesheet" href="../assets/lesson.css" />
+  </head>
+  <body>
+    <main class="lesson">
+      <p class="eyebrow">Lesson {{NUMBER}} · {{TOPIC}}</p>
+      <h1>{{TITLE}}</h1>
+      <p class="lead">{{LEAD — the one thing this lesson lands, in one or two sentences.}}</p>
+
+      <section class="cold-open">
+        <!-- cold-open: 1={{RECORD-ID}} 2={{RECORD-ID}} -->
+        <p class="eyebrow">Cold open</p>
+        <h2>Before you read on</h2>
+
+        <div
+          class="quiz"
+          data-releases="content"
+          data-label="Cold open"
+          data-lesson="{{LESSON-ID}}"
+        >
+          <div class="quiz-item" role="group" aria-labelledby="q1" data-correct="0">
+            <p class="quiz-q" id="q1">{{QUESTION}}</p>
+            <ul class="quiz-options">
+              <li><button class="quiz-btn" type="button">{{OPT}}</button></li>
+              <li><button class="quiz-btn" type="button">{{OPT}}</button></li>
+              <li><button class="quiz-btn" type="button">{{OPT}}</button></li>
+            </ul>
+            <p class="quiz-fb" role="status" hidden>{{FEEDBACK}}</p>
+          </div>
+
+          <p class="quiz-result" role="status"></p>
+          <button class="quiz-copy" type="button" hidden>Copy result</button>
+        </div>
+
+        <p class="seal-note" role="status">
+          Lesson below stays sealed until every question here is answered.
+        </p>
+      </section>
+
+      <div
+        class="lesson-content sealed"
+        id="content"
+        inert
+        data-seal-label="Answer the cold open to unseal the lesson."
+      >
+        <h2>Knowledge</h2>
+        <p>{{Body. Every claim cites.}}<a class="cite" href="#n1">1</a></p>
+        <p class="sidenote" id="n1">
+          ¹ <a href="{{URL}}">{{Author, Title}}</a> — {{one line on what it covers}}.
+        </p>
+
+        <h2>Skills</h2>
+
+        <h2>Where next</h2>
+        <p>
+          Primary source: <a href="{{URL}}">{{SOURCE}}</a>. Related:
+          <a href="{{PREV-LESSON}}.html">{{prev lesson}}</a>,
+          <a href="../reference/{{SLUG}}.html#{{ANCHOR}}">reference</a>,
+          <a href="../index.html">course home</a>.
+        </p>
+        <p>Ask follow-up questions — anything unclear, your teacher can unpack it.</p>
+        <p class="sidenote" id="n2">² <a href="{{URL}}">{{Author, Title}}</a> — {{one line}}.</p>
+      </div>
+    </main>
+
+    <script src="../assets/quiz.js"></script>
+  </body>
+</html>
