@@ -1,18 +1,22 @@
 /* teach-template-version: 12 */
 :root {
   color-scheme: light;
-  --paper: #d4e0e5;
-  --paper-2: #f5f9fa;
-  --ink: #182630;
-  --ink-soft: #526574;
-  --rule: #c8d5db;
-  --rule-2: #597181;
+  --paper: #e6ecef;
+  --paper-2: #ffffff;
+  --ink: #11181c;
+  --ink-soft: #5c6970;
+  --rule: #d7dbdf;
+  --rule-2: #6b7278;
   --accent: #0d6581;
   --accent-2: #08485e;
+  --accent-bg: #f0f6f8;
   --signal: #d35f3d;
-  --wrong: #a54148;
+  --wrong: #d73a49;
+  --success: #28a745;
+  --success-bg: #e6ffed;
+  --wrong-bg: #ffeef0;
   --serif: 'Iowan Old Style', 'Palatino Linotype', 'Book Antiqua', Palatino, Georgia, serif;
-  --sans: Aptos, 'Segoe UI Variable', 'Segoe UI', system-ui, sans-serif;
+  --sans: Inter, Aptos, 'Segoe UI Variable', 'Segoe UI', system-ui, sans-serif;
   --mono: 'SF Mono', 'Cascadia Code', 'JetBrains Mono', ui-monospace, Consolas, monospace;
   --s-1: 0.5rem;
   --s-2: 1rem;
@@ -23,9 +27,13 @@
   --s-7: 6rem;
   --measure: clamp(36rem, 30rem + 17vw, 45rem);
   --margin-w: clamp(15rem, 12rem + 9vw, 20rem);
-  --radius: 0;
-  --tap: 2.75rem;
-  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --radius: 0.5rem;
+  --radius-sm: 0.25rem;
+  --tap: 3rem;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-spring: cubic-bezier(0.175, 0.885, 0.32, 1.05);
+  --shadow-sm: 0 1px 2px rgba(17, 24, 28, 0.04), 0 2px 4px rgba(17, 24, 28, 0.08);
+  --shadow-md: 0 4px 6px rgba(17, 24, 28, 0.06), 0 10px 15px rgba(17, 24, 28, 0.1);
 }
 
 @media print {

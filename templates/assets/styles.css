@@ -265,9 +265,10 @@ a.cite:hover {
 .cold-open {
   grid-column: 1 / -1;
   background: var(--paper-2);
-  border-block: 1px solid var(--rule);
-  border-top: 3px solid var(--accent);
+  border: 1px solid var(--rule);
+  border-top: 4px solid var(--accent);
   border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
   padding: var(--s-4) var(--s-4) var(--s-5);
   margin: 0 0 var(--s-5);
 }
@@ -299,14 +300,18 @@ a.cite:hover {
 
 .seal-note {
   margin: var(--s-3) 0 0;
-  padding-top: var(--s-2);
+  padding: var(--s-2) 0 0;
   border-top: 1px solid var(--rule);
+  transition: all 0.3s var(--ease-out);
 }
 
 .seal-note.is-unsealed {
-  color: var(--ink);
+  color: var(--success);
   font-weight: 700;
-  border-top-color: var(--signal);
+  border-top: 1px solid color-mix(in srgb, var(--success) 30%, transparent);
+  background: var(--success-bg);
+  padding: var(--s-2);
+  border-radius: var(--radius-sm);
 }
 
 .lesson-content::after {
@@ -330,10 +335,10 @@ a.cite:hover {
   opacity: 0;
   visibility: hidden;
   transition:
-    opacity 0.18s var(--ease-out),
-    -webkit-backdrop-filter 0.18s var(--ease-out),
-    backdrop-filter 0.18s var(--ease-out),
-    visibility 0s 0.18s;
+    opacity 0.4s var(--ease-out),
+    -webkit-backdrop-filter 0.4s var(--ease-out),
+    backdrop-filter 0.4s var(--ease-out),
+    visibility 0s 0.4s;
 }
 
 .lesson-content[data-seal-label]::after {
@@ -346,14 +351,14 @@ a.cite:hover {
 }
 
 .lesson-content.sealed::after {
-  -webkit-backdrop-filter: blur(0.18rem);
-  backdrop-filter: blur(0.18rem);
+  -webkit-backdrop-filter: blur(0.35rem);
+  backdrop-filter: blur(0.35rem);
   opacity: 1;
   visibility: visible;
   transition:
-    opacity 0.18s var(--ease-out),
-    -webkit-backdrop-filter 0.18s var(--ease-out),
-    backdrop-filter 0.18s var(--ease-out);
+    opacity 0.4s var(--ease-out),
+    -webkit-backdrop-filter 0.4s var(--ease-out),
+    backdrop-filter 0.4s var(--ease-out);
 }
 
 @supports not (backdrop-filter: blur(1px)) {
@@ -411,28 +416,34 @@ a.cite:hover {
 }
 
 .quiz-btn {
-  --quiz-option-marker: 1.75rem;
+  --quiz-option-marker: 2rem;
   font-family: var(--sans);
   font-size: 1rem;
   text-align: left;
   display: grid;
   grid-template-columns: var(--quiz-option-marker) minmax(0, 1fr) var(--s-2);
-  gap: var(--s-1);
+  gap: var(--s-2);
   align-items: center;
   width: 100%;
   min-height: var(--tap);
-  padding: var(--s-1) var(--s-2);
+  padding: var(--s-1);
+
   overflow-wrap: anywhere;
   background: var(--paper-2);
   color: var(--ink);
   border: 1px solid var(--rule-2);
   border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
   cursor: pointer;
+  position: relative;
+  overflow: hidden;
   transition:
-    transform 0.18s var(--ease-out),
-    border-color 0.18s var(--ease-out),
-    background 0.18s var(--ease-out),
-    color 0.18s var(--ease-out);
+    transform 0.25s var(--ease-spring),
+    border-color 0.2s var(--ease-out),
+    background 0.2s var(--ease-out),
+    color 0.2s var(--ease-out),
+    box-shadow 0.2s var(--ease-out),
+    opacity 0.25s var(--ease-out);
 }
 
 .quiz-btn::before {
@@ -443,33 +454,48 @@ a.cite:hover {
   place-items: center;
   place-self: center;
   border: 1px solid var(--rule-2);
-  border-radius: var(--radius);
-  color: var(--accent-2);
+  border-radius: var(--radius-sm);
+  background: var(--paper);
+  color: var(--ink-soft);
   font-family: var(--sans);
   font-size: 0.75rem;
   font-weight: 700;
   line-height: 1;
+  transition: inherit;
 }
 
 .quiz-btn:not([aria-disabled='true']):active,
 .quiz-undo:active,
 .quiz-copy:active {
   transform: scale(0.98);
+  box-shadow: none;
   transition:
-    transform 0.05s var(--ease-out),
-    border-color 0.05s var(--ease-out),
-    background 0.05s var(--ease-out),
-    color 0.05s var(--ease-out);
+    transform 0.1s var(--ease-out),
+    border-color 0.1s var(--ease-out),
+    background 0.1s var(--ease-out),
+    color 0.1s var(--ease-out),
+    box-shadow 0.1s var(--ease-out);
 }
 
 .quiz-item:is([data-pending], [data-answered]) .quiz-btn {
   cursor: default;
 }
 
+.quiz-item[data-pending] .quiz-btn:not([data-state='chosen']) {
+  opacity: 0.6;
+  transform: scale(0.99);
+}
+
 /* Quiz state mirrors the attributes quiz.js owns. */
 .quiz-btn[data-state] {
   border-color: var(--state);
   background: color-mix(in srgb, var(--state) 8%, var(--paper-2));
+}
+
+.quiz-btn[data-state]::before {
+  border-color: var(--state);
+  color: var(--state);
+  background: color-mix(in srgb, var(--state) 15%, var(--paper-2));
 }
 
 .quiz-btn[data-state]::after {
@@ -485,8 +511,34 @@ a.cite:hover {
   --mark: '\2022';
 }
 
+@keyframes countdown-bar {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(0);
+  }
+}
+
+.quiz-btn[data-state='chosen']::after {
+  display: none;
+}
+.quiz-btn[data-state='chosen']::before {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 3px;
+  background: var(--ink-soft);
+  border-radius: 0;
+  transform: translateX(-100%);
+  animation: countdown-bar 3s linear forwards;
+  z-index: 2;
+}
+
 .quiz-btn[data-state='right'] {
-  --state: var(--accent);
+  --state: var(--success);
   --mark: '\2713';
 }
 
@@ -499,19 +551,22 @@ a.cite:hover {
 .quiz-copy {
   min-height: var(--tap);
   margin-top: var(--s-1);
-  padding: var(--s-1) var(--s-2);
+  padding: var(--s-1) var(--s-3);
   border-radius: var(--radius);
   cursor: pointer;
+  font-family: var(--sans);
+  font-weight: 600;
   transition:
-    transform 0.18s var(--ease-out),
+    transform 0.18s var(--ease-spring),
     border-color 0.18s var(--ease-out),
     background 0.18s var(--ease-out),
-    color 0.18s var(--ease-out);
+    color 0.18s var(--ease-out),
+    box-shadow 0.18s var(--ease-out);
 }
 
 .quiz-undo {
   background: transparent;
-  color: var(--accent-2);
+  color: var(--ink-soft);
   border: 1px solid var(--rule-2);
   min-width: var(--s-7);
 }
@@ -520,12 +575,14 @@ a.cite:hover {
   background: var(--accent);
   color: #fff;
   border: 1px solid var(--accent);
+  box-shadow: var(--shadow-sm);
   opacity: 1;
   transition:
-    transform 0.18s var(--ease-out),
+    transform 0.18s var(--ease-spring),
     border-color 0.18s var(--ease-out),
     background 0.18s var(--ease-out),
     color 0.18s var(--ease-out),
+    box-shadow 0.18s var(--ease-out),
     opacity 0.18s var(--ease-out),
     display 0.18s allow-discrete;
 }
@@ -552,13 +609,14 @@ a.cite:hover {
   font-family: var(--mono);
   font-size: 0.875rem;
   margin-top: var(--s-3);
-  padding: var(--s-2);
-  background: color-mix(in srgb, var(--accent) 14%, var(--paper-2));
-  border: 1px solid var(--rule-2);
+  padding: var(--s-3);
+  background: var(--paper-2);
+  border: 1px solid var(--rule);
   border-top: 3px solid var(--accent);
   border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
   opacity: 1;
-  transition: opacity 0.18s var(--ease-out);
+  transition: opacity 0.4s var(--ease-out);
 }
 
 .quiz-fb:empty,
@@ -664,21 +722,31 @@ a.cite:hover {
 
   .quiz-item:not([data-pending], [data-answered]) .quiz-btn:hover {
     border-color: var(--accent);
-    background: color-mix(in srgb, var(--accent) 5%, var(--paper-2));
+    background: var(--accent-bg);
+    color: var(--accent);
+    box-shadow: var(--shadow-md);
+  }
+
+  .quiz-item:not([data-pending], [data-answered]) .quiz-btn:hover::before {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: var(--paper-2);
   }
 
   .quiz-undo:hover {
     color: var(--ink);
-    border-color: var(--ink-soft);
+    border-color: var(--ink);
+    background: var(--paper-2);
   }
 
   .quiz-copy:hover {
     background: var(--accent-2);
     border-color: var(--accent-2);
+    box-shadow: var(--shadow-md);
   }
 
   .toc a:hover {
-    color: var(--accent-2);
+    color: var(--accent);
   }
 
   .lesson-nav-link:hover {
