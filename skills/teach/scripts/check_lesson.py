@@ -85,6 +85,8 @@ class DocParser(HTMLParser):
         self._css_line = 0
         self.sealed_ids = set()  # ids of elements carrying class="sealed"
         self.inert_ids = set()  # ids of elements carrying the inert attribute
+        self.has_seal_note = False  # a .seal-note sits outside the seal
+        self.other_links = []  # (line, rel, href) — <link> that is not a stylesheet
         self.cold_open_quizzes = (
             set()
         )  # id(q) of .quiz with a .cold-open ancestor
@@ -118,6 +120,7 @@ class DocParser(HTMLParser):
                 "items": [],
                 "has_result": False,
                 "has_copy": False,
+                "result_hidden": False,
                 "releases": ad.get("data-releases"),
                 "lesson": ad.get("data-lesson"),
             }
@@ -141,21 +144,32 @@ class DocParser(HTMLParser):
             cur_item["options"] += 1
         if "quiz-result" in cls and cur_quiz is not None:
             cur_quiz["has_result"] = True
+            if "hidden" in ad:
+                cur_quiz["result_hidden"] = True
         if "quiz-copy" in cls and cur_quiz is not None:
             cur_quiz["has_copy"] = True
+        if "seal-note" in cls:
+            self.has_seal_note = True
         media_attr = MEDIA_SRC.get(tag)
         if media_attr and ad.get(media_attr):
             self.media_srcs.append((line, tag, ad[media_attr]))
+        # srcset is a comma-separated candidate list; each candidate is
+        # "<url> [descriptor]". Feeding each url into media_srcs reuses the
+        # remote and missing-asset checks verify() already runs over that list.
+        if tag in ("img", "source") and ad.get("srcset"):
+            for cand in ad["srcset"].split(","):
+                parts = cand.split()
+                if parts:
+                    self.media_srcs.append((line, tag, parts[0]))
         if tag == "a" and ad.get("href"):
             self.anchor_hrefs.append((line, ad["href"]))
         if tag == "script" and ad.get("src"):
             self.script_srcs.append((line, ad["src"]))
-        if (
-            tag == "link"
-            and ad.get("href")
-            and "stylesheet" in ad.get("rel", "").lower()
-        ):
-            self.link_hrefs.append((line, ad["href"]))
+        if tag == "link" and ad.get("href"):
+            if "stylesheet" in ad.get("rel", "").lower():
+                self.link_hrefs.append((line, ad["href"]))
+            else:
+                self.other_links.append((line, ad.get("rel", ""), ad["href"]))
         if tag == "style":
             self._css_cap = []
             self._css_line = line
@@ -309,6 +323,17 @@ def verify(type_, parser, css_blocks, html_dir, self_mode=False, html_name=""):
                     f"assets/ or drop it",
                 )
             )
+    for line, rel, href in parser.other_links:
+        if href.startswith(("http://", "https://", "//")):
+            errors.append(
+                (
+                    line,
+                    "offline-link",
+                    f'<link rel="{rel}"> loads "{href}" from the network; '
+                    f"lessons must render with the cable out - copy it "
+                    f"into assets/ or drop it",
+                )
+            )
     # a ref that points nowhere is the same failure as no ref at all, and on
     # file:// it fails silently. Stylesheets are excluded: main() already
     # reports an unreadable one as css-link.
@@ -369,6 +394,16 @@ def verify(type_, parser, css_blocks, html_dir, self_mode=False, html_name=""):
                         q["line"],
                         "quiz-result-missing",
                         "add a .quiz-result element inside .quiz",
+                    )
+                )
+            if q["result_hidden"]:
+                errors.append(
+                    (
+                        q["line"],
+                        "quiz-result-hidden",
+                        ".quiz-result must not carry hidden; quiz.js never "
+                        "unhides it, so the learner never sees the line to "
+                        "paste back and the cold open can never be scored",
                     )
                 )
             # only a cold open produces a line worth pasting back; a practice
@@ -484,6 +519,21 @@ def verify(type_, parser, css_blocks, html_dir, self_mode=False, html_name=""):
                     "sealed-no-quiz-script",
                     "lesson body is sealed but no quiz.js is linked; "
                     'add <script src="../assets/quiz.js"></script>',
+                )
+            )
+
+        # the seal's own label is CSS content inside the inert subtree, and
+        # inert prunes that subtree from the accessibility tree — without a
+        # .seal-note outside the seal the instruction reaches nobody who
+        # cannot see the blur (DESIGN.md § Signature)
+        if parser.sealed_ids and not parser.has_seal_note:
+            errors.append(
+                (
+                    1,
+                    "seal-note-missing",
+                    "lesson body is sealed but no .seal-note element exists; "
+                    "add <p class=\"seal-note\" role=\"status\">…</p> as a "
+                    "sibling of the cold-open quiz, outside the seal",
                 )
             )
 
