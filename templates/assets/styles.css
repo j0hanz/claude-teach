@@ -1,4 +1,4 @@
-/* teach-template-version: 3 */
+/* teach-template-version: 4 */
 :root {
   color-scheme: light;
   --paper: #edf1ee;
@@ -14,30 +14,26 @@
   --sans: Aptos, 'Segoe UI Variable', 'Segoe UI', system-ui, sans-serif;
   --mono: 'SF Mono', 'Cascadia Code', 'JetBrains Mono', ui-monospace, Consolas, monospace;
   --fs-1: 0.75rem;
-  --fs-2: 0.8125rem;
-  --fs-3: clamp(0.84rem, 0.82rem + 0.1vw, 0.875rem);
-  --fs-4: clamp(1rem, 0.95rem + 0.4vw, 1.125rem);
-  --fs-5: clamp(1.125rem, 1.05rem + 0.5vw, 1.25rem);
-  --fs-6: clamp(1.25rem, 1.1rem + 0.8vw, 1.45rem);
-  --fs-7: clamp(1.55rem, 1.3rem + 1vw, 1.9rem);
-  --fs-8: clamp(2.5rem, 2rem + 2.4vw, 4rem);
+  --fs-2: 0.875rem;
+  --fs-3: clamp(1rem, 0.95rem + 0.4vw, 1.125rem);
+  --fs-4: clamp(1.125rem, 1.05rem + 0.5vw, 1.25rem);
+  --fs-5: clamp(1.25rem, 1.1rem + 0.8vw, 1.45rem);
+  --fs-6: clamp(1.55rem, 1.3rem + 1vw, 1.9rem);
+  --fs-7: clamp(2.5rem, 2rem + 2.4vw, 4rem);
   --track: 0.12em;
   --s-1: 0.25rem;
   --s-2: 0.5rem;
   --s-3: 0.75rem;
   --s-4: 1rem;
-  --s-5: 1.25rem;
-  --s-6: 1.5rem;
-  --s-7: 2rem;
-  --s-8: 2.5rem;
-  --s-9: 3rem;
-  --s-10: 4rem;
-  --s-11: 6rem;
+  --s-5: 1.5rem;
+  --s-6: 2rem;
+  --s-7: 3rem;
+  --s-8: 4rem;
+  --s-9: 6rem;
   --measure: clamp(34rem, 29rem + 12vw, 44rem);
   --margin-w: clamp(12rem, 10rem + 5vw, 17rem);
-  --gutter: var(--s-9);
-  --radius: 4px;
-  --radius-2: 2px;
+  --gutter: var(--s-7);
+  --radius: 0.25rem;
   --tap: 2.75rem;
   --tint: 8%;
   --lh-tight: 1.45;
@@ -67,7 +63,7 @@ body {
   background: linear-gradient(#f7f9f6 0, var(--paper) 15rem);
   color: var(--ink);
   font-family: var(--serif);
-  font-size: var(--fs-4);
+  font-size: var(--fs-3);
   line-height: 1.68;
   font-variant-numeric: oldstyle-nums;
   -webkit-font-smoothing: antialiased;
@@ -79,7 +75,7 @@ body {
   width: fit-content;
   max-width: calc(100% - 2 * var(--s-3));
   margin: 0 auto;
-  padding: var(--s-10) var(--s-7) var(--s-11);
+  padding: var(--s-8) var(--s-6) var(--s-9);
   display: grid;
   grid-template-columns: var(--measure) var(--margin-w);
   column-gap: var(--gutter);
@@ -90,7 +86,7 @@ body {
   grid-column: 1 / -1;
   width: min(15rem, 45%);
   height: 0.375rem;
-  margin-bottom: var(--s-8);
+  margin-bottom: var(--s-7);
   background: var(--accent);
 }
 
@@ -132,15 +128,15 @@ h4 {
 }
 
 h1 {
-  font-size: var(--fs-8);
+  font-size: var(--fs-7);
   letter-spacing: 0;
   margin-bottom: var(--s-2);
 }
 
 h2 {
-  font-size: var(--fs-7);
+  font-size: var(--fs-6);
   letter-spacing: 0;
-  margin: var(--s-10) 0 var(--s-4);
+  margin: var(--s-8) 0 var(--s-4);
   padding-top: var(--s-4);
   border-top: 2px solid var(--ink);
 }
@@ -152,8 +148,8 @@ h2:first-of-type {
 }
 
 h3 {
-  font-size: var(--fs-5);
-  margin: var(--s-7) 0 var(--s-3);
+  font-size: var(--fs-4);
+  margin: var(--s-6) 0 var(--s-3);
 }
 
 p {
@@ -161,9 +157,9 @@ p {
 }
 
 .lead {
-  font-size: var(--fs-6);
+  font-size: var(--fs-5);
   line-height: var(--lh-tight);
-  margin: 0 0 var(--s-7);
+  margin: 0 0 var(--s-6);
   color: var(--ink);
 }
 
@@ -193,14 +189,14 @@ pre {
   padding: var(--s-4) var(--s-5);
   overflow-x: auto;
   line-height: 1.5;
-  margin: var(--s-6) 0;
+  margin: var(--s-5) 0;
   box-shadow: var(--hi);
 }
 
 :not(pre) > code {
   background: color-mix(in srgb, var(--accent) 8%, var(--paper-2));
   padding: 0.12em 0.4em;
-  border-radius: var(--radius-2);
+  border-radius: var(--radius);
 }
 
 a {
@@ -217,7 +213,7 @@ a:focus-visible,
 .quiz-copy:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 3px;
-  border-radius: var(--radius-2);
+  border-radius: var(--radius);
 }
 
 .quiz-copy:focus-visible {
@@ -256,7 +252,7 @@ a.cite:hover {
   color: var(--ink-soft);
   border-inline-start: 2px solid var(--accent);
   padding-inline-start: var(--s-3);
-  margin: 0 0 var(--s-6);
+  margin: 0 0 var(--s-5);
 }
 
 /* The cold open is a calibration surface, not a decorative card. */
@@ -266,8 +262,8 @@ a.cite:hover {
   border: 1px solid var(--rule);
   border-top: 4px solid var(--accent);
   border-radius: var(--radius);
-  padding: var(--s-7) var(--s-7) var(--s-8);
-  margin: var(--s-8) 0 var(--s-9);
+  padding: var(--s-6) var(--s-6) var(--s-7);
+  margin: var(--s-7) 0;
   box-shadow: var(--shadow), var(--hi);
   transition: border-color var(--dur-soft) var(--ease-out);
 }
@@ -277,7 +273,7 @@ a.cite:hover {
 }
 
 .cold-open h2 {
-  font-size: var(--fs-6);
+  font-size: var(--fs-5);
   border-top: 0;
   padding-top: 0;
   margin: var(--s-2) 0 var(--s-5);
@@ -306,7 +302,7 @@ a.cite:hover {
   inset: 0;
   display: grid;
   place-items: start center;
-  padding-top: var(--s-7);
+  padding-top: var(--s-6);
   font-family: var(--sans);
   font-size: var(--fs-2);
   font-weight: 700;
@@ -348,7 +344,7 @@ a.cite:hover {
 }
 
 .quiz {
-  margin: var(--s-6) 0;
+  margin: var(--s-5) 0;
 }
 
 .quiz-progress,
@@ -372,7 +368,7 @@ a.cite:hover {
 }
 
 .quiz-item {
-  margin: 0 0 var(--s-6);
+  margin: 0 0 var(--s-5);
 }
 
 .quiz > .quiz-item:last-of-type {
@@ -405,11 +401,11 @@ a.cite:hover {
   position: relative;
   width: 100%;
   min-height: var(--tap);
-  padding: var(--s-2) var(--s-8) var(--s-2) 3.4rem;
+  padding: var(--s-2) var(--s-7) var(--s-2) 3.4rem;
   background: var(--paper-2);
   color: var(--ink);
   border: 1px solid var(--rule-2);
-  border-radius: var(--radius-2);
+  border-radius: var(--radius);
   cursor: pointer;
   transition:
     transform var(--dur-press) var(--ease-out),
@@ -488,7 +484,7 @@ a.cite:hover {
   min-height: var(--tap);
   margin-top: var(--s-2);
   padding: var(--s-2) var(--s-4);
-  border-radius: var(--radius-2);
+  border-radius: var(--radius);
   cursor: pointer;
   transition:
     transform var(--dur-press) var(--ease-out),
@@ -531,19 +527,19 @@ a.cite:hover {
 
 .quiz-fb {
   font-family: var(--sans);
-  font-size: var(--fs-3);
+  font-size: var(--fs-2);
   color: var(--ink-soft);
   margin: var(--s-2) 0 0;
 }
 
 .quiz-result {
   font-family: var(--mono);
-  font-size: var(--fs-3);
+  font-size: var(--fs-2);
   margin-top: var(--s-5);
   padding: var(--s-3) var(--s-4);
   background: color-mix(in srgb, var(--accent) 7%, var(--paper-2));
   border: 1px solid var(--rule-2);
-  border-radius: var(--radius-2);
+  border-radius: var(--radius);
   opacity: 1;
   transition: opacity var(--dur-control) var(--ease-out);
 }
@@ -565,7 +561,7 @@ a.cite:hover {
   flex-wrap: wrap;
   gap: var(--s-2) var(--s-5);
   align-items: baseline;
-  margin: var(--s-3) 0 var(--s-8);
+  margin: var(--s-3) 0 var(--s-7);
   padding: 0 0 var(--s-3);
   border-bottom: 1px solid var(--rule);
 }
@@ -595,7 +591,7 @@ a.cite:hover {
 .toc a:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 3px;
-  border-radius: var(--radius-2);
+  border-radius: var(--radius);
 }
 
 .lesson-nav {
@@ -603,8 +599,8 @@ a.cite:hover {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: var(--gutter);
-  margin: var(--s-10) 0 0;
-  padding-top: var(--s-6);
+  margin: var(--s-8) 0 0;
+  padding-top: var(--s-5);
   border-top: 2px solid var(--ink);
 }
 
@@ -622,7 +618,7 @@ a.cite:hover {
 
 .lesson-nav-link {
   font-family: var(--serif);
-  font-size: var(--fs-5);
+  font-size: var(--fs-4);
   color: var(--accent);
   text-decoration: none;
   word-break: break-word;
@@ -634,7 +630,7 @@ a.cite:hover {
 .lesson-nav-link:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 4px;
-  border-radius: var(--radius-2);
+  border-radius: var(--radius);
 }
 
 .lesson-nav-cell:empty {
@@ -685,22 +681,22 @@ a.cite:hover {
 
   .lesson {
     width: auto;
-    padding: var(--s-8) var(--s-5) var(--s-10);
+    padding: var(--s-7) var(--s-5) var(--s-8);
   }
 
   .lesson::before {
     display: block;
     width: 9rem;
-    margin-bottom: var(--s-7);
+    margin-bottom: var(--s-6);
   }
 
   .sidenote {
-    margin: -0.5rem 0 var(--s-6);
+    margin: -0.5rem 0 var(--s-5);
   }
 
   .cold-open {
     padding: var(--s-5);
-    margin: var(--s-7) 0 var(--s-8);
+    margin: var(--s-6) 0 var(--s-7);
   }
 
   h1 {

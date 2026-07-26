@@ -42,9 +42,9 @@ Name and role only — no value here, on purpose. Value drift when restated.
 | `--serif`    | body face (sustained reading)         |
 | `--sans`     | labels and marginalia face            |
 | `--mono`     | code and result-line face             |
-| `--fs-1`…`8` | type ladder, small to large           |
+| `--fs-1`…`7` | type ladder, small to large           |
 | `--track`    | tracking every uppercase label shares |
-| `--s-1`…`11` | space ladder — margins and padding    |
+| `--s-1`…`9`  | space ladder — margins and padding    |
 | `--measure`  | body line length                      |
 | `--margin-w` | sidenote column width                 |
 | `--gutter`   | body ↔ margin gap                     |
