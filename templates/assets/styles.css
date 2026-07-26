@@ -45,6 +45,13 @@ body {
   background: var(--accent);
 }
 
+.lesson-content {
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+  align-content: start;
+  position: relative;
+}
+
 :is(.lesson, .lesson-content) > * {
   grid-column: 1;
 }
@@ -55,14 +62,6 @@ body {
 
 :is(.lesson, .lesson-content) > .full {
   grid-column: 1 / -1;
-}
-
-.lesson-content {
-  grid-column: 1 / -1;
-  display: grid;
-  grid-template-columns: subgrid;
-  align-content: start;
-  position: relative;
 }
 
 @supports not (grid-template-columns: subgrid) {
