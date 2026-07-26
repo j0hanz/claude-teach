@@ -44,6 +44,7 @@
   --dur-seal: 0.2s;
   --dur-control: 0.18s;
   --dur-soft: 0.22s;
+  --dur-press: 0.14s;
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   --blur-seal: 0.18rem;
   --shadow: 0 1px 0 rgba(23, 35, 30, 0.08), 0 12px 26px -22px rgba(23, 35, 30, 0.44);
@@ -411,7 +412,7 @@ a.cite:hover {
   border-radius: var(--radius-2);
   cursor: pointer;
   transition:
-    transform 0.14s var(--ease-out),
+    transform var(--dur-press) var(--ease-out),
     border-color var(--dur-control) var(--ease-out),
     background var(--dur-control) var(--ease-out),
     color var(--dur-control) var(--ease-out);
@@ -490,7 +491,7 @@ a.cite:hover {
   border-radius: var(--radius-2);
   cursor: pointer;
   transition:
-    transform 0.14s var(--ease-out),
+    transform var(--dur-press) var(--ease-out),
     border-color var(--dur-control) var(--ease-out),
     background var(--dur-control) var(--ease-out),
     color var(--dur-control) var(--ease-out);
