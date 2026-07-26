@@ -2,8 +2,9 @@
      Placeholders in {{ }} are filled by the teach skill per lesson.
      Copy ../templates/lesson.css and ../templates/quiz.js into the workspace
      assets/ on first use; every lesson links both.
-     Design system, component and quiz markup contracts: DESIGN.md (authority).
-     teach-template-version: 6 -->
+     Design system, component and quiz markup contracts:
+     skills/teach/references/DESIGN.md (authority).
+     teach-template-version: 7 -->
 <!doctype html>
 <html lang="{{LANG}}">
   <head>
@@ -43,7 +44,11 @@
           <button class="quiz-copy" type="button" hidden>Copy result</button>
         </div>
 
-        <p class="seal-note" role="status">
+        <p
+          class="seal-note"
+          role="status"
+          data-unsealed-label="Lesson open. Paste the result line above back to your teacher — that is what schedules your next review."
+        >
           Lesson below stays sealed until every question here is answered.
         </p>
       </section>

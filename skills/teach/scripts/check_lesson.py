@@ -35,6 +35,49 @@ TEMPLATES_DIR = os.path.normpath(
     )
 )
 
+# cold-open mapping comment: "cold-open: 1=0003-slug 2=0007-slug". The one
+# implementation of this shape — teach.py imports both helpers below rather
+# than re-deriving them, because the invariant they encode (contiguous
+# positions, one record per item) decides which learning records `score`
+# rewrites, and two copies of a scoring rule is one copy too many.
+COLD_OPEN_PAIR_RE = re.compile(r"(\d+)=([0-9A-Za-z][0-9A-Za-z-]*)")
+
+
+def cold_open_pairs(text):
+    """[(position, record_id), ...] from a mapping comment's text.
+
+    Order is not meaningful — callers sort — so an out-of-order comment is not
+    a fault; gaps and repeats are, and cold_open_faults reports those.
+    """
+    return [(int(n), rid) for n, rid in COLD_OPEN_PAIR_RE.findall(text or "")]
+
+
+def cold_open_faults(pairs):
+    """Structural faults in parsed pairs, as [(rule, message), ...]."""
+    faults = []
+    positions = sorted(p for p, _ in pairs)
+    if positions != list(range(1, len(pairs) + 1)):
+        faults.append(
+            (
+                "cold-open-comment-positions",
+                f"comment positions {positions} must be 1..{len(pairs)} "
+                f"with no gaps or repeats",
+            )
+        )
+    ids = [rid for _, rid in pairs]
+    dupes = sorted({r for r in ids if ids.count(r) > 1})
+    if dupes:
+        faults.append(
+            (
+                "cold-open-comment-duplicate",
+                f"comment maps {', '.join(dupes)} to more than one position; "
+                f"a cold open tests one learning record per item, and scoring "
+                f"would write that record twice keeping only the last outcome",
+            )
+        )
+    return faults
+
+
 VOID = {
     "br",
     "img",
@@ -560,11 +603,7 @@ def verify(type_, parser, css_blocks, html_dir, self_mode=False, html_name=""):
                     )
                 else:
                     cline, ctext = parser.cold_open_comment
-                    # parse "cold-open: 1=0003-slug 2=0007-slug"
-                    pairs = re.findall(
-                        r"(\d+)=([0-9A-Za-z][0-9A-Za-z-]*)", ctext
-                    )
-                    positions = sorted(int(n) for n, _ in pairs)
+                    pairs = cold_open_pairs(ctext)
                     if len(pairs) != len(co_q["items"]):
                         errors.append(
                             (
@@ -574,27 +613,8 @@ def verify(type_, parser, css_blocks, html_dir, self_mode=False, html_name=""):
                                 f"{len(co_q['items'])} .quiz-item; counts must match",
                             )
                         )
-                    elif positions != list(range(1, len(co_q["items"]) + 1)):
-                        errors.append(
-                            (
-                                cline,
-                                "cold-open-comment-positions",
-                                f"comment positions {positions} must be 1..{len(co_q['items'])} "
-                                f"with no gaps or repeats",
-                            )
-                        )
-                    elif len({rid for _, rid in pairs}) != len(pairs):
-                        errors.append(
-                            (
-                                cline,
-                                "cold-open-comment-duplicate",
-                                "comment maps one learning record to more "
-                                "than one position; a cold open tests one "
-                                "item per record, and scoring would write "
-                                "that record twice keeping only the last "
-                                "outcome",
-                            )
-                        )
+                    for rule, msg in cold_open_faults(pairs):
+                        errors.append((cline, rule, msg))
     return errors
 
 

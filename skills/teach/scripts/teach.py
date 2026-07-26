@@ -98,8 +98,6 @@ LEDGER_RE = re.compile(
     r"^unscored cold open:\s+(lessons/\S+)\s+tests\s+(.+?)\s+\(asked:\s*(\d+)\)\s*$"
 )
 
-# lesson cold-open comment: "cold-open: 1=0003-slug 2=0007-slug"
-COLD_OPEN_RE = re.compile(r"(\d+)=([0-9A-Za-z][0-9A-Za-z\-]*)")
 H1_RE = re.compile(r"<h1[^>]*>(.*?)</h1>", re.S | re.I)
 TITLE_RE = re.compile(r"<title[^>]*>(.*?)</title>", re.S | re.I)
 TAG_RE = re.compile(r"<[^>]+>")
@@ -312,6 +310,25 @@ def read_notes(cwd: str) -> str:
     return read_text(p) if os.path.isfile(p) else ""
 
 
+def nearby_workspaces(cwd: str) -> list[str]:
+    """Immediate subdirectories that are teach workspaces.
+
+    Every command resolves the workspace from the session's working directory,
+    so a learner who started Claude Code one level above their course gets a
+    dead report — and then a second workspace created beside the real one,
+    splitting the schedule in two. Naming the course that is sitting right
+    there turns a silent dead end into one `cd`."""
+    out = []
+    with contextlib.suppress(OSError):
+        for name in sorted(os.listdir(cwd)):
+            if name.startswith(".") or name == "node_modules":
+                continue
+            p = os.path.join(cwd, name)
+            if os.path.isdir(p) and is_workspace(p):
+                out.append("./" + name)
+    return out
+
+
 def load_records(cwd: str) -> list[RecordDict]:
     """Every learning record, sorted by filename. A malformed one is skipped
     rather than raised — it must not cost the learner the report or the index
@@ -456,39 +473,24 @@ def find_cold_open_comment(html: str) -> str | None:
 def parse_cold_open_comment(html: str) -> list[tuple[int, str]]:
     """Return [(pos, record_id), ...] from the cold-open mapping comment.
 
-    Positions may appear in any order — cmd_ledger sorts by position when it
-    builds the tests list, so order is not semantically meaningful and an
-    out-of-order comment is not a defect. Sorting here keeps the runtime
-    lenient, matching check_lesson's sorted contiguity check. Position gaps
-    and repeats (1,1,3) are rejected, and so is one record id appearing at
-    two positions — scoring would write that record twice."""
-    text = find_cold_open_comment(html)
-    pairs = (
-        [(int(n), rid) for n, rid in COLD_OPEN_RE.findall(text)]
-        if text
-        else []
-    )
+    Shape and structural rules come from check_lesson — one implementation of
+    the invariant that decides which learning records `score` rewrites. This
+    adds only the runtime's own rule: no comment at all is fatal here, where
+    for the validator it is a separate error with its own line number."""
+    from check_lesson import cold_open_faults, cold_open_pairs
+
+    pairs = cold_open_pairs(find_cold_open_comment(html))
     if not pairs:
         raise TeachError(
             1, "no <!-- cold-open: N=ID ... --> comment in lesson"
         )
-    positions = sorted(p for p, _ in pairs)
-    if positions != list(range(1, len(pairs) + 1)):
+    faults = cold_open_faults(pairs)
+    if faults:
         raise TeachError(
             1,
-            f"cold-open positions {positions} must be 1..{len(pairs)} "
-            f"contiguous",
-        )
-    ids = [rid for _, rid in pairs]
-    dupes = sorted({r for r in ids if ids.count(r) > 1})
-    if dupes:
-        raise TeachError(
-            1,
-            f"cold-open comment maps {', '.join(dupes)} to more than one "
-            f"position; a cold open tests one learning record per item, and "
-            f"scoring would write that record twice keeping only the last "
-            f"outcome. Fix the lesson's cold-open comment and quiz, then "
-            f"re-run ledger.",
+            "; ".join(msg for _, msg in faults)
+            + ". Fix the lesson's cold-open comment and quiz, then re-run "
+            "ledger.",
         )
     return pairs
 
@@ -579,16 +581,15 @@ def prior_cold_opens(cwd: str, rec_id: str) -> list[str]:
     """Lesson numbers whose cold-open comment names this record — the per-record
     Grep that used to live in SKILL.md, now in the report so the model reads titles,
     not bodies, for everything except the due few."""
+    from check_lesson import cold_open_pairs
+
     hits = []
     for p in glob.glob(os.path.join(cwd, "lessons", "*.html")):
         try:
             html = read_text(p)
         except OSError:
             continue
-        text = find_cold_open_comment(html)
-        if not text:
-            continue
-        for _, rid in COLD_OPEN_RE.findall(text):
+        for _, rid in cold_open_pairs(find_cold_open_comment(html)):
             if rid == rec_id:
                 hits.append(os.path.basename(p).split("-")[0])
     return sorted(set(hits))
@@ -617,6 +618,14 @@ def cmd_state(args: "argparse.Namespace") -> int:
     cwd = args.workspace
     if not is_workspace(cwd):
         print(f"teach-state 0  not a teach workspace  ({cwd})")
+        found = nearby_workspaces(cwd)
+        if found:
+            print(
+                "found       "
+                + ", ".join(found)
+                + "  — cd into one of these; starting a new workspace here "
+                "splits the course in two"
+            )
         return 0
     notes = read_notes(cwd)
     doubling, ceiling, src = resolve_spacing(notes)
@@ -858,6 +867,10 @@ def _format_links(paths: list[str], prefix: str) -> str:
     )
 
 
+def _plural(n: int, word: str) -> str:
+    return f"{n} {word}" if n == 1 else f"{n} {word}s"
+
+
 def _format_when(r: RecordDict, t: date) -> str:
     if r["status"] in ("retired", "superseded"):
         return "banked"
@@ -917,7 +930,8 @@ def build_index(cwd: str) -> str:
         '  <main class="lesson">',
         f'    <p class="eyebrow">Course · {t.isoformat()}</p>',
         f"    <h1>{esc(_topic(cwd))}</h1>",
-        f"    <p>{len(lessons)} lessons · {len(reference)} reference documents · "
+        f"    <p>{_plural(len(lessons), 'lesson')} · "
+        f"{_plural(len(reference), 'reference document')} · "
         f"{len(active)} tracked, {len(due)} due today.</p>",
     ]
     if resume:

@@ -90,6 +90,11 @@ def event_session_start(cwd):
             f" asked={rt['asked']}" if rt["asked"] else ""
         )
     lines.append(f"resume: {resume_s}")
+    # The state above is inert without the skill: a returning learner does not
+    # retype a slash command, and a model that only sees "workspace live" will
+    # improvise a lesson with no retrieval gate, no validator and no ledger.
+    # Name the entry point so the loop survives the session boundary.
+    lines.append("next: load the claude-teach:teach skill before teaching")
     # ponytail: plain stdout -> added to Claude's context (verified). SessionStart
     # cannot block. If a future harness requires hookSpecificOutput wrapping,
     # wrap here — one-line change.
@@ -123,12 +128,22 @@ def event_stop(cwd, payload):
                 os.remove(guard)  # loop closed => re-arm for the next lesson
         return 0
     try:
-        last = read_text(guard).strip() if os.path.isfile(guard) else ""
+        last = read_text(guard) if os.path.isfile(guard) else ""
     except OSError:
         last = ""
-    if last == ledger["lesson"]:
+    seen, _, nagged = last.partition("\n")
+    if seen.strip() != ledger["lesson"]:
+        # First Stop after the ledger opened is the turn that shipped the
+        # lesson — the learner has not had a chance to open it, let alone
+        # answer. Arm and say nothing; blocking here nags before there is
+        # anything to nag about, and burns an `asked` the abandon path counts.
+        write_text(guard, ledger["lesson"])
+        return 0
+    if nagged.strip() == "nagged":
         return 0  # already said it once for this lesson
-    write_text(guard, ledger["lesson"])
+    if ledger["asked"]:
+        return 0  # model already asked and logged it; nothing to catch
+    write_text(guard, ledger["lesson"] + "\nnagged")
     # ponytail: decision:block feeds the reason to the model and continues the
     # conversation rather than ending the turn; the guard above is what keeps
     # that to once per lesson.
