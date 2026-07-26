@@ -8,6 +8,7 @@
       "name": "claude-teach",
       "source": "./",
       "description": "Teach one topic across many sessions, with spaced repetition and offline HTML lessons.",
+      "version": "0.2.0",
       "category": "productivity",
       "keywords": ["learning", "teaching", "spaced-repetition", "tutor"]
     }
