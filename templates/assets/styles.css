@@ -107,7 +107,7 @@ h4 {
 
 h1 {
   font-size: clamp(2.5rem, 2rem + 2.4vw, 3.75rem);
-  letter-spacing: 0;
+  letter-spacing: -0.02em;
   max-width: 16ch;
   overflow-wrap: anywhere;
   margin-bottom: var(--s-2);
@@ -115,7 +115,7 @@ h1 {
 
 h2 {
   font-size: clamp(1.55rem, 1.3rem + 1vw, 1.9rem);
-  letter-spacing: 0;
+  letter-spacing: -0.02em;
   margin: var(--s-5) 0 var(--s-2);
   padding-top: var(--s-2);
   border-top: 1px solid var(--rule-2);
@@ -167,7 +167,7 @@ p {
   font-family: var(--sans);
   font-size: 0.75rem;
   font-weight: 700;
-  letter-spacing: 0;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
   color: var(--accent);
   font-variant-numeric: lining-nums;
@@ -321,16 +321,18 @@ a.cite:hover {
   font-size: 0.875rem;
   font-weight: 700;
   line-height: 1.4;
-  letter-spacing: 0;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
   color: var(--accent-2);
   background: linear-gradient(var(--paper), color-mix(in srgb, var(--paper) 70%, transparent) 48%);
-  -webkit-backdrop-filter: blur(0.18rem);
-  backdrop-filter: blur(0.18rem);
+  -webkit-backdrop-filter: blur(0);
+  backdrop-filter: blur(0);
   opacity: 0;
   visibility: hidden;
   transition:
     opacity 0.18s var(--ease-out),
+    -webkit-backdrop-filter 0.18s var(--ease-out),
+    backdrop-filter 0.18s var(--ease-out),
     visibility 0s 0.18s;
 }
 
@@ -344,9 +346,14 @@ a.cite:hover {
 }
 
 .lesson-content.sealed::after {
+  -webkit-backdrop-filter: blur(0.18rem);
+  backdrop-filter: blur(0.18rem);
   opacity: 1;
   visibility: visible;
-  transition: opacity 0.18s var(--ease-out);
+  transition:
+    opacity 0.18s var(--ease-out),
+    -webkit-backdrop-filter 0.18s var(--ease-out),
+    backdrop-filter 0.18s var(--ease-out);
 }
 
 @supports not (backdrop-filter: blur(1px)) {
@@ -448,6 +455,11 @@ a.cite:hover {
 .quiz-undo:active,
 .quiz-copy:active {
   transform: scale(0.98);
+  transition:
+    transform 0.05s var(--ease-out),
+    border-color 0.05s var(--ease-out),
+    background 0.05s var(--ease-out),
+    color 0.05s var(--ease-out);
 }
 
 .quiz-item:is([data-pending], [data-answered]) .quiz-btn {
@@ -765,6 +777,14 @@ a.cite:hover {
   .quiz-undo:active,
   .quiz-copy:active {
     transform: none;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .lesson-content::after {
+    background: var(--paper) !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
   }
 }
 

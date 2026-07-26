@@ -167,6 +167,13 @@
         setDisabled(true);
         if (fb) fb.textContent = fbText;
         if (focusWasOnUndo) buttons[chosen].focus();
+
+        try {
+          if (navigator.vibrate) {
+            navigator.vibrate(right ? 50 : [50, 100, 50]);
+          }
+        } catch (e) {}
+
         outcomes[i] = right ? 'right' : 'wrong';
         updateProgress();
         if (
