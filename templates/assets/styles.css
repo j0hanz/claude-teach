@@ -36,10 +36,6 @@ body {
   column-gap: var(--s-6);
 }
 
-.lesson::before {
-  display: none;
-}
-
 :is(.lesson, .lesson-content) > * {
   grid-column: 1;
 }
@@ -126,7 +122,7 @@ h2 {
 
 h2::before {
   content: '';
-  flex: 0 0 auto;
+  flex: none;
   width: 0.625rem;
   height: 0.625rem;
   border: 2px solid var(--accent);
@@ -135,9 +131,9 @@ h2::before {
 }
 
 h2:first-of-type {
-  border-top: 0;
-  padding-top: 0;
   margin-top: 0;
+  padding-top: 0;
+  border-top: none;
 }
 
 /* Content */
@@ -170,7 +166,6 @@ p {
   letter-spacing: 0.05em;
   text-transform: uppercase;
   color: var(--accent);
-  font-variant-numeric: lining-nums;
 }
 
 code,
@@ -199,9 +194,8 @@ pre {
 a {
   color: var(--accent);
   font-weight: 600;
-  text-decoration: underline;
+  text-decoration: underline 1px;
   text-underline-offset: 0.2em;
-  text-decoration-thickness: 1px;
 }
 
 a:focus-visible,
@@ -226,7 +220,6 @@ a.cite {
   font-weight: 700;
   color: var(--accent);
   line-height: 1;
-  font-variant-numeric: lining-nums;
 }
 
 sup.cite {
@@ -275,7 +268,7 @@ a.cite:hover {
 
 .cold-open h2 {
   font-size: clamp(1.25rem, 1.1rem + 0.8vw, 1.45rem);
-  border-top: 0;
+  border-top: none;
   padding-top: 0;
   margin: var(--s-1) 0 var(--s-3);
 }
@@ -335,9 +328,7 @@ a.cite:hover {
   opacity: 0;
   visibility: hidden;
   transition:
-    opacity 0.4s var(--ease-out),
-    -webkit-backdrop-filter 0.4s var(--ease-out),
-    backdrop-filter 0.4s var(--ease-out),
+    all 0.4s var(--ease-out),
     visibility 0s 0.4s;
 }
 
@@ -355,10 +346,7 @@ a.cite:hover {
   backdrop-filter: blur(0.35rem);
   opacity: 1;
   visibility: visible;
-  transition:
-    opacity 0.4s var(--ease-out),
-    -webkit-backdrop-filter 0.4s var(--ease-out),
-    backdrop-filter 0.4s var(--ease-out);
+  transition: all 0.4s var(--ease-out);
 }
 
 @supports not (backdrop-filter: blur(1px)) {
@@ -406,7 +394,7 @@ a.cite:hover {
   padding: 0;
   margin: 0;
   display: flex;
-  flex-direction: column;
+  flex-flow: column;
   gap: var(--s-1);
   counter-reset: option;
 }
@@ -438,11 +426,8 @@ a.cite:hover {
   position: relative;
   overflow: hidden;
   transition:
+    all 0.2s var(--ease-out),
     transform 0.25s var(--ease-spring),
-    border-color 0.2s var(--ease-out),
-    background 0.2s var(--ease-out),
-    color 0.2s var(--ease-out),
-    box-shadow 0.2s var(--ease-out),
     opacity 0.25s var(--ease-out);
 }
 
@@ -469,12 +454,7 @@ a.cite:hover {
 .quiz-copy:active {
   transform: scale(0.98);
   box-shadow: none;
-  transition:
-    transform 0.1s var(--ease-out),
-    border-color 0.1s var(--ease-out),
-    background 0.1s var(--ease-out),
-    color 0.1s var(--ease-out),
-    box-shadow 0.1s var(--ease-out);
+  transition: all 0.1s var(--ease-out);
 }
 
 .quiz-item:is([data-pending], [data-answered]) .quiz-btn {
@@ -508,7 +488,6 @@ a.cite:hover {
 
 .quiz-btn[data-state='chosen'] {
   --state: var(--ink-soft);
-  --mark: '\2022';
 }
 
 @keyframes countdown-bar {
@@ -526,9 +505,8 @@ a.cite:hover {
 .quiz-btn[data-state='chosen']::before {
   content: '';
   position: absolute;
-  bottom: 0;
-  left: 0;
-  width: 100%;
+  inset: auto 0 0 0;
+  width: auto;
   height: 3px;
   background: var(--ink-soft);
   border-radius: 0;
@@ -557,11 +535,8 @@ a.cite:hover {
   font-family: var(--sans);
   font-weight: 600;
   transition:
-    transform 0.18s var(--ease-spring),
-    border-color 0.18s var(--ease-out),
-    background 0.18s var(--ease-out),
-    color 0.18s var(--ease-out),
-    box-shadow 0.18s var(--ease-out);
+    all 0.18s var(--ease-out),
+    transform 0.18s var(--ease-spring);
 }
 
 .quiz-undo {
@@ -578,12 +553,8 @@ a.cite:hover {
   box-shadow: var(--shadow-sm);
   opacity: 1;
   transition:
+    all 0.18s var(--ease-out),
     transform 0.18s var(--ease-spring),
-    border-color 0.18s var(--ease-out),
-    background 0.18s var(--ease-out),
-    color 0.18s var(--ease-out),
-    box-shadow 0.18s var(--ease-out),
-    opacity 0.18s var(--ease-out),
     display 0.18s allow-discrete;
 }
 
@@ -619,14 +590,14 @@ a.cite:hover {
   transition: opacity 0.4s var(--ease-out);
 }
 
-.quiz-fb:empty,
-.quiz-result:empty {
+.quiz-fb:empty {
   margin: 0;
 }
 
 .quiz-result:empty {
+  margin: 0;
   padding: 0;
-  border-width: 0;
+  border: none;
   opacity: 0;
 }
 
@@ -634,7 +605,7 @@ a.cite:hover {
 .toc {
   grid-column: 1 / -1;
   display: flex;
-  flex-wrap: wrap;
+  flex-flow: wrap;
   gap: var(--s-1) var(--s-3);
   align-items: baseline;
   padding: 0 0 var(--s-2) var(--s-4);
@@ -643,7 +614,7 @@ a.cite:hover {
 
 .toc-list {
   display: flex;
-  flex-wrap: wrap;
+  flex-flow: wrap;
   gap: var(--s-1) var(--s-3);
   align-items: baseline;
   list-style: none;
@@ -657,7 +628,6 @@ a.cite:hover {
   gap: 0.375rem;
   color: var(--ink-soft);
   text-decoration: none;
-  font-variant-numeric: lining-nums;
   padding: 0.25rem 0.125rem;
   min-height: var(--tap);
 }
@@ -670,7 +640,6 @@ a.cite:hover {
   border: 1px solid currentColor;
   color: var(--accent-2);
   font-size: 0.6875rem;
-  font-variant-numeric: lining-nums;
 }
 
 .lesson-nav {
@@ -685,7 +654,7 @@ a.cite:hover {
 
 .lesson-nav-cell {
   display: flex;
-  flex-direction: column;
+  flex-flow: column;
   gap: 0.25rem;
   min-width: 0;
 }
@@ -775,10 +744,6 @@ a.cite:hover {
 
   .toc {
     padding-inline-start: var(--s-3);
-  }
-
-  .lesson-header::after {
-    left: -0.3125rem;
   }
 
   .sidenote {
@@ -879,7 +844,6 @@ a.cite:hover {
     padding: 0;
   }
 
-  .lesson::before,
   .lesson-header::before,
   .lesson-header::after,
   .toc,
