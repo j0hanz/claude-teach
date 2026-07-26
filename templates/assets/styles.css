@@ -203,7 +203,7 @@ pre {
 }
 
 :not(pre) > code {
-  background: color-mix(in srgb, var(--accent) 8%, var(--paper-2));
+  background: color-mix(in srgb, var(--accent) var(--tint), var(--paper-2));
   padding: 0.12em 0.4em;
   border-radius: var(--radius);
 }
@@ -490,7 +490,7 @@ a.cite:hover {
   background: transparent;
   color: var(--accent-2);
   border: 1px solid var(--rule-2);
-  min-width: 5.75rem;
+  min-width: var(--s-9);
 }
 
 .quiz-copy {
@@ -671,7 +671,7 @@ a.cite:hover {
   }
 
   .sidenote {
-    margin: -0.5rem 0 var(--s-5);
+    margin: calc(-1 * var(--s-2)) 0 var(--s-5);
   }
 
   .cold-open {
