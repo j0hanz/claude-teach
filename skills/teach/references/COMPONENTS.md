@@ -6,7 +6,7 @@ Every component here is plain HTML + the shared stylesheet; nothing needs a new 
 
 ## Lesson route
 
-`.toc`, four ordered stops: Recall, Understand, Practice, Continue. Each anchor own square number; route show lesson scope before cold open, never use it as dense global navigation. Four-stop route is load-bearing — do not add a fifth stop. Synthesis (below) close the lesson but is not a route stop.
+`.toc`, four ordered stops: Recall, Understand, Practice, Continue. Each anchor own square number; route show lesson scope before cold open, never use it as dense global navigation. Each stop link carry a trailing `chevron-right` `<svg class="icon">` (decorative, `aria-hidden="true"`) — the stop circle and number carry the meaning, chevron reinforces "next stop in this direction." Four-stop route is load-bearing — do not add a fifth stop. Synthesis (below) close the lesson but is not a route stop.
 
 ## Cold open
 
@@ -75,11 +75,11 @@ Open-ended prompt after the Knowledge or at a worked-step boundary, with a model
 </details>
 ```
 
-Distinct from cold open: cold open test prior record; self-explanation elaborate the current lesson. Keep one per non-trivial worked step or concept; not a new widget, just `<details>` with the shared style.
+Distinct from cold open: cold open test prior record; self-explanation elaborate the current lesson. Keep one per non-trivial worked step or concept; not a new widget, just `<details>` with the shared style. Summary carry a closed/open icon pair as the first child — `arrow-uturn-left` (closed) and `arrow-uturn-right` (open) — decorative, both rendered, CSS toggle one off on `[open]`; `<summary>` text adjacent already names what unlocks. Lesson language switch carries the icon shape, not a CSS `+`/`−` glyph.
 
 ## Details — optional depth
 
-Native `<details>`/`<summary>` for genuinely optional deeper content (a worked derivation, an edge case, a longer aside) inside the body. Offline, prints sensibly, no JS. Cap one nesting level. Label `summary` with real information scent ("How we chose this threshold"), never hide a prerequisite. Self-explanation (above) is its primary use; a plain `<details class="aside">` serve other optional depth.
+Native `<details>`/`<summary>` for genuinely optional deeper content (a worked derivation, an edge case, a longer aside) inside the body. Offline, prints sensibly, no JS. Cap one nesting level. Label `summary` with real information scent ("How we chose this threshold"), never hide a prerequisite. Self-explanation (above) is its primary use; a plain `<details class="aside">` serve other optional depth. Same closed/open icon pair as self-explanation — see above.
 
 ## Synthesis
 
@@ -87,7 +87,7 @@ Native `<details>`/`<summary>` for genuinely optional deeper content (a worked d
 
 ```html
 <section class="synthesis" id="synthesis">
-  <h2>Synthesis</h2>
+  <h2><svg class="icon" viewBox="0 0 24 24" aria-hidden="true">…sparkles…</svg>Synthesis</h2>
   <ul class="synthesis-points">
     <li>…core idea, one line…</li>
     …3–5…
@@ -109,7 +109,7 @@ The prompt is a retrieval nudge that feed the spaced-repetition loop. Keep "Wher
 </div>
 ```
 
-`data-type`: `note` (by-the-way), `tip` (optional better way), `warning` (common pitfall), `caution` (irreversible / data-loss). Left rule reuses `--accent`/`--signal`/`--wrong` by type; sans label, kept short. Cap one or two per lesson, never stacked, placed beside the content it qualify — visually distinct from citation sidenote (full-width block, not margin).
+`data-type`: `note` (by-the-way), `tip` (optional better way), `warning` (common pitfall), `caution` (irreversible / data-loss). Left rule reuses `--accent`/`--signal`/`--wrong` by type; sans label, kept short. Cap one or two per lesson, never stacked, placed beside the content it qualify — visually distinct from citation sidenote (full-width block, not margin). Each callout carry a type-specific `<svg class="icon">` as the first child — `information-circle` (note), `light-bulb` (tip), `exclamation-triangle` (warning), `lock-closed` (caution) — decorative (`aria-hidden="true"`); adjacent text label and stripe color carry the meaning. Path data copy from heroicons/24/outline.
 
 ## Figure — diagram
 
@@ -156,3 +156,29 @@ Inline `a.cite` number real link to own `.sidenote` (`id="n1"`, `n2`, … in ord
 ## Where next
 
 Final block: one primary source (highest-trust thing found), cross-link to related lesson and reference doc by anchor, line invite follow-up question. Navigation only — consolidation live in [Synthesis](#synthesis).
+
+## Icon — shell set
+
+Inline heroicons (`@heroicons/react@2.2.0/24/outline`, MIT, source `tailwindlabs/heroicons`). One `<svg class="icon">` per anchor, `aria-hidden="true"`, path data copied verbatim from `heroicons/optimized/24/outline/<name>.svg`. Color via `stroke="currentColor"` — callout and route hooks set `color` token-specific. The selection is the only sanctioned shell set; a lesson reach for a different icon only at `<figure class="diagram">` (which gate on record state per [Figure](#figure--diagram)) with the same inline approach.
+
+| Icon                   | Where                                     | Why                                        |
+| ---------------------- | ----------------------------------------- | ------------------------------------------ |
+| `academic-cap`         | `.lesson-header > .eyebrow`               | "Lesson" affordance — study instrument     |
+| `chevron-right`        | each `.toc a`                             | forward direction on the route             |
+| `arrow-long-left`      | `.lesson-nav-link` previous               | paired glyph replaces `←`                  |
+| `arrow-long-right`     | `.lesson-nav-link` next                   | paired glyph replaces `→`                  |
+| `exclamation-triangle` | `.callout[data-type="warning"]`           | common-pitfall glyph                       |
+| `light-bulb`           | `.callout[data-type="tip"]`               | optional-better-way glyph                  |
+| `information-circle`   | `.callout[data-type="note"]`              | by-the-way glyph                           |
+| `lock-closed`          | `.callout[data-type="caution"]`           | irreversible-action glyph                  |
+| `arrow-uturn-left`     | `.self-explain` / `.aside` summary closed | universal expand affordance                |
+| `arrow-uturn-right`    | same, open                                | universal collapse affordance              |
+| `sparkles`             | `.synthesis > h2`                         | consolidation marker; vermilion `--signal` |
+
+Wrapper, drop into any use site:
+
+```html
+<svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+  <path stroke-linecap="round" stroke-linejoin="round" d="…path from heroicons repo…" />
+</svg>
+```

@@ -1,4 +1,4 @@
-/* teach-template-version: 17 */
+/* teach-template-version: 19 */
 
 /* Base */
 *,
@@ -65,6 +65,14 @@ body {
   border: 2px solid var(--paper);
   border-radius: 50%;
   box-shadow: 0 0 0 1px var(--signal);
+}
+
+.lesson-header .eyebrow .icon {
+  color: var(--ink-soft);
+  margin-inline-end: 0.4em;
+  width: 0.95em;
+  height: 0.95em;
+  vertical-align: -0.1em;
 }
 
 .lesson-content {
@@ -270,6 +278,21 @@ a.cite:hover {
   font-size: 0.875rem;
   line-height: 1.45;
   color: var(--ink-soft);
+}
+
+/* Icons — inline heroicons SVG. Decorative (aria-hidden="true" at use site);
+   adjacent text carries meaning, glyphs only reinforce the gesture. Color
+   inherits via stroke="currentColor", so callout stripe color flows in free. */
+.icon {
+  width: 1em;
+  height: 1em;
+  flex: none;
+  vertical-align: -0.125em;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.75;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 /* Retrieval gate */
@@ -725,17 +748,24 @@ details.aside > summary::-webkit-details-marker {
 
 .self-explain > summary::before,
 details.aside > summary::before {
-  content: '+';
-  font-family: var(--mono);
-  font-weight: 700;
-  color: var(--accent);
-  width: 1.25rem;
-  text-align: center;
+  display: none;
 }
 
-.self-explain[open] > summary::before,
-details.aside[open] > summary::before {
-  content: '−';
+/* Decorative toggle icon — closed/open pair, swap by [open]. Adjacent summary
+   text carries the meaning, so icon is aria-hidden. */
+.self-explain > summary .icon-open,
+details.aside > summary .icon-open {
+  display: none;
+}
+
+.self-explain[open] > summary .icon-closed,
+details.aside[open] > summary .icon-closed {
+  display: none;
+}
+
+.self-explain[open] > summary .icon-open,
+details.aside[open] > summary .icon-open {
+  display: inline-block;
 }
 
 .self-explain-model {
@@ -772,6 +802,12 @@ details.aside > *:not(summary) {
 
 .synthesis > h2::before {
   display: none;
+}
+
+.synthesis > h2 .icon {
+  color: var(--signal);
+  margin-inline-end: 0.4em;
+  vertical-align: -0.15em;
 }
 
 .synthesis-points {
@@ -824,6 +860,14 @@ details.aside > *:not(summary) {
   text-transform: uppercase;
   color: var(--ink-soft);
   margin-bottom: var(--s-1);
+}
+
+.callout > .icon {
+  display: block;
+  width: 1.1em;
+  height: 1.1em;
+  margin-bottom: var(--s-1);
+  color: var(--ink-soft);
 }
 
 .callout[data-type='tip'] {
@@ -920,6 +964,12 @@ details {
   border-radius: 50%;
 }
 
+.toc a .icon {
+  color: var(--ink-soft);
+  width: 0.9em;
+  height: 0.9em;
+}
+
 .lesson-nav {
   grid-column: 1 / -1;
   display: grid;
@@ -951,6 +1001,13 @@ details {
   min-height: var(--tap);
   display: inline-flex;
   align-items: center;
+  gap: 0.4em;
+}
+
+.lesson-nav-link .icon {
+  color: var(--accent);
+  width: 1em;
+  height: 1em;
 }
 
 .lesson-nav-link:focus-visible {
@@ -1214,5 +1271,18 @@ details {
   /* a self-explanation model answer prints even when the reveal is closed */
   .self-explain .self-explain-model {
     display: block !important;
+  }
+
+  .self-explain .icon-open,
+  .self-explain .icon-closed,
+  details.aside .icon-open,
+  details.aside .icon-closed,
+  .toc a .icon,
+  .lesson-nav-link .icon {
+    display: none;
+  }
+
+  .callout > .icon {
+    color: inherit;
   }
 }

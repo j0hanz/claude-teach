@@ -27,6 +27,18 @@ Lesson open as route card: header carry vertical transit rule and one vermilion 
 
 Voice: dropped-article style throughout this skill deliberate, load-bearing — preserve in edit; don't normalize to standard English.
 
+## Icons
+
+Shell carries an eleven-icon set — heroicons (`@heroicons/react@2.2.0/24/outline`, MIT, source `tailwindlabs/heroicons`), inline `<svg class="icon">` at one anchor each. Inline, not sprite — offline-first (no remote `<use href>`), no asset copy step, color via `stroke="currentColor"` token-aware. Selection and authoring in [COMPONENTS.md § Icon — shell set](COMPONENTS.md#icon--shell-set).
+
+Rules:
+
+- **One icon per anchor.** A new icon earns a place only where the surrounding text already names the gesture; adjacent text always carries the meaning, so every icon is `aria-hidden="true"`. Decorative, not informational.
+- **No sprite file.** Per-use inline bytes are <2 KB total across the shell; sprite adds file copy, asset-staleness entry, and `check_lesson.py` doesn't validate `<use href>` resolve. Add sprite when icon count past ~15 or any single lesson repeats an icon >3×.
+- **No web font, no iconfont.** Banned by `file://` constraint.
+- **Print:** summary, TOC, and lesson-nav icons are `display: none` in print CSS — they are interactive gestures, not content. Callout and synthesis icons print in `--ink`/inherit color.
+- **No motion.** Icons aren't animated; motion budget belongs to quiz state, seal release, pointer interactions.
+
 ## Layout
 
 Body column (`--measure`) + sidenote column (`--margin-w`), fixed gap between. `.lesson` take `width: fit-content`, plus bounded outer width, so desktop canvas breathe without outer whitespace swallowing course route. Everything default into body column; sidenote and `.full` opt out. Hairline separate, never box. Sidenote sit right after paragraph that cite it — grid auto-placement land it column 2 same row, beside own claim. Tablet and narrow screen collapse below.

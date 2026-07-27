@@ -17,7 +17,15 @@
       FORM: Course timetable, seventh grounded candidate, seed 0929c0dc; compact rails collapse into a readable mobile route.
       -->
       <header class="lesson-header">
-        <p class="eyebrow">Lesson {{NUMBER}} · {{TOPIC}}</p>
+        <p class="eyebrow">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              d="M4.26 10.147a60.438 60.438 0 0 0-.491 6.347A48.62 48.62 0 0 1 12 20.904a48.62 48.62 0 0 1 8.232-4.41 60.46 60.46 0 0 0-.491-6.347m-15.482 0a50.636 50.636 0 0 0-2.658-.813A59.906 59.906 0 0 1 12 3.493a59.903 59.903 0 0 1 10.399 5.84c-.896.248-1.783.52-2.658.814m-15.482 0A50.717 50.717 0 0 1 12 13.489a50.702 50.702 0 0 1 7.74-3.342M6.75 15a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Zm0 0v-3.675A55.378 55.378 0 0 1 12 8.443m-7.007 11.55A5.981 5.981 0 0 0 6.75 15.75v-1.5"
+            /></svg
+          >Lesson {{NUMBER}} · {{TOPIC}}
+        </p>
         <h1>{{TITLE}}</h1>
         <p class="lead">{{LEAD — the one thing this lesson lands, in one or two sentences.}}</p>
       </header>
@@ -26,16 +34,52 @@
         <span class="toc-eyebrow">Lesson route</span>
         <ul class="toc-list">
           <li>
-            <a href="#recall"><span class="toc-stop">1</span> Recall</a>
+            <a href="#recall">
+              <span class="toc-stop">1</span> Recall
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="m8.25 4.5 7.5 7.5-7.5 7.5"
+                />
+              </svg>
+            </a>
           </li>
           <li>
-            <a href="#knowledge"><span class="toc-stop">2</span> Understand</a>
+            <a href="#knowledge">
+              <span class="toc-stop">2</span> Understand
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="m8.25 4.5 7.5 7.5-7.5 7.5"
+                />
+              </svg>
+            </a>
           </li>
           <li>
-            <a href="#skills"><span class="toc-stop">3</span> Practice</a>
+            <a href="#skills">
+              <span class="toc-stop">3</span> Practice
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="m8.25 4.5 7.5 7.5-7.5 7.5"
+                />
+              </svg>
+            </a>
           </li>
           <li>
-            <a href="#where-next"><span class="toc-stop">4</span> Continue</a>
+            <a href="#where-next">
+              <span class="toc-stop">4</span> Continue
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="m8.25 4.5 7.5 7.5-7.5 7.5"
+                />
+              </svg>
+            </a>
           </li>
         </ul>
       </nav>
@@ -101,10 +145,12 @@
         Optional components — copy in the one a lesson needs, drop the rest. Spec: references/COMPONENTS.md.
         Gate density on record state (interval/lapses): low-interval or lapses≥1 → fuller scaffolding; high-interval/zero-lapse → bare.
 
-        Callout (common pitfall / by-the-way / optional better way / irreversible):
+        Callout (common pitfall / by-the-way / optional better way / irreversible) — each type carries a type-specific icon, decorative:
         <div class="callout" data-type="warning" role="note">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z"/></svg>
           <p>{{…}}</p>
         </div>
+        Types: note (information-circle), tip (light-bulb), warning (exclamation-triangle), caution (lock-closed).
 
         Figure / inline-SVG diagram (gate on record state; low-knowledge learner only):
         <figure class="diagram">
@@ -112,15 +158,23 @@
           <figcaption>{{…}} <a class="cite" href="#n2">2</a></figcaption>
         </figure>
 
-        Self-explanation reveal (open-ended, not multiple-choice):
+        Self-explanation reveal (open-ended, not multiple-choice) — summary carries a closed/open icon pair, decorative:
         <details class="self-explain">
-          <summary>In your own words: why does {{…}} hold?</summary>
+          <summary>
+            <svg class="icon icon-closed" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M9 15 3 9m0 0 6-6M3 9h12a6 6 0 0 1 0 12h-3"/></svg>
+            <svg class="icon icon-open" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="m15 15 6-6m0 0-6-6m6 6H9a6 6 0 0 0 0 12h3"/></svg>
+            In your own words: why does {{…}} hold?
+          </summary>
           <div class="self-explain-model">{{model answer}}</div>
         </details>
 
-        Optional deeper depth (never hide a prerequisite; cap one nesting level):
+        Optional deeper depth (never hide a prerequisite; cap one nesting level) — same closed/open icon pair as self-explanation:
         <details class="aside">
-          <summary>{{real information scent, e.g. "How we chose this threshold"}}</summary>
+          <summary>
+            <svg class="icon icon-closed" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M9 15 3 9m0 0 6-6M3 9h12a6 6 0 0 1 0 12h-3"/></svg>
+            <svg class="icon icon-open" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="m15 15 6-6m0 0-6-6m6 6H9a6 6 0 0 0 0 12h3"/></svg>
+            {{real information scent, e.g. "How we chose this threshold"}}
+          </summary>
           {{…}}
         </details>
         -->
@@ -139,7 +193,15 @@
         -->
 
         <section class="synthesis" id="synthesis">
-          <h2>Synthesis</h2>
+          <h2>
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 0 0-2.456 2.456ZM16.894 20.567 16.5 21.75l-.394-1.183a2.25 2.25 0 0 0-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 0 0 1.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 0 0 1.423 1.423l1.183.394-1.183.394a2.25 2.25 0 0 0-1.423 1.423Z"
+              /></svg
+            >Synthesis
+          </h2>
           <ul class="synthesis-points">
             <li>{{core idea, one line}}</li>
             <li>{{core idea, one line}}</li>
@@ -164,11 +226,28 @@
         <nav class="lesson-nav" aria-label="Lesson navigation">
           <div class="lesson-nav-cell">
             <span class="lesson-nav-eyebrow">Previous</span>
-            <a class="lesson-nav-link" href="{{PREV-LESSON}}.html">← {{PREV-LESSON-TITLE}}</a>
+            <a class="lesson-nav-link" href="{{PREV-LESSON}}.html">
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M6.75 15.75 3 12m0 0 3.75-3.75M3 12h18"
+                /></svg
+              >{{PREV-LESSON-TITLE}}
+            </a>
           </div>
           <div class="lesson-nav-cell next">
             <span class="lesson-nav-eyebrow">Next</span>
-            <a class="lesson-nav-link" href="{{NEXT-LESSON}}.html">{{NEXT-LESSON-TITLE}} →</a>
+            <a class="lesson-nav-link" href="{{NEXT-LESSON}}.html"
+              >{{NEXT-LESSON-TITLE}}
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M17.25 8.25 21 12m0 0-3.75 3.75M21 12H3"
+                />
+              </svg>
+            </a>
           </div>
         </nav>
       </div>
