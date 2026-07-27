@@ -103,6 +103,10 @@ git clone https://github.com/j0hanz/claude-teach.git
 
 That is the whole loop. From the second session on, you never type a command again. You just show up and carry on.
 
+### Optional: close the loop in the browser
+
+A local `teach.py serve` mode (started automatically by the session hook) serves lessons from `http://127.0.0.1:PORT` and lets a served lesson post its cold-open result back itself — no copy, no paste. The copy-button paste flow above stays as the fallback when the server is absent or a lesson is opened from `file://`. It uses only the Python standard library (`http.server`, loopback only), so no new runtime dependency is added.
+
 ## License
 
 [MIT](LICENSE)

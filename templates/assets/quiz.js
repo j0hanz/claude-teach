@@ -1,6 +1,6 @@
 /* quiz.js — reusable quiz widget for a lesson. Self-contained, works on file://.
  * Markup contract and behaviour: skills/teach/references/COMPONENTS.md § Quiz.
- * teach-template-version: 19
+ * teach-template-version: 20
  */
 (function () {
   'use strict';
@@ -33,6 +33,98 @@
       note.textContent = note.getAttribute('data-unsealed-label') || 'Lesson unsealed.';
       note.classList.add('is-unsealed');
     } else note.remove();
+  }
+
+  const PENDING_KEY = 'teach:pending:' + location.pathname;
+
+  // drop prior JS-created status/schedule/reconnect/error blocks so a retry
+  // (or a 401→2xx transition after manual reload) never stacks duplicates.
+  const clearDynamic = (root) =>
+    root.querySelectorAll('.quiz-status, .quiz-schedule, .quiz-reconnect, .quiz-error').forEach((el) => el.remove());
+
+  const persistLine = (line) => {
+    try {
+      localStorage.setItem(PENDING_KEY, line);
+    } catch {}
+  };
+  const clearPending = () => {
+    try {
+      localStorage.removeItem(PENDING_KEY);
+    } catch {}
+  };
+
+  const el = (tag, cls, text, role) => {
+    const node = document.createElement(tag);
+    node.className = cls;
+    if (role) node.setAttribute('role', role);
+    if (text != null) node.textContent = text;
+    return node;
+  };
+
+  // copy-button paste fallback, identical to the file:// path: reuse the
+  // shared copyText + selectResult + labels carried in ctx.
+  const wireCopyFallback = (ctx) => {
+    if (!ctx.copyBtn) return;
+    ctx.copyBtn.hidden = false;
+    ctx.copyBtn.addEventListener('click', () => {
+      if (ctx.copyStatus) ctx.copyStatus.textContent = '';
+      ctx.copyText(
+        ctx.line,
+        ctx.copyBtn,
+        ctx.copiedLabel,
+        () => {
+          if (ctx.copyStatus) ctx.copyStatus.textContent = ctx.copiedStatus;
+        },
+        () => {
+          ctx.selectResult();
+          if (ctx.copyStatus) ctx.copyStatus.textContent = ctx.copyFailedLabel;
+        },
+      );
+    });
+  };
+
+  // REQ-007: 2xx unseals + shows schedule; 401 keeps sealed, reveals paste
+  // fallback + reload hint; other non-2xx (and network failure) stay sealed,
+  // persist the line to localStorage, and offer a retry that re-runs the POST.
+  function handleScoreResponse(resp, ctx) {
+    clearDynamic(ctx.root);
+    if (resp && resp.ok) {
+      ctx.unseal(ctx.releases, true);
+      ctx.rememberUnsealed();
+      clearPending();
+      if (ctx.copyBtn) ctx.copyBtn.hidden = true;
+      ctx.root.appendChild(el('p', 'quiz-status', 'Scored. Schedule updated.', 'status'));
+      return resp.json().then((data) => {
+        if (!data || !Array.isArray(data.schedule)) return;
+        const block = el('div', 'quiz-schedule');
+        data.schedule.forEach((r) => {
+          block.appendChild(
+            el('p', null, r.id + ' interval=' + r.interval + ' next=' + r.next + ' lapses=' + r.lapses),
+          );
+        });
+        ctx.root.appendChild(block);
+      });
+    }
+    if (resp && resp.status === 401) {
+      ctx.root.appendChild(
+        el('p', 'quiz-reconnect', 'Session restarted — reload this lesson to reconnect', 'status'),
+      );
+      wireCopyFallback(ctx);
+      return;
+    }
+    persistLine(ctx.line);
+    const msg = resp
+      ? 'Scoring failed (' + resp.status + '). Result saved locally — retry when the server is back.'
+      : 'Network error. Result saved locally — retry when the server is back.';
+    const wrap = el('div', 'quiz-error', null, 'alert');
+    wrap.appendChild(el('p', null, msg));
+    const retry = document.createElement('button');
+    retry.type = 'button';
+    retry.className = 'quiz-retry';
+    retry.textContent = 'Retry';
+    retry.addEventListener('click', () => ctx.postScore());
+    wrap.appendChild(retry);
+    ctx.root.appendChild(wrap);
   }
 
   function copyText(text, btn, copiedLabel, onSuccess, onFailure) {
@@ -254,6 +346,32 @@
           .map((o, i) => `${i + 1} ${o}${confVals[i] != null ? '/' + confVals[i] : ''}`)
           .join(', ');
       if (resultEl) resultEl.textContent = line;
+      const serveMode = !!(window.__TEACH_SERVE && window.__TEACH_TOKEN);
+      if (serveMode) {
+        const ctx = {
+          root, releases, replay, line, resultEl, copyBtn, copyStatus,
+          copyText, selectResult, copiedLabel, copiedStatus, copyFailedLabel,
+          unseal, rememberUnsealed,
+        };
+        const payload = JSON.stringify({
+          lesson: root.getAttribute('data-lesson'),
+          line: line,
+          token: window.__TEACH_TOKEN,
+        });
+        const postScore = () =>
+          fetch('/score', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: payload,
+          }).then(function (resp) {
+            return handleScoreResponse(resp, ctx);
+          }).catch(function () {
+            handleScoreResponse(null, ctx);
+          });
+        ctx.postScore = postScore;
+        postScore();
+        return;
+      }
       if (copyBtn && releases && !replay) {
         copyBtn.hidden = false;
         copyBtn.addEventListener('click', () => {

@@ -7,7 +7,7 @@ skills/teach/scripts/teach.py — this file only decides what a hook event shoul
 say about that state, and stays a silent no-op outside a teach workspace.
 
 Usage:
-  teach_hook.py --event session-start|stop     (hook payload JSON on stdin)
+  teach_hook.py --event session-start|session-end|stop     (hook payload JSON on stdin)
 
 Exit: 0 always for a well-formed event; 2 on usage error (argparse).
 """
@@ -16,7 +16,9 @@ import argparse
 import contextlib
 import json
 import os
+import subprocess
 import sys
+import time
 
 # teach.py is the state layer; it lives under skills/, not here.
 sys.path.insert(
@@ -34,12 +36,16 @@ sys.path.insert(
 from teach import (  # noqa: E402  # pyright: ignore[reportMissingImports]
     TeachError,
     is_workspace,
+    kill_pid,
     load_records,
     mission_status,
     parse_ledger_line,
+    pid_alive,
     read_notes,
+    read_serve_state,
     read_text,
     resume_target,
+    serve_json_path,
     split_records,
     today,
     write_text,
@@ -56,6 +62,63 @@ def _guard_path():
     """
     d = os.environ.get("CLAUDE_PLUGIN_DATA")
     return os.path.join(d, "nagged.txt") if d else None
+
+
+def _plugin_root():
+    # hooks/ lives one level under the plugin root; the sys.path insert above
+    # walks the same chain to reach skills/teach/scripts.
+    return os.path.normpath(
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), os.pardir)
+    )
+
+
+def _ensure_server(cwd):
+    """Reuse, respawn, or spawn the teach serve server for cwd.
+
+    Prints the serve URL on success, a one-line stderr note on failure. Never
+    raises and never blocks SessionStart (REQ-008): a spawn that does not bind
+    in ~0.8s is reported and skipped."""
+    script = os.path.join(
+        _plugin_root(), "skills", "teach", "scripts", "teach.py"
+    )
+    # teach.py serve stores workspace as os.path.abspath; compare on that form
+    # so a forward-slash cwd from the hook matches the backslash form on Windows.
+    ws = os.path.abspath(cwd)
+    state = read_serve_state()
+    pid = state.get("pid")
+    if pid and pid_alive(pid) and state.get("workspace") == ws:
+        print(f"serve: http://127.0.0.1:{state['port']}")
+        return
+    if pid:
+        kill_pid(pid)  # stale PID or workspace mismatch -> respawn
+    # Detached spawn: stdio sunk so the child never inherits the hook's pipes.
+    # Built per-branch (not a **kwargs splat) so the platform-specific flag
+    # picks the right Popen overload instead of a loosely-typed dict.
+    with contextlib.suppress(OSError):
+        if os.name == "nt":
+            subprocess.Popen(
+                [sys.executable, script, "serve", "--workspace", cwd],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                stdin=subprocess.DEVNULL,
+                creationflags=(
+                    subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP
+                ),
+            )
+        else:
+            subprocess.Popen(
+                [sys.executable, script, "serve", "--workspace", cwd],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                stdin=subprocess.DEVNULL,
+                start_new_session=True,
+            )
+    time.sleep(0.8)
+    state = read_serve_state()
+    if state.get("port"):
+        print(f"serve: http://127.0.0.1:{state['port']}")
+    else:
+        print("teach: serve did not start", file=sys.stderr)
 
 
 def event_session_start(cwd):
@@ -99,6 +162,21 @@ def event_session_start(cwd):
     # cannot block. If a future harness requires hookSpecificOutput wrapping,
     # wrap here — one-line change.
     print("\n".join(lines))
+    _ensure_server(cwd)
+    return 0
+
+
+def event_session_end(cwd):
+    # REQ-009: stop the server for this workspace and clear the stale lockfile.
+    # Silent no-op when no serve.json or it belongs to a different workspace.
+    state = read_serve_state()
+    pid = state.get("pid")
+    ws = os.path.abspath(cwd)
+    if pid and pid_alive(pid) and state.get("workspace") == ws:
+        kill_pid(pid)
+    if state.get("workspace") == ws:
+        with contextlib.suppress(OSError):
+            os.remove(serve_json_path())
     return 0
 
 
@@ -161,7 +239,9 @@ def main(argv):
     p = argparse.ArgumentParser(
         prog="teach_hook.py", description="teach SessionStart/Stop hook"
     )
-    p.add_argument("--event", required=True, choices=["session-start", "stop"])
+    p.add_argument(
+        "--event", required=True, choices=["session-start", "session-end", "stop"]
+    )
     p.add_argument("--workspace", default=None)
     args = p.parse_args(argv[1:])
 
@@ -177,6 +257,8 @@ def main(argv):
     try:
         if args.event == "session-start":
             return event_session_start(cwd)
+        if args.event == "session-end":
+            return event_session_end(cwd)
         return event_stop(cwd, payload)
     except TeachError as e:
         print(f"teach: {e.msg}", file=sys.stderr)

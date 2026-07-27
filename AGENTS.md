@@ -16,6 +16,10 @@ Python here is stdlib-only. `hooks/teach_hook.py` and `skills/teach/scripts/*.py
 
 `python skills/teach/scripts/check_lesson.py --self` — validates `templates/lesson.html` against the validator contract. Run after editing `templates/` or the validator. It is the only automated check here; there is no test suite.
 
+## Serve mode
+
+`teach.py serve` (stdlib `http.server`, `127.0.0.1` only, no new runtime dep) is an optional loopback server. A served lesson POSTs its cold-open result back itself; the `file://` copy-button paste flow is the fallback. Session hook starts/stops it; absent server regresses nothing.
+
 ## More
 
 Lesson design system and rationale: `skills/teach/references/DESIGN.md`, `COMPONENTS.md`, `TOKENS.md`

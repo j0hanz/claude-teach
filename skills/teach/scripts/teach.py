@@ -23,11 +23,17 @@ Exit: 0 ok, 1 ambiguity/workspace-violation (refuse, write nothing), 2 usage/par
 
 import contextlib
 import glob
+import http.server
+import json
 import os
 import re
+import secrets
+import signal
+import subprocess
 import sys
+import tempfile
 from datetime import date, timedelta
-from typing import TYPE_CHECKING, TypedDict
+from typing import TYPE_CHECKING, TypedDict, cast
 
 if TYPE_CHECKING:
     import argparse
@@ -1029,8 +1035,33 @@ def cmd_index(args: "argparse.Namespace") -> int:
     return 0
 
 
-def cmd_score(args: "argparse.Namespace") -> int:
-    cwd = args.workspace
+class ScoreResult(list[dict]):
+    """list[dict] of per-record scoring results. index_msg carries the
+    build_index skip message ("" = success; relpath is always "index.html"
+    since build_index writes cwd/index.html). A list subclass so the writer
+    can hand the caller both the per-record rows and the index outcome in one
+    return, without re-calling build_index."""
+    index_msg: str = ""
+
+
+def score_open_cold_open(cwd: str, result_line: str) -> ScoreResult:
+    """Apply the scoring table to every record an open cold-open ledger names.
+
+    The single writer of schedule + index fields (REQ-010): chat-side
+    `teach.py score` and the POST /score handler both route through here, so
+    no caller writes schedule or index fields independently. Does exactly what
+    cmd_score did: is_workspace check; read_notes + parse_ledger_line (raise
+    TeachError if no open ledger); resolve_spacing; the abandon branch
+    (result_line.strip().lower()=="abandon") and the normal branch
+    (parse_result_line, ledger_id match, count check); plan via load_record +
+    score_record; write_text(delete_ledger_line(notes)); save_record each;
+    rebuild build_index.
+
+    Returns one dict per record scored: {id, outcome, interval, next, lapses,
+    status, confidence} where id = record basename without extension and the
+    schedule fields come from rec["fm"] after scoring. The returned ScoreResult
+    also carries .index_msg ("" on success, else the build_index skip reason).
+    """
     if not is_workspace(cwd):
         raise TeachError(1, f"not a teach workspace ({cwd})")
     notes = read_notes(cwd)
@@ -1038,12 +1069,12 @@ def cmd_score(args: "argparse.Namespace") -> int:
     if ledger is None:
         raise TeachError(1, "no open cold-open ledger line in NOTES.md")
     doubling, ceiling, _ = resolve_spacing(notes)
-    if args.result.strip().lower() == "abandon":
+    if result_line.strip().lower() == "abandon":
         outcomes = [
             (i + 1, "abandon", None) for i in range(len(ledger["tests"]))
         ]
     else:
-        lesson_id, results = parse_result_line(args.result)
+        lesson_id, results = parse_result_line(result_line)
         ledger_id = os.path.splitext(os.path.basename(ledger["lesson"]))[0]
         if lesson_id is None:
             raise TeachError(
@@ -1076,22 +1107,38 @@ def cmd_score(args: "argparse.Namespace") -> int:
     write_text(os.path.join(cwd, "NOTES.md"), delete_ledger_line(notes))
     for rec, _, changed in plan:
         save_record(rec, changed)
-    for rec, outcome, _ in plan:
-        conf_s = (
-            f" confidence={rec['fm'].get('confidence')}"
-            if rec["fm"].get("confidence")
-            else ""
-        )
-        print(
-            f"{os.path.basename(rec['path'])}: {outcome} -> "
-            f"interval={rec['fm'].get('interval')} next={rec['fm'].get('next')} "
-            f"lapses={rec['fm'].get('lapses')} status={rec['fm'].get('status', 'active')}"
-            f"{conf_s}"
-        )
+    out = ScoreResult(
+        {
+            "id": os.path.splitext(os.path.basename(rec["path"]))[0],
+            "outcome": outcome,
+            "interval": rec["fm"].get("interval"),
+            "next": rec["fm"].get("next"),
+            "lapses": rec["fm"].get("lapses"),
+            "status": rec["fm"].get("status", "active"),
+            "confidence": rec["fm"].get("confidence"),
+        }
+        for rec, outcome, _ in plan
+    )
     try:
-        print(f"index: {os.path.relpath(build_index(cwd), cwd)}")
+        build_index(cwd)
     except TeachError as e:
-        print(f"index: skipped ({e.msg})")
+        out.index_msg = e.msg
+    return out
+
+
+def cmd_score(args: "argparse.Namespace") -> int:
+    results = score_open_cold_open(args.workspace, args.result)
+    for r in results:
+        conf_s = f" confidence={r['confidence']}" if r["confidence"] else ""
+        print(
+            f"{r['id']}.md: {r['outcome']} -> "
+            f"interval={r['interval']} next={r['next']} "
+            f"lapses={r['lapses']} status={r['status']}{conf_s}"
+        )
+    if results.index_msg:
+        print(f"index: skipped ({results.index_msg})")
+    else:
+        print("index: index.html")
     return 0
 
 
@@ -1174,6 +1221,390 @@ def append_working_note(notes: str, line: str) -> str:
 
 
 # --- entry ------------------------------------------------------------------
+# --- serve: loopback HTTP for one workspace (REQ-001/002/014) ----------------
+def serve_json_path() -> str:
+    """Where the running server records {pid, port, token, workspace}.
+
+    CLAUDE_PLUGIN_DATA wins; else a per-user tmp dir. Parent is created.
+    TASK-007's hook imports this to find/reuse/stop the server."""
+    data = os.environ.get("CLAUDE_PLUGIN_DATA")
+    if data:
+        p = os.path.join(data, "serve.json")
+    else:
+        p = os.path.join(tempfile.gettempdir(), "teach-serve", "serve.json")
+    d = os.path.dirname(p)
+    if d and not os.path.isdir(d):
+        with contextlib.suppress(OSError):
+            os.makedirs(d, exist_ok=True)
+    return p
+
+
+def read_serve_state() -> dict:
+    """serve.json as a dict, or {} when missing/unparseable. TASK-008 also
+    calls this without a socket."""
+    try:
+        return json.loads(read_text(serve_json_path()))
+    except (OSError, ValueError):
+        return {}
+
+
+def write_serve_state(state: dict) -> None:
+    """Atomic write of serve.json. write_text is tmp+os.replace, so a crash
+    mid-write never leaves a half file. cmd_serve's initial {pid,port,token,
+    workspace} is preserved by callers passing the prior state through."""
+    write_text(serve_json_path(), json.dumps(state))
+
+
+def pid_alive(pid: int) -> bool:
+    """True if pid is a live process. Never raises."""
+    if not pid:
+        return False
+    if os.name == "nt":
+        try:
+            import ctypes
+
+            k = ctypes.windll.kernel32
+            h = k.OpenProcess(0x1000, False, pid)  # SYNCHRONIZE access
+            if not h:
+                return False
+            k.CloseHandle(h)
+            return True
+        except OSError:
+            return False
+    try:
+        os.kill(pid, 0)
+        return True
+    except OSError:
+        return False
+
+
+def kill_pid(pid: int) -> None:
+    """Stop pid if running. Tolerant: no error if already gone."""
+    if not pid:
+        return
+    if os.name == "nt":
+        with contextlib.suppress(OSError, subprocess.SubprocessError):
+            subprocess.run(
+                ["taskkill", "/PID", str(pid), "/F"], capture_output=True
+            )
+        return
+    with contextlib.suppress(OSError):
+        os.kill(pid, signal.SIGTERM)
+
+
+class ServeServer(http.server.ThreadingHTTPServer):
+    # ponytail: ThreadingHTTPServer so a slow POST can't block a GET;
+    # single-user low-freq, plain HTTPServer would also be fine.
+    workspace: str = ""
+    token: str = ""
+
+
+def handle_lesson(
+    workspace: str, token: str, path: str
+) -> tuple[int, dict[str, str], bytes]:
+    """PURE: resolve a GET path under workspace, return (status, headers, body).
+
+    Only /lessons/... is served. Path escape outside workspace -> 404. The
+    token script is injected just before </body>. No ACAO header (same-origin
+    only, REQ-014). TASK-008 serve --check calls this with no socket."""
+    raw_path = path.split("?", 1)[0]
+    if not raw_path.startswith("/lessons/"):
+        return 404, {}, b"not found"
+    rel = raw_path.lstrip("/")  # /lessons/x.html -> lessons/x.html
+    ws_abs = os.path.abspath(workspace)
+    target = os.path.abspath(os.path.join(ws_abs, rel))
+    try:
+        common = os.path.commonpath([ws_abs, target])
+    except ValueError:  # different drives on Windows
+        return 404, {}, b"not found"
+    if common != ws_abs:
+        return 404, {}, b"not found"
+    if not os.path.isfile(target):
+        return 404, {}, b"not found"
+    try:
+        html = read_text(target)
+    except OSError:
+        return 404, {}, b"not found"
+    inject = (
+        '<script>window.__TEACH_TOKEN="' + token
+        + '"; window.__TEACH_SERVE=1;</script>'
+    )
+    body = html.replace("</body>", inject + "</body>", 1).encode("utf-8")
+    return 200, {"Content-Type": "text/html; charset=utf-8"}, body
+
+
+def handle_score(
+    workspace: str, token: str, serve_state: dict, body: bytes
+) -> tuple[int, dict, dict]:
+    """PURE: score a cold-open result line posted from a served lesson.
+
+    Returns (status, payload, new_serve_state). The handler persists
+    new_serve_state; this fn never touches the socket or serve.json. The
+    scoring core (score_open_cold_open) stays the single writer of schedule
+    + index fields (REQ-010) — this fn only reads serve.json's last_score
+    for idempotency, calls the core, and records the last (lesson, line).
+
+    TASK-008 serve --check calls this with no socket."""
+    try:
+        req = json.loads(body.decode("utf-8")) if body else None
+    except (ValueError, UnicodeDecodeError):
+        return 400, {"error": "bad request"}, serve_state
+    if not isinstance(req, dict) or "lesson" not in req or "line" not in req:
+        return 400, {"error": "bad request"}, serve_state
+    lesson = req["lesson"]
+    line = req["line"]
+    if not isinstance(lesson, str) or not isinstance(line, str):
+        return 400, {"error": "bad request"}, serve_state
+    if not req.get("token") or req.get("token") != token:
+        return 401, {"error": "unauthorized"}, serve_state
+
+    ws_abs = os.path.abspath(workspace)
+    try:
+        norm = os.path.normpath(os.path.join(ws_abs, lesson))
+        common = os.path.commonpath([ws_abs, norm])
+    except ValueError:  # different drives on Windows
+        return 400, {"error": "bad request"}, serve_state
+    if common != ws_abs:  # path escape
+        return 400, {"error": "bad request"}, serve_state
+    lesson_rel = os.path.relpath(norm, ws_abs).replace(os.sep, "/")
+
+    ledger = parse_ledger_line(read_notes(workspace))
+    last_score = serve_state.get("last_score")
+    if ledger is None:  # closed
+        if (
+            last_score
+            and last_score.get("lesson") == lesson_rel
+            and last_score.get("line") == line
+        ):
+            return (
+                200,
+                {
+                    "scored": True,
+                    "already": True,
+                    "schedule": last_score.get("schedule", []),
+                },
+                serve_state,
+            )
+        return 409, {"error": "ledger closed, different line"}, serve_state
+
+    # ledger open
+    if lesson_rel != ledger["lesson"]:
+        return (
+            409,
+            {"error": f"open ledger is for {ledger['lesson']}, not {lesson_rel}"},
+            serve_state,
+        )
+    try:
+        records = score_open_cold_open(workspace, line)
+    except TeachError as e:
+        return 409, {"error": e.msg}, serve_state
+    schedule = [
+        {
+            "id": r["id"],
+            "interval": r["interval"],
+            "next": r["next"],
+            "lapses": r["lapses"],
+        }
+        for r in records
+    ]
+    new_state = dict(serve_state)
+    new_state["last_score"] = {
+        "lesson": lesson_rel,
+        "line": line,
+        "schedule": schedule,
+    }
+    return 200, {"scored": True, "schedule": schedule}, new_state
+
+
+class ServeHandler(http.server.BaseHTTPRequestHandler):
+    def log_message(self, format, *args) -> None:  # noqa: A002 (shadows builtin)
+        pass  # silence the default stderr access log
+
+    def _respond(self) -> None:
+        # BaseHTTPRequestHandler.server is typed BaseServer; the server we
+        # bind is a ServeServer carrying .workspace/.token.
+        srv = cast(ServeServer, self.server)
+        try:
+            status, headers, body = handle_lesson(
+                srv.workspace, srv.token, self.path
+            )
+        except Exception:
+            status, headers, body = 500, {}, b"internal error"
+        self.send_response(status)
+        for k, v in headers.items():
+            self.send_header(k, v)
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        if self.command != "HEAD":
+            self.wfile.write(body)
+
+    def do_GET(self) -> None:
+        self._respond()
+
+    def do_HEAD(self) -> None:
+        self._respond()
+
+    def do_POST(self) -> None:
+        # ponytail: single-user low-freq POSTs; the ThreadingHTTPServer race
+        # on serve.json is negligible and write_text is atomic (os.replace).
+        # Per-request state lock if a second poster ever appears.
+        try:
+            length = int(self.headers.get("Content-Length", "0") or "0")
+        except ValueError:
+            length = 0
+        body = self.rfile.read(length) if length > 0 else b""
+        state = read_serve_state()
+        srv = cast(ServeServer, self.server)
+        status, payload, new_state = handle_score(
+            srv.workspace, srv.token, state, body
+        )
+        data = json.dumps(payload).encode("utf-8")
+        self.send_response(status)
+        # No Access-Control-Allow-Origin: same-origin only (REQ-014).
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(data)))
+        self.end_headers()
+        self.wfile.write(data)
+        if new_state is not state:  # a scoring change to persist
+            with contextlib.suppress(OSError):
+                write_serve_state(new_state)
+
+
+def _serve_check() -> int:
+    """serve --check: exercise the serve-path pure helpers with NO socket.
+
+    Builds a throwaway workspace under C:/tmp/tv008, calls handle_lesson +
+    handle_score directly (REQ-011). Exit 0 only if every assertion passes;
+    on the first failure print the assertion name + detail and exit 1.
+    """
+    import shutil
+
+    base = "C:/tmp/tv008"
+    with contextlib.suppress(FileNotFoundError):
+        shutil.rmtree(base)
+    os.makedirs(os.path.join(base, "learning-records"))
+    os.makedirs(os.path.join(base, "lessons"))
+    write_text(
+        os.path.join(base, "learning-records", "0001-x.md"),
+        "---\ninterval: 1\nlapses: 0\nstatus: active\nnext: 2026-07-27\n---\n\n# 0001-x\n",
+    )
+    write_text(
+        os.path.join(base, "lessons", "0001-x.html"),
+        "<!doctype html><html><head><title>0001-x</title></head>"
+        "<body><p>lesson</p></body></html>",
+    )
+    write_text(
+        os.path.join(base, "NOTES.md"),
+        "# Notes\n\nunscored cold open: lessons/0001-x.html tests 0001-x (asked: 0)\n",
+    )
+    token = "check-token-xyz"
+    state: dict = {}
+
+    def fail(name: str, detail: str) -> int:
+        print(f"serve --check FAIL: {name}\n  {detail}", file=sys.stderr)
+        return 1
+
+    def post(lesson: str, line: str, tok: str | None) -> bytes:
+        req = {"lesson": lesson, "line": line}
+        if tok is not None:
+            req["token"] = tok
+        return json.dumps(req).encode("utf-8")
+
+    line = "Cold open 0001-x: 1 right"
+
+    # 1. token reject: missing -> 401, wrong -> 401.
+    st, payload, state = handle_score(
+        base, token, state, post("lessons/0001-x.html", line, None)
+    )
+    if st != 401:
+        return fail("token-reject-missing", f"expected 401, got {st} {payload}")
+    st, payload, state = handle_score(
+        base, token, state, post("lessons/0001-x.html", line, "wrong")
+    )
+    if st != 401:
+        return fail("token-reject-wrong", f"expected 401, got {st} {payload}")
+
+    # 2. ledger bind: open ledger for 0001-x, good token -> 200 scored + schedule;
+    #    mismatched lesson -> 409.
+    good = post("lessons/0001-x.html", line, token)
+    st, payload, state = handle_score(base, token, state, good)
+    if st != 200 or not payload.get("scored") or "schedule" not in payload:
+        return fail("ledger-bind-score", f"expected 200 scored+schedule, got {st} {payload}")
+    st, payload, state = handle_score(
+        base, token, state, post("lessons/9999-z.html", "Cold open 9999-z: 1 right", token)
+    )
+    if st != 409:
+        return fail("ledger-bind-mismatch", f"expected 409, got {st} {payload}")
+
+    # 3. idempotent duplicate: ledger now closed, same line -> 200 already + schedule.
+    st, payload, state = handle_score(base, token, state, good)
+    if st != 200 or not payload.get("already") or "schedule" not in payload:
+        return fail("idempotent-duplicate", f"expected 200 already+schedule, got {st} {payload}")
+
+    # 4. same-origin no-CORS: handle_lesson headers carry no ACAO key (case-insensitive).
+    st, headers, body = handle_lesson(base, token, "/lessons/0001-x.html")
+    acao = next(
+        (k for k in headers if k.lower() == "access-control-allow-origin"), None
+    )
+    if st != 200 or acao is not None:
+        return fail(
+            "same-origin-no-cors",
+            f"status {st}, ACAO={acao}, headers={headers}",
+        )
+
+    # 5. token injection: body contains __TEACH_TOKEN and __TEACH_SERVE.
+    if b"__TEACH_TOKEN" not in body or b"__TEACH_SERVE" not in body:
+        return fail("token-injection", f"markers missing, body[:120]={body[:120]!r}")
+
+    # 6. path escape: a ../-escaping path -> 404.
+    st, _headers, _body = handle_lesson(base, token, "/lessons/../../0001-x.html")
+    if st != 404:
+        return fail("path-escape", f"expected 404, got {st}")
+
+    print("serve --check OK")
+    return 0
+
+
+def cmd_serve(args: "argparse.Namespace") -> int:
+    if getattr(args, "check", False):
+        return _serve_check()
+    cwd = args.workspace
+    if not is_workspace(cwd):
+        raise TeachError(1, f"not a teach workspace ({cwd})")
+    workspace = os.path.abspath(cwd)
+    token = secrets.token_urlsafe(32)
+    # 127.0.0.1 only — never 0.0.0.0 (REQ-014): no firewall prompt, works
+    # with the network cable out.
+    httpd = ServeServer(("127.0.0.1", args.port), ServeHandler)
+    httpd.workspace = workspace
+    httpd.token = token
+    port = httpd.server_address[1]
+    sj = serve_json_path()
+    write_text(
+        sj,
+        json.dumps(
+            {
+                "pid": os.getpid(),
+                "port": port,
+                "token": token,
+                "workspace": workspace,
+            }
+        ),
+    )
+    print(f"serve: http://127.0.0.1:{port}")
+    sys.stdout.flush()
+    try:
+        httpd.serve_forever()
+    except KeyboardInterrupt:
+        pass
+    finally:
+        httpd.shutdown()
+        httpd.server_close()
+        with contextlib.suppress(OSError):
+            os.remove(sj)
+    return 0
+
+
 def main(argv: list[str]) -> int:
     import argparse
 
@@ -1212,6 +1643,15 @@ def main(argv: list[str]) -> int:
     )
     ix.add_argument("--workspace", default=os.getcwd())
     ix.set_defaults(func=cmd_index)
+
+    sv = sub.add_parser(
+        "serve", help="serve lessons over loopback HTTP (one workspace)"
+    )
+    sv.add_argument("--workspace", default=os.getcwd())
+    sv.add_argument("--port", type=int, default=0)
+    sv.add_argument("--check", action="store_true",
+                    help="run the serve-path self-check (no socket) and exit")
+    sv.set_defaults(func=cmd_serve)
 
     args = p.parse_args(argv[1:])
     try:
