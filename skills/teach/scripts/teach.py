@@ -58,6 +58,7 @@ class RecordDict(TypedDict):
     status: str
     next: date | None
     title: str
+    confidence: int | None
 
 
 class LedgerLine(TypedDict):
@@ -269,6 +270,11 @@ def load_record(path: str) -> RecordDict:
             else None
         ),
         "title": _title(body),
+        "confidence": (
+            int(fm["confidence"])
+            if "confidence" in fm and fm["confidence"].strip().isdigit()
+            else None
+        ),
     }
     return rec
 
@@ -496,13 +502,19 @@ def parse_cold_open_comment(html: str) -> list[tuple[int, str]]:
 
 
 # --- result line / scoring ---------------------------------------------------
-def parse_result_line(line: str) -> tuple[str | None, list[tuple[int, str]]]:
-    """'Cold open 0007-x: 1 right, 2 wrong' -> ('0007-x', [(1,'right'),(2,'wrong')]).
+def parse_result_line(
+    line: str,
+) -> tuple[str | None, list[tuple[int, str, int | None]]]:
+    """'Cold open 0007-x: 1 right, 2 wrong' -> ('0007-x', [(1,'right',None),(2,'wrong',None)]).
 
     The id in the head binds the line to the lesson that produced it. A line
     without one comes from a quiz.js older than template v3; cmd_score refuses it
     rather than guessing which ledger it belongs to.
     Abandon is a separate invocation (result arg == 'abandon'), not parsed here.
+
+    An optional '/N' confidence suffix may ride on each outcome token
+    ('1 right/4') when the cold-open quiz carried data-confidence (template v17+).
+    Absent, the third tuple element is None and behaviour is unchanged.
     """
     s = line.strip()
     if ":" not in s:
@@ -516,19 +528,30 @@ def parse_result_line(line: str) -> tuple[str | None, list[tuple[int, str]]]:
         parts = tok.split()
         if len(parts) != 2:
             raise TeachError(2, f'unparseable outcome "{tok}" in "{line}"')
-        pos_s, outcome = parts
+        pos_s, outcome_tok = parts
         try:
             pos = int(pos_s)
         except ValueError:
             raise TeachError(
                 2, f'bad position "{pos_s}" in "{line}"'
             ) from None
+        conf: int | None = None
+        if "/" in outcome_tok:
+            outcome, _, conf_s = outcome_tok.partition("/")
+            try:
+                conf = int(conf_s)
+            except ValueError:
+                raise TeachError(
+                    2, f'bad confidence "{conf_s}" in "{line}"'
+                ) from None
+        else:
+            outcome = outcome_tok
         if outcome not in ("right", "wrong"):
             raise TeachError(
                 2, f'outcome "{outcome}" not right/wrong in "{line}"'
             )
-        results.append((pos, outcome))
-    positions = [p for p, _ in results]
+        results.append((pos, outcome, conf))
+    positions = [p for p, _, _ in results]
     if positions != list(range(1, len(results) + 1)):
         raise TeachError(
             2, f"positions {positions} must be 1..{len(results)} contiguous"
@@ -537,11 +560,24 @@ def parse_result_line(line: str) -> tuple[str | None, list[tuple[int, str]]]:
 
 
 def score_record(
-    rec: RecordDict, outcome: str, doubling: float, ceiling: float
+    rec: RecordDict,
+    outcome: str,
+    doubling: float,
+    ceiling: float,
+    confidence: int | None = None,
 ) -> set[str]:
-    """Apply one scoring row (RECORDS.md § Scoring). Mutates rec; returns set(changed keys)."""
+    """Apply one scoring row (RECORDS.md § Scoring). Mutates rec; returns set(changed keys).
+
+    confidence, when not None, is the 1-5 pre-reveal rating from a data-confidence
+    cold open (template v17+): a scheduling signal stored for hypercorrection-aware
+    re-teach priority, never a comprehension measure. None leaves the field untouched.
+    """
     changed: set[str] = set()
     t = today()
+    if confidence is not None:
+        rec["fm"]["confidence"] = str(confidence)
+        rec["confidence"] = confidence
+        changed.add("confidence")
     if outcome == "right":
         if rec["interval"] < ceiling:
             new_iv = min(rec["interval"] * doubling, ceiling)
@@ -678,12 +714,24 @@ def cmd_state(args: "argparse.Namespace") -> int:
         else:
             over_s = "unscheduled"
         reteach = "  RE-TEACH" if r["lapses"] >= 3 else ""
+        # High-confidence-wrong (confidence>=4 with a lapse) is a
+        # hypercorrection re-teach candidate (Metcalfe 2017); surface it so step
+        # 4 of SKILL.md can prefer it. confidence is the last cold-open rating.
+        hc = (
+            "  HC"
+            if (
+                r["confidence"] is not None
+                and r["confidence"] >= 4
+                and r["lapses"] >= 1
+            )
+            else ""
+        )
         rid = os.path.splitext(os.path.basename(r["path"]))[0]
         prior = prior_cold_opens(cwd, rid)
         prior_s = ", ".join(prior) if prior else "—"
         print(
             f"  {rid:<16} {over_s:<8} interval={r['interval']:<3} lapses={r['lapses']}  "
-            f"from {r['lesson'] or '—'}  prior cold opens: {prior_s}{reteach}"
+            f"from {r['lesson'] or '—'}  prior cold opens: {prior_s}{reteach}{hc}"
         )
     print(f"records     {len(active)} active, {len(retired)} retired")
     nl = next_number(os.path.join(cwd, "lessons"))
@@ -991,7 +1039,9 @@ def cmd_score(args: "argparse.Namespace") -> int:
         raise TeachError(1, "no open cold-open ledger line in NOTES.md")
     doubling, ceiling, _ = resolve_spacing(notes)
     if args.result.strip().lower() == "abandon":
-        outcomes = [(i + 1, "abandon") for i in range(len(ledger["tests"]))]
+        outcomes = [
+            (i + 1, "abandon", None) for i in range(len(ledger["tests"]))
+        ]
     else:
         lesson_id, results = parse_result_line(args.result)
         ledger_id = os.path.splitext(os.path.basename(ledger["lesson"]))[0]
@@ -1018,19 +1068,25 @@ def cmd_score(args: "argparse.Namespace") -> int:
             )
         outcomes = results
     plan = []
-    for pos, outcome in outcomes:
+    for pos, outcome, conf in outcomes:
         rec = load_record(resolve_record_path(cwd, ledger["tests"][pos - 1]))
         plan.append(
-            (rec, outcome, score_record(rec, outcome, doubling, ceiling))
+            (rec, outcome, score_record(rec, outcome, doubling, ceiling, conf))
         )
     write_text(os.path.join(cwd, "NOTES.md"), delete_ledger_line(notes))
     for rec, _, changed in plan:
         save_record(rec, changed)
     for rec, outcome, _ in plan:
+        conf_s = (
+            f" confidence={rec['fm'].get('confidence')}"
+            if rec["fm"].get("confidence")
+            else ""
+        )
         print(
             f"{os.path.basename(rec['path'])}: {outcome} -> "
             f"interval={rec['fm'].get('interval')} next={rec['fm'].get('next')} "
             f"lapses={rec['fm'].get('lapses')} status={rec['fm'].get('status', 'active')}"
+            f"{conf_s}"
         )
     try:
         print(f"index: {os.path.relpath(build_index(cwd), cwd)}")

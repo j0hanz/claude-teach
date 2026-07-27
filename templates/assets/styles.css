@@ -1,4 +1,4 @@
-/* teach-template-version: 16 */
+/* teach-template-version: 17 */
 
 /* Base */
 *,
@@ -216,6 +216,7 @@ a {
 
 a:focus-visible,
 .quiz-btn:focus-visible,
+.quiz-conf-btn:focus-visible,
 .quiz-undo:focus-visible,
 .quiz-copy:focus-visible,
 .toc a:focus-visible,
@@ -397,6 +398,43 @@ a.cite:hover {
   font-family: var(--sans);
   font-weight: 700;
   margin: 0 0 var(--s-2);
+}
+
+/* Optional pre-reveal confidence selector (data-confidence on .quiz). Compact
+   row of 1-5 buttons; same tap target and focus ring as an option. Inert once
+   the item is answered (handled in JS), so no answered-state style needed. */
+.quiz-conf {
+  display: flex;
+  align-items: center;
+  gap: var(--s-1);
+  margin: 0 0 var(--s-2);
+}
+
+.quiz-conf-label {
+  font-family: var(--sans);
+  font-size: 0.8125rem;
+  color: var(--ink-soft);
+  margin-right: var(--s-1);
+}
+
+.quiz-conf-btn {
+  font-family: var(--sans);
+  font-size: 0.8125rem;
+  min-width: var(--tap);
+  min-height: var(--tap);
+  padding: 0 var(--s-1);
+  background: var(--paper-2);
+  color: var(--ink);
+  border: 1px solid var(--rule-2);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: all 0.15s var(--ease-out);
+}
+
+.quiz-conf-btn[data-on] {
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: 700;
 }
 
 .quiz-options {
@@ -612,6 +650,228 @@ a.cite:hover {
   padding: 0;
   border: none;
   opacity: 0;
+}
+
+/* Content components — spec: references/COMPONENTS.md */
+.worked-example {
+  background: var(--paper-2);
+  border: 1px solid var(--rule);
+  border-inline-start: 3px solid var(--accent);
+  border-radius: var(--radius);
+  padding: var(--s-2) var(--s-3);
+  margin: var(--s-3) 0;
+}
+
+.we-problem {
+  font-family: var(--sans);
+  font-weight: 700;
+  margin: 0 0 var(--s-2);
+}
+
+.we-steps {
+  margin: 0 0 var(--s-2);
+  padding-inline-start: var(--s-4);
+}
+
+.we-steps > li {
+  margin: 0 0 var(--s-1);
+  padding-inline-start: var(--s-1);
+}
+
+.we-action {
+  font-family: var(--sans);
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.we-why {
+  font-family: var(--sans);
+  font-size: 0.9375em;
+  color: var(--ink-soft);
+}
+
+.we-takeaway {
+  margin: 0;
+  font-style: italic;
+  color: var(--ink-soft);
+  border-block-start: 1px solid var(--rule);
+  padding-block-start: var(--s-1);
+}
+
+.self-explain,
+details.aside {
+  margin: var(--s-2) 0 var(--s-3);
+}
+
+.self-explain > summary,
+details.aside > summary {
+  font-family: var(--sans);
+  font-weight: 600;
+  font-size: 0.9375rem;
+  color: var(--accent);
+  cursor: pointer;
+  min-height: var(--tap);
+  display: flex;
+  align-items: center;
+  gap: var(--s-1);
+  list-style: none;
+  padding: var(--s-1) 0;
+}
+
+.self-explain > summary::-webkit-details-marker,
+details.aside > summary::-webkit-details-marker {
+  display: none;
+}
+
+.self-explain > summary::before,
+details.aside > summary::before {
+  content: '+';
+  font-family: var(--mono);
+  font-weight: 700;
+  color: var(--accent);
+  width: 1.25rem;
+  text-align: center;
+}
+
+.self-explain[open] > summary::before,
+details.aside[open] > summary::before {
+  content: '−';
+}
+
+.self-explain-model {
+  background: var(--paper-2);
+  border: 1px solid var(--rule);
+  border-inline-start: 3px solid var(--rule-2);
+  border-radius: var(--radius);
+  padding: var(--s-2) var(--s-3);
+  margin-top: var(--s-1);
+  font-family: var(--sans);
+  font-size: 0.9375rem;
+  color: var(--ink-soft);
+}
+
+details.aside > *:not(summary) {
+  margin: var(--s-1) 0 0;
+}
+
+.synthesis {
+  grid-column: 1 / -1;
+  margin: var(--s-5) 0 var(--s-3);
+  padding: var(--s-3) var(--s-3) var(--s-2);
+  background: var(--paper-2);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+}
+
+.synthesis > h2 {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+  font-size: clamp(1.25rem, 1.1rem + 0.8vw, 1.45rem);
+}
+
+.synthesis > h2::before {
+  display: none;
+}
+
+.synthesis-points {
+  margin: 0 0 var(--s-2);
+  padding-inline-start: var(--s-4);
+}
+
+.synthesis-points > li {
+  margin: 0 0 var(--s-1);
+}
+
+.synthesis-rule {
+  font-family: var(--sans);
+  font-weight: 700;
+  color: var(--ink);
+  border-block-start: 1px solid var(--rule);
+  padding-block-start: var(--s-2);
+  margin: 0 0 var(--s-1);
+}
+
+.synthesis-prompt {
+  font-style: italic;
+  color: var(--ink-soft);
+  margin: 0;
+}
+
+.callout {
+  grid-column: 1;
+  background: var(--paper-2);
+  border: 1px solid var(--rule);
+  border-inline-start: 3px solid var(--accent);
+  border-radius: var(--radius);
+  padding: var(--s-2) var(--s-3);
+  margin: var(--s-3) 0;
+}
+
+.callout > p {
+  margin: 0;
+  font-family: var(--sans);
+  font-size: 0.9375rem;
+}
+
+.callout::before {
+  content: attr(data-type);
+  display: block;
+  font-family: var(--sans);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  margin-bottom: var(--s-1);
+}
+
+.callout[data-type='tip'] {
+  border-inline-start-color: var(--success);
+}
+
+.callout[data-type='warning'] {
+  border-inline-start-color: var(--wrong);
+}
+
+.callout[data-type='caution'] {
+  border-inline-start-color: var(--signal);
+}
+
+.callout[data-type='tip']::before {
+  color: var(--success);
+}
+
+.callout[data-type='warning']::before {
+  color: var(--wrong);
+}
+
+.callout[data-type='caution']::before {
+  color: var(--signal);
+}
+
+figure.diagram {
+  grid-column: 1;
+  margin: var(--s-3) 0;
+  text-align: center;
+}
+
+figure.diagram svg,
+figure.diagram img {
+  max-width: 100%;
+  height: auto;
+}
+
+figure.diagram figcaption {
+  font-family: var(--sans);
+  font-size: 0.875rem;
+  color: var(--ink-soft);
+  margin-top: var(--s-1);
+  text-align: start;
+}
+
+details {
+  break-inside: avoid;
 }
 
 /* Navigation */
@@ -878,6 +1138,7 @@ a.cite:hover {
   .lesson-content::after,
   .quiz-copy,
   .quiz-undo,
+  .quiz-conf,
   .seal-note {
     display: none;
   }
@@ -936,7 +1197,22 @@ a.cite:hover {
   }
 
   .quiz-item,
-  pre {
+  pre,
+  .worked-example,
+  figure.diagram,
+  .callout,
+  .synthesis {
     break-inside: avoid;
+  }
+
+  .synthesis,
+  .worked-example,
+  .callout {
+    background: none;
+  }
+
+  /* a self-explanation model answer prints even when the reveal is closed */
+  .self-explain .self-explain-model {
+    display: block !important;
   }
 }

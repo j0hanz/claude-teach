@@ -270,7 +270,7 @@ def check_quiz_css(line, css, errors):
     These are properties of the stylesheet the page ends up with, not of any one
     block. Run per block they fail a lesson for adding four lines of inline style
     for a topic component, and push the model to duplicate tokens that live in
-    exactly one place (DESIGN.md § Tokens). Only a document that actually has a
+    exactly one place (TOKENS.md). Only a document that actually has a
     quiz owes them.
     """
     if not re.search(r"quiz-btn\s*:focus-visible", css):

@@ -10,7 +10,7 @@ Python here is stdlib-only. `hooks/teach_hook.py` and `skills/teach/scripts/*.py
 
 `${CLAUDE_PLUGIN_ROOT}` in skill and hook content is substituted at runtime. Leave it; do not resolve it to a relative path.
 
-`templates/` is the single source for lesson CSS, JS and HTML. `skills/teach/references/DESIGN.md` names token roles, never their values.
+`templates/` is the single source for lesson CSS, JS and HTML. The design system is split across `skills/teach/references/`: `TOKENS.md` names token roles (never their values), `COMPONENTS.md` specs every reusable block a generated lesson emit, `DESIGN.md` holds layout, the retrieval-gate signature, constraints and validation.
 
 ## Commands
 
@@ -18,5 +18,5 @@ Python here is stdlib-only. `hooks/teach_hook.py` and `skills/teach/scripts/*.py
 
 ## More
 
-Lesson design system and rationale: `skills/teach/references/DESIGN.md`
+Lesson design system and rationale: `skills/teach/references/DESIGN.md`, `COMPONENTS.md`, `TOKENS.md`
 Session flow and workspace layout: `skills/teach/SKILL.md`

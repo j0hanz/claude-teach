@@ -12,7 +12,7 @@
       <!--
       THESIS: A course timetable turns retrieval before instruction into the lesson's visible route.
       OWN-WORLD: Cool paper, transit blue rules, and a vermilion stop organize serif reading with precise sans controls.
-      STORY: Learner recalls first, unlocks one focused idea, practices it, then sees the next useful connection.
+      STORY: Learner recalls first, unlocks one focused idea, practices it, then synthesizes and sees the next useful connection.
       FIRST VIEWPORT: Route card, four-stop lesson map, and recall check occupy the opening view; the first answer is the action.
       FORM: Course timetable, seventh grounded candidate, seed 0929c0dc; compact rails collapse into a readable mobile route.
       -->
@@ -63,7 +63,10 @@
               <li><button class="quiz-btn" type="button">{{OPT}}</button></li>
               <li><button class="quiz-btn" type="button">{{OPT}}</button></li>
             </ul>
-            <p class="quiz-fb" role="status" hidden>{{FEEDBACK}}</p>
+            <p class="quiz-fb" role="status" hidden>
+              {{FEEDBACK — why the correct option is correct and why a chosen wrong one is wrong,
+              not merely confirm.}}
+            </p>
           </div>
 
           <p class="quiz-result" role="status"></p>
@@ -87,12 +90,66 @@
         data-seal-label="Answer the cold open to unseal the lesson."
       >
         <h2 id="knowledge">Knowledge</h2>
-        <p>{{Body. Every claim cites.}}<a class="cite" href="#n1">1</a></p>
+        <p>
+          {{Body. Every claim cites. One idea per paragraph; front-load each paragraph with the
+          point.}}
+        </p>
         <p class="sidenote" id="n1">
           ¹ <a href="{{URL}}">{{Author, Title}}</a> — {{one line on what it covers}}.
         </p>
+        <!--
+        Optional components — copy in the one a lesson needs, drop the rest. Spec: references/COMPONENTS.md.
+        Gate density on record state (interval/lapses): low-interval or lapses≥1 → fuller scaffolding; high-interval/zero-lapse → bare.
+
+        Callout (common pitfall / by-the-way / optional better way / irreversible):
+        <div class="callout" data-type="warning" role="note">
+          <p>{{…}}</p>
+        </div>
+
+        Figure / inline-SVG diagram (gate on record state; low-knowledge learner only):
+        <figure class="diagram">
+          <svg viewBox="0 0 320 180" role="img" aria-labelledby="d1-title"><title id="d1-title">{{…}}</title>{{…}}</svg>
+          <figcaption>{{…}} <a class="cite" href="#n2">2</a></figcaption>
+        </figure>
+
+        Self-explanation reveal (open-ended, not multiple-choice):
+        <details class="self-explain">
+          <summary>In your own words: why does {{…}} hold?</summary>
+          <div class="self-explain-model">{{model answer}}</div>
+        </details>
+
+        Optional deeper depth (never hide a prerequisite; cap one nesting level):
+        <details class="aside">
+          <summary>{{real information scent, e.g. "How we chose this threshold"}}</summary>
+          {{…}}
+        </details>
+        -->
 
         <h2 id="skills">Skills</h2>
+        <!--
+        Worked example — required for any procedural skill; density scale with record state (COMPONENTS.md § Worked example):
+        <div class="worked-example">
+          <p class="we-problem">{{one problem statement}}</p>
+          <ol class="we-steps">
+            <li><span class="we-action">{{do this}}</span> <span class="we-why">— {{principle that justify the step}}</span></li>
+          </ol>
+          <p class="we-takeaway">{{one-line takeaway}}</p>
+        </div>
+        Then a parallel bare problem, faded by record state. A practice quiz (same .quiz markup, no data-releases) gives a tight feedback loop.
+        -->
+
+        <section class="synthesis" id="synthesis">
+          <h2>Synthesis</h2>
+          <ul class="synthesis-points">
+            <li>{{core idea, one line}}</li>
+            <li>{{core idea, one line}}</li>
+            <li>{{core idea, one line}}</li>
+          </ul>
+          <p class="synthesis-rule">{{re-state the core rule in light of what practice showed}}</p>
+          <p class="synthesis-prompt">
+            Say it back in your own words — then ask your tutor to check it.
+          </p>
+        </section>
 
         <h2 id="where-next">Where next</h2>
         <p>

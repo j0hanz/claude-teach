@@ -24,21 +24,20 @@ All four live at workspace root. Create each when session flow in [SKILL.md](../
 
 ## Why
 
-{1-3 sentences. The concrete real-world goal the user is chasing. What changes in their life or work when they have this skill? Avoid abstract framings like "to understand X" — push for the underlying outcome.}
+{1-3 sentences: the concrete real-world goal — what changes in their life/work when they have this skill. Not "to understand X".}
 
 ## Success looks like
 
-- {A specific, observable thing the user will be able to do}
-- {Another specific thing}
+- {specific, observable thing they will be able to do}
 - {…}
 
 ## Constraints
 
-- {Time, budget, prior commitments, learning preferences, anything that bounds the approach}
+- {time, budget, prior commitments, learning preferences}
 
 ## Out of scope
 
-- {Adjacent topics the user explicitly does not want to chase right now — protects the zone of proximal development}
+- {adjacent topics they explicitly do not want to chase — protects the ZPD}
 ```
 
 ### Rules
@@ -63,17 +62,13 @@ All four live at workspace root. Create each when session flow in [SKILL.md](../
 
 ## Knowledge
 
-- [Book: _The Science and Practice of Strength Training_ — Zatsiorsky & Kraemer](https://example.com)
-  Foundational text on programming and adaptation. Use for: anything to do with periodisation, recovery, intensity zones.
-- [Article: "How Much Should I Train?" — Greg Nuckols (Stronger By Science)](https://example.com)
-  Evidence-based review of volume landmarks. Use for: weekly set targets per muscle group.
+- [Book: _Title_ — Author](URL)
+  One line: what it covers, when to reach for it.
 
 ## Wisdom (Communities)
 
-- [r/weightroom](https://reddit.com/r/weightroom)
-  High-signal subreddit, moderated against bro-science. Use for: programme critique, plateau troubleshooting.
-- Local: Tuesday strength class at {gym name}
-  Use for: real-time coaching feedback on lifts.
+- [Community name](URL)
+  One line: what kind of feedback or wisdom it offers.
 ```
 
 ### Rules
@@ -98,21 +93,13 @@ Term enter glossary only after user demonstrates understanding — see [SKILL.md
 ```md
 # {Topic} Glossary
 
-{One or two sentence description of the topic this glossary covers.}
+{One or two sentences on the topic this glossary covers.}
 
 ## Terms
 
-**Hypertrophy**:
-Muscle growth driven by mechanical tension and metabolic stress over repeated training sessions.
-_Avoid_: Bulking, getting big
-
-**Progressive overload**:
-Systematically increasing the demand on a muscle over time — via load, volume, or intensity.
-_Avoid_: Pushing harder, levelling up
-
-**RPE (Rate of Perceived Exertion)**:
-A 1–10 self-rating of how hard a set felt, where 10 is failure and 8 means two reps left in the tank.
-_Avoid_: Effort score, intensity rating
+**Term**:
+One or two sentences: what it _is_. Use the glossary's own terms inside definitions.
+_Avoid_: loose synonyms to flag
 ```
 
 ### Rules
@@ -138,14 +125,13 @@ _Avoid_: Effort score, intensity rating
 
 ## Preferences
 
-- Evenings only, 20 minutes tops.
-- No community suggestions — already declined (also noted in `RESOURCES.md`).
+- {durable preference read every session, obeyed}
 - spacing: { doubling: 2, ceiling: 90 }
 
 ## Working notes
 
-- unscored cold open: lessons/0007-x.html tests 0003-a, 0005-b (asked: 0)
-- Kept confusing tempo with cadence in session 4; watch for it.
+- unscored cold open: lessons/NNNN-slug.html tests NNNN-a, NNNN-b (asked: 0)
+- {scratch that must outlive the session}
 ```
 
 ### Rules

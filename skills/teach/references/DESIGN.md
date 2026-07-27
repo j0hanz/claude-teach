@@ -2,15 +2,15 @@
 
 Design system for HTML this skill generate. One course identity cross every `lessons/*.html` and `reference/*.html` in workspace — set read as course, not pile one-offs.
 
-Hard constraint from [SKILL.md](../SKILL.md) shape every choice: lessons open on `file://` with network off — no CDN, no remote font, no external script. Print must work. Every claim cite. Cold open seal new content until answered.
+Hard constraint from [SKILL.md](../SKILL.md) shape every choice — see [Constraints](#constraints). This file hold direction, layout, the retrieval-gate signature, constraints and validation. Two peer reference hold the rest: [TOKENS.md](TOKENS.md) name every CSS token role; [COMPONENTS.md](COMPONENTS.md) spec every reusable block a generated lesson emit.
 
 ## Artifacts
 
-Maintainable split — spec here, code as real file skill copy:
+Maintainable split — spec here and in peer references, code as real file skill copy:
 
 | File                                                                  | Role                           | Copied into workspace as |
 | --------------------------------------------------------------------- | ------------------------------ | ------------------------ |
-| [`templates/assets/roots.css`](../../../templates/assets/roots.css)   | Root variables                 | `assets/roots.css`       |
+| [`templates/assets/roots.css`](../../../templates/assets/roots.css)   | Root variables (token values)  | `assets/roots.css`       |
 | [`templates/assets/styles.css`](../../../templates/assets/styles.css) | Screen and print rules         | `assets/styles.css`      |
 | [`templates/assets/quiz.js`](../../../templates/assets/quiz.js)       | Reusable quiz widget           | `assets/quiz.js`         |
 | [`templates/lesson.html`](../../../templates/lesson.html)             | Lesson skeleton (placeholders) | `lessons/NNNN-slug.html` |
@@ -26,42 +26,6 @@ Not cream-and-terracotta default (blue-gray not cream; transit blue not terracot
 Lesson open as route card: header carry vertical transit rule and one vermilion stop, then route navigation name Recall, Understand, Practice and Continue before retrieval gate. This sequence explain lesson shape without expose sealed body.
 
 Voice: dropped-article style throughout this skill deliberate, load-bearing — preserve in edit; don't normalize to standard English.
-
-## Tokens
-
-Name and role only — no value here, on purpose. Value drift when restated.
-
-| Token        | Role                                 |
-| ------------ | ------------------------------------ |
-| `--paper`    | cool blue-gray page surface          |
-| `--paper-2`  | pale field, cold-open field, code    |
-| `--ink`      | graphite body text                   |
-| `--ink-soft` | secondary text, marginalia           |
-| `--rule`     | hairlines                            |
-| `--rule-2`   | control boundaries (quiz options)    |
-| `--accent`   | cobalt — gate, correct, links        |
-| `--accent-2` | deep cobalt — hover, secondary marks |
-| `--signal`   | vermilion — route stop, release edge |
-| `--wrong`    | wrong (muted brick, never alarm-red) |
-| `--serif`    | body face (sustained reading)        |
-| `--sans`     | labels and marginalia face           |
-| `--mono`     | code and result-line face            |
-| `--s-1`…`7`  | space ladder — margins and padding   |
-| `--measure`  | body line length                     |
-| `--margin-w` | sidenote column width                |
-| `--radius`   | corner radius, controls and code     |
-| `--tap`      | minimum touch target (44px)          |
-
-Why these token, not others:
-
-- **System-only type stacks.** Web font banned on `file://` — no CDN, no remote `@import`, cable unplugged, page still render. Serif stack ship on Windows + macOS, degrade clean; sans and mono ride OS default. No web font worth network dependency brief forbid.
-- **`--measure` bound line length** for sustained reading. Width typographic decision, not layout accident — body column past ~36rem stop being read, start being scanned.
-- **`--margin-w` earn its width** because every claim cite. Citation live beside claim as sidenote, not bunch as inline footnote bomb. Margin structural, not decorative.
-- **`--wrong` muted oxblood, never alarm-red.** Wrong answer teaching signal, not emergency. Red shout; oxblood correct quiet, keep page calm.
-- **One space ladder, not free value.** Structural gap come off `--s-*`; rare quarter-rem optical adjustment stay beside component it tune. Type size live at use — page has few roles, named ladder hide more than it help.
-- **`--rule-2` exist because `--rule` too faint to be edge.** Hairline separate; control boundary must be _found_. Quiz option border only thing saying "this is clickable", `--rule` sit near 1.5:1 on paper — under 3:1 control boundary owe. Two token, two job; never use `--rule` on interactive edge.
-
-Token value live in [`templates/assets/roots.css`](../../../templates/assets/roots.css) `:root` — single source. Edit there; never restate value here.
 
 ## Layout
 
@@ -81,45 +45,35 @@ Swap text come from `data-unsealed-label` on `.seal-note`, so translate with les
 
 Quiet on purpose: faint veil, cobalt rule, small uppercase label. No confetti, no green flash. `prefers-reduced-motion` mean no transition, instant release; veil stay, blur static mask not movement — cancel it, reduced-motion reader read whole sealed lesson at 35% opacity. Seal state, not performance.
 
-## Components
-
-- **Lesson route** — `.toc`, four ordered stops: Recall, Understand, Practice, Continue. Each anchor own square number; route show lesson scope before cold open, never use it as dense global navigation.
-- **Cold open** — `.cold-open`, `--paper-2` calibration field, transit-blue top rule, fine frame. Label it `Recall check`; one plain sentence explain answer-from-memory and release condition. Hold quiz. Field span both column; what it hold stay bound to `--measure`, so cold-open quiz and practice quiz further down same lesson one component at one width, ✓ mark stay next to word it mark.
-- **Lead** — `.lead` on opening paragraph. One thing lesson land, set above body size. At body size it read as first paragraph, not claim rest of page argue.
-- **Quiz** — shape only:
-
-  ```html
-  <div class="quiz" data-releases="contentId" data-label="Cold open" data-lesson="NNNN-slug">
-    <div class="quiz-item" role="group" aria-labelledby="q1" data-correct="0">
-      <p class="quiz-q" id="q1">…</p>
-      …<button class="quiz-btn" type="button">…</button>…
-    </div>
-    <p class="quiz-result" role="status"></p>
-    <button class="quiz-copy" type="button" hidden>Copy result</button>
-  </div>
-  <p class="seal-note" role="status">…</p>
-  ```
-
-  `.quiz-result` carry **no** `hidden` — `quiz.js` never unhide it, so hidden one result line, and scoring affordance, nobody ever see. `role="group"` + `aria-labelledby` tie option to own question: three sibling button carry no question with them, so on item 2 of 3 screen reader otherwise offer bare option list.
-
-  Equal-width `.quiz-btn` option so formatting never leak answer (rule from [SKILL.md](../SKILL.md) `## Skills`; same character-count per option where possible). Right/wrong carry mono ✓/✗ mark plus border + tint — border colour and tint both colour, mark what keep state readable without it. Answered option carry `aria-disabled`: still focusable, mark stay reachable, but no longer offer action that do nothing. Result line and per-item feedback `role="status"`: both appear without focus moving, unannounced result line a result line screen-reader user never learn exist — so both start **empty and in tree**, and `quiz.js` fill them. Live region that arrive already full the case screen reader most often miss. `.quiz-fb` keep its `hidden` and authored text in markup, what a no-JS page need; init hoist that text into JS and empty element. Copy control must work on `file://` — no copy control, no spaced-repetition loop. This section quiz contract; [`templates/assets/quiz.js`](../../../templates/assets/quiz.js) implement it.
-
-  **Undo window.** Answer not final instant clicked. Chosen option go to neutral `data-state="chosen"` mark, `.quiz-undo` appear, item lock three second later. Nothing about answer reveal inside that window — no right/wrong, no correct option, no feedback. Reveal-then-undo would hand back free retry with answer already on screen, and that one thing retrieval measurement can't survive. Once locked, no retry: window buy back tap, never recall. Reason it exist: this line reschedule memory record, so mis-tap noise recorded as signal.
-
-  Copy control show only on first pass through gated cold open — revisit unseal from remembered state, practice quiz never gate, so neither produce line worth pasting. Successful copy announce that learner paste result into next message to teacher. `data-lesson` bind line to own lesson.
-
-- **Citations** — inline `a.cite` number real link to own `.sidenote` (`id="n1"`, `n2`, … in order); note itself sans, small, `--ink-soft`, hairline left rule, and a `<p>` rather than `<aside>` — aside here scoped to no sectioning element, so each note would land as own `complementary` landmark, finished lesson would bury `<main>` under dozen of them. `a.cite` take inline padding with cancelling negative margin: vertical padding on inline box don't touch line box, so tap target grow from 8px to something findable without pixel of reflow. Matter on phone, one place note moved away from claim it belong to. Beside paragraph, pairing obvious; on phone and paper note moved below claim, matching numeral only thing tying claim to source. `sup.cite` stay styled for lesson generated before link existed.
-- **Knowledge / Skills** — `h2` section with route-stop mark and `--rule` hairline above (structural divider, not decoration). Knowledge first, skill second.
-- **Code** — `--mono` on `--paper-2`, 4px cobalt left rule, horizontal scroll.
-- **Where next** — final block: one primary source (highest-trust thing found), cross-link to related lesson and reference doc by anchor, line invite follow-up question.
-
 ## Constraints
 
-- **Offline** — no `@import`, no remote `url()`, no external `<script src>`, no stylesheet `<link>` to anywhere but `assets/`. System font stack only. Cable unplugged, page render.
-- **Print** — collapse to one column (margin column no reader on paper), keep `--measure` (paper one medium where reader can't narrow window; unbounded page box 95-character line) _and drop block's own padding with it_, since `box-sizing` border-box and 2rem a side inside `max-width: --measure` 32rem column, not 36rem — page box has `@page` margin for that. Unseal content, drop sidenote inline as small footnote, drop `.seal-note` (on paper body already open, so line promising it sealed simply false), avoid page-break inside quiz item and `pre`. Colour not load-bearing (B&W print fine). Quiz option print as plain list, not hidden — hidden they leave question dangling on em-dash with nothing under it, and printed lesson meant to be worked through; only copy and undo control go. Sidenote link print URL after title: every claim cite, and citation whose URL never printed is citation reader can't follow.
+- **Offline** — `file://`, no remote refs; enforced by `check_lesson.py` (see [SKILL.md](../SKILL.md) § Untrusted content). Not restated here — validator is spec.
+- **Print**:
+  - collapse to one column (margin column no reader on paper)
+  - keep `--measure` — paper one medium where reader can't narrow window; unbounded page box 95-character line — and drop block's own padding with it, since `box-sizing` border-box and 2rem a side inside `max-width: --measure` 32rem column, not 36rem; page box has `@page` margin for that
+  - unseal content; drop sidenote inline as small footnote
+  - drop `.seal-note` — on paper body already open, so line promising it sealed simply false
+  - avoid page-break inside quiz item and `pre`
+  - colour not load-bearing (B&W print fine)
+  - quiz option print as plain list, not hidden — hidden they leave question dangling on em-dash with nothing under it, and printed lesson meant to be worked through; only copy and undo control go
+  - sidenote link print URL after title: every claim cite, and citation whose URL never printed is citation reader can't follow
 - **Motion** — reduced-motion mean no transition, instant release; blur stay (static mask, not movement). Default motion subtle (seal ~0.2s, quiz state ~0.15s). No scroll reveal, no ambient animation.
 - **Responsive** — below desktop reading width: single column, sidenote inline below anchor, cold-open full width, padding shrink, line length stay bounded. Narrow phone shrink outer padding once more; route stay visible and wrap clean.
-- **a11y** — visible keyboard focus on every control **and every link**; control boundary on `--rule-2` (3:1), never `--rule`; quiz state signal by mark + border, not colour alone; answered option `aria-disabled`, still focusable; option grouped and labelled by own question; sealed body `inert`, not merely blurred; nothing inert subtree carry — `::after` label included — reach assistive technology, so gate instruction live outside it in `.seal-note`, and release announce there; state change that move no focus announce via `role="status"`, from live region empty and in tree before text arrive; focus never dropped by hiding control it sit on (`.quiz-undo` hand it back to chosen option); `prefers-reduced-motion` honoured; `forced-colors` opt-out on veil alone, whose background _is_ component (quiz state survive forced palette on its mark); sidenote are `<p>`, never `<aside>`, so citation don't each become landmark; `lang` set on `<html>`; `<main>` landmark wrap lesson.
+- **a11y**:
+  - visible keyboard focus on every control and every link
+  - control boundary on `--rule-2` (3:1), never `--rule`
+  - quiz state signal by mark + border, not colour alone
+  - answered option `aria-disabled`, still focusable
+  - option grouped and labelled by own question
+  - sealed body `inert`, not merely blurred
+  - nothing inert subtree carry — `::after` label included — reach assistive technology, so gate instruction live outside it in `.seal-note`, and release announce there
+  - state change that move no focus announce via `role="status"`, from live region empty and in tree before text arrive
+  - focus never dropped by hiding control it sit on (`.quiz-undo` hand it back to chosen option)
+  - `prefers-reduced-motion` honoured
+  - `forced-colors` opt-out on veil alone, whose background _is_ component (quiz state survive forced palette on its mark)
+  - sidenote are `<p>`, never `<aside>`, so citation don't each become landmark
+  - `lang` set on `<html>`
+  - `<main>` landmark wrap lesson
 
 ## Validation
 
@@ -131,9 +85,9 @@ Quiet on purpose: faint veil, cobalt rule, small uppercase label. No confetti, n
 - `python "${CLAUDE_PLUGIN_ROOT}/skills/teach/scripts/check_lesson.py" <lesson-path>` — validate generated lesson for conformance (quiz structure, offline no-remote-refs, a11y static check). Step 6 of [SKILL.md](../SKILL.md) run this on every lesson before opening it.
 - `python "${CLAUDE_PLUGIN_ROOT}/skills/teach/scripts/check_lesson.py" --type=reference <path>` — same for reference document; skip quiz and cold-open rule.
 
-Shared assets carry a `teach-template-version` stamp. Bump every shared asset stamp on a release that requires copied workspace assets to change; `teach.py state` reports a stale copy (detect-only; never overwrite per-workspace topic component). This validator only checks document contract.
+Shared assets carry a `teach-template-version` stamp. Bump every shared asset stamp on a release that requires copied workspace assets to change; `teach.py state` reports a stale copy (detect-only; never overwrite per-workspace topic component). This validator only checks document contract. Worked-example, synthesis, callout, figure and details component are authoring guidance, not machine-enforced — offline media inside a figure is still caught by the existing remote/missing-asset check.
 
-Static subset (quiz structure, offline, a11y) machine-enforced here. Non-static concern (result-line shape, print layout, motion) enforced by template-as-source, not this script.
+Static subset (quiz structure, offline, a11y) machine-enforced here. Non-static concern (result-line shape, print layout, motion, component content) enforced by template-as-source and [COMPONENTS.md](COMPONENTS.md), not this script.
 
 ## Reference docs
 

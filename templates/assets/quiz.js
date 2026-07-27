@@ -1,6 +1,6 @@
 /* quiz.js — reusable quiz widget for a lesson. Self-contained, works on file://.
- * Markup contract and behaviour: skills/teach/references/DESIGN.md § Components.
- * teach-template-version: 16
+ * Markup contract and behaviour: skills/teach/references/COMPONENTS.md § Quiz.
+ * teach-template-version: 17
  */
 (function () {
   'use strict';
@@ -77,6 +77,8 @@
     var copyBtn = root.querySelector('.quiz-copy');
     var copyStatus = root.querySelector('.quiz-copy-status');
     var releases = root.getAttribute('data-releases');
+    var confOn = root.getAttribute('data-confidence');
+    var confVals = new Array(items.length).fill(null);
     var undoLabel = root.getAttribute('data-undo-label') || 'Undo';
     var copiedLabel = root.getAttribute('data-copied-label') || 'Copied';
     var copyFailedLabel =
@@ -128,6 +130,49 @@
       var timer = null;
       var countdownTimer = null;
       var chosen = -1;
+      var conf = null;
+
+      // Optional 1-5 confidence rating, captured BEFORE the answer reveal. A
+      // scheduling signal only (hypercorrection-aware re-teach), never a
+      // comprehension booster. Opt-in per quiz via data-confidence; absent, this
+      // block does not run and the result line is unchanged.
+      if (confOn) {
+        var confWrap = document.createElement('div');
+        confWrap.className = 'quiz-conf';
+        confWrap.setAttribute('role', 'group');
+        confWrap.setAttribute('aria-label', 'How sure are you, 1 to 5?');
+        var confLabel = document.createElement('span');
+        confLabel.className = 'quiz-conf-label';
+        confLabel.textContent = 'How sure?';
+        confWrap.appendChild(confLabel);
+        for (var c = 1; c <= 5; c++) {
+          (function (n) {
+            var cb = document.createElement('button');
+            cb.type = 'button';
+            cb.className = 'quiz-conf-btn';
+            cb.textContent = String(n);
+            cb.setAttribute('aria-pressed', 'false');
+            cb.setAttribute('aria-label', n + ' out of 5');
+            cb.addEventListener('click', function () {
+              if (item.hasAttribute('data-answered') || timer !== null) return;
+              conf = n;
+              confWrap.querySelectorAll('.quiz-conf-btn').forEach(function (b) {
+                b.removeAttribute('data-on');
+                b.setAttribute('aria-pressed', 'false');
+              });
+              cb.setAttribute('data-on', '');
+              cb.setAttribute('aria-pressed', 'true');
+            });
+            confWrap.appendChild(cb);
+          })(c);
+        }
+        var q = item.querySelector('.quiz-q');
+        if (q && q.nextSibling) {
+          item.insertBefore(confWrap, q.nextSibling);
+        } else {
+          item.appendChild(confWrap);
+        }
+      }
 
       var undo = document.createElement('button');
       undo.type = 'button';
@@ -174,6 +219,7 @@
           }
         } catch (e) {}
 
+        confVals[i] = conf;
         outcomes[i] = right ? 'right' : 'wrong';
         updateProgress();
         if (
@@ -226,7 +272,7 @@
         ': ' +
         outcomes
           .map(function (o, i) {
-            return i + 1 + ' ' + o;
+            return i + 1 + ' ' + o + (confVals[i] != null ? '/' + confVals[i] : '');
           })
           .join(', ');
       if (resultEl) resultEl.textContent = line;
