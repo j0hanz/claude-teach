@@ -1,21 +1,21 @@
-/* teach-template-version: 14 */
+/* teach-template-version: 15 */
 :root {
   color-scheme: light;
-  --paper: #f1ece1;
-  --paper-2: #fbf7ee;
-  --paper-3: #e8e0cf;
-  --ink: #1a1814;
-  --ink-soft: #5b544a;
-  --rule: #c8b89a;
+  --paper: #f4f1ea;
+  --paper-2: #faf8f2;
+  --paper-3: #ebe6db;
+  --ink: #1d1a15;
+  --ink-soft: #524b43;
+  --rule: #d8cfc0;
   --rule-2: #6b5d49;
-  --accent: #1f3a5f;
-  --accent-2: #2a5180;
-  --accent-bg: #ecead9;
-  --signal: #b8412e;
-  --wrong: #8b3a2e;
-  --success: #3d6b4a;
-  --success-bg: #e8e6d3;
-  --wrong-bg: #ede1d8;
+  --accent: #2e4472;
+  --accent-2: #3d5a8f;
+  --accent-bg: #e8e4d9;
+  --signal: #b8392a;
+  --wrong: #9b4639;
+  --success: #3a6b48;
+  --success-bg: #e4eadd;
+  --wrong-bg: #f1e7e3;
   --serif: 'Iowan Old Style', 'Palatino Linotype', 'Book Antiqua', Palatino, Georgia, serif;
   --sans: Inter, Aptos, 'Segoe UI Variable', 'Segoe UI', system-ui, sans-serif;
   --mono: 'SF Mono', 'Cascadia Code', 'JetBrains Mono', ui-monospace, Consolas, monospace;
@@ -33,7 +33,29 @@
   --tap: 3rem;
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-spring: cubic-bezier(0.175, 0.885, 0.32, 1.15);
-  --shadow-sm: 0 1px 0 var(--rule), 0 2px 6px rgba(26, 24, 20, 0.05);
+  --shadow-sm: 0 1px 0 var(--rule), 0 2px 6px rgba(26, 24, 20, 0.06);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --paper: #141210;
+    --paper-2: #1c1914;
+    --paper-3: #25211c;
+    --ink: #f4f1ea;
+    --ink-soft: #b0a89c;
+    --rule: #3e382f;
+    --rule-2: #7d7265;
+    --accent: #8baddc;
+    --accent-2: #9bbde9;
+    --accent-bg: #232836;
+    --signal: #e6836e;
+    --wrong: #c97a6a;
+    --success: #7cc88e;
+    --success-bg: #1f2a22;
+    --wrong-bg: #2f211e;
+    --shadow-sm: 0 1px 0 var(--rule), 0 2px 8px rgba(0, 0, 0, 0.35);
+  }
 }
 
 @media print {
@@ -48,8 +70,12 @@
     --rule-2: #555555;
     --accent: #1f3a5f;
     --accent-2: #1f3a5f;
+    --accent-bg: #f0f0f0;
     --signal: #8a2f1e;
     --wrong: #6b2a1e;
     --success: #2a4a32;
+    --success-bg: #eeeeee;
+    --wrong-bg: #eeeeee;
+    --shadow-sm: none;
   }
 }
