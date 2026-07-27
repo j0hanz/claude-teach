@@ -1041,6 +1041,7 @@ class ScoreResult(list[dict]):
     since build_index writes cwd/index.html). A list subclass so the writer
     can hand the caller both the per-record rows and the index outcome in one
     return, without re-calling build_index."""
+
     index_msg: str = ""
 
 
@@ -1319,6 +1320,9 @@ def handle_lesson(
         return 404, {}, b"not found"
     if common != ws_abs:
         return 404, {}, b"not found"
+    lessons_abs = os.path.join(ws_abs, "lessons")
+    if os.path.commonpath([lessons_abs, target]) != lessons_abs:
+        return 404, {}, b"not found"
     if not os.path.isfile(target):
         return 404, {}, b"not found"
     try:
@@ -1326,7 +1330,8 @@ def handle_lesson(
     except OSError:
         return 404, {}, b"not found"
     inject = (
-        '<script>window.__TEACH_TOKEN="' + token
+        '<script>window.__TEACH_TOKEN="'
+        + token
         + '"; window.__TEACH_SERVE=1;</script>'
     )
     body = html.replace("</body>", inject + "</body>", 1).encode("utf-8")
@@ -1367,13 +1372,14 @@ def handle_score(
     if common != ws_abs:  # path escape
         return 400, {"error": "bad request"}, serve_state
     lesson_rel = os.path.relpath(norm, ws_abs).replace(os.sep, "/")
+    lesson_stem = os.path.splitext(os.path.basename(lesson_rel))[0]
 
     ledger = parse_ledger_line(read_notes(workspace))
     last_score = serve_state.get("last_score")
     if ledger is None:  # closed
         if (
             last_score
-            and last_score.get("lesson") == lesson_rel
+            and last_score.get("lesson") == lesson_stem
             and last_score.get("line") == line
         ):
             return (
@@ -1388,10 +1394,11 @@ def handle_score(
         return 409, {"error": "ledger closed, different line"}, serve_state
 
     # ledger open
-    if lesson_rel != ledger["lesson"]:
+    ledger_stem = os.path.splitext(os.path.basename(ledger["lesson"]))[0]
+    if lesson_stem != ledger_stem:
         return (
             409,
-            {"error": f"open ledger is for {ledger['lesson']}, not {lesson_rel}"},
+            {"error": f"open ledger is for {ledger_stem}, not {lesson_stem}"},
             serve_state,
         )
     try:
@@ -1409,7 +1416,7 @@ def handle_score(
     ]
     new_state = dict(serve_state)
     new_state["last_score"] = {
-        "lesson": lesson_rel,
+        "lesson": lesson_stem,
         "line": line,
         "schedule": schedule,
     }
@@ -1511,40 +1518,49 @@ def _serve_check() -> int:
         return json.dumps(req).encode("utf-8")
 
     line = "Cold open 0001-x: 1 right"
-
-    # 1. token reject: missing -> 401, wrong -> 401.
     st, payload, state = handle_score(
-        base, token, state, post("lessons/0001-x.html", line, None)
+        base, token, state, post("0001-x", line, None)
     )
     if st != 401:
-        return fail("token-reject-missing", f"expected 401, got {st} {payload}")
+        return fail(
+            "token-reject-missing", f"expected 401, got {st} {payload}"
+        )
     st, payload, state = handle_score(
-        base, token, state, post("lessons/0001-x.html", line, "wrong")
+        base, token, state, post("0001-x", line, "wrong")
     )
     if st != 401:
         return fail("token-reject-wrong", f"expected 401, got {st} {payload}")
 
     # 2. ledger bind: open ledger for 0001-x, good token -> 200 scored + schedule;
     #    mismatched lesson -> 409.
-    good = post("lessons/0001-x.html", line, token)
+    good = post("0001-x", line, token)
     st, payload, state = handle_score(base, token, state, good)
     if st != 200 or not payload.get("scored") or "schedule" not in payload:
-        return fail("ledger-bind-score", f"expected 200 scored+schedule, got {st} {payload}")
+        return fail(
+            "ledger-bind-score",
+            f"expected 200 scored+schedule, got {st} {payload}",
+        )
     st, payload, state = handle_score(
-        base, token, state, post("lessons/9999-z.html", "Cold open 9999-z: 1 right", token)
+        base, token, state, post("9999-z", "Cold open 9999-z: 1 right", token)
     )
     if st != 409:
-        return fail("ledger-bind-mismatch", f"expected 409, got {st} {payload}")
+        return fail(
+            "ledger-bind-mismatch", f"expected 409, got {st} {payload}"
+        )
 
     # 3. idempotent duplicate: ledger now closed, same line -> 200 already + schedule.
     st, payload, state = handle_score(base, token, state, good)
     if st != 200 or not payload.get("already") or "schedule" not in payload:
-        return fail("idempotent-duplicate", f"expected 200 already+schedule, got {st} {payload}")
+        return fail(
+            "idempotent-duplicate",
+            f"expected 200 already+schedule, got {st} {payload}",
+        )
 
     # 4. same-origin no-CORS: handle_lesson headers carry no ACAO key (case-insensitive).
     st, headers, body = handle_lesson(base, token, "/lessons/0001-x.html")
     acao = next(
-        (k for k in headers if k.lower() == "access-control-allow-origin"), None
+        (k for k in headers if k.lower() == "access-control-allow-origin"),
+        None,
     )
     if st != 200 or acao is not None:
         return fail(
@@ -1554,12 +1570,21 @@ def _serve_check() -> int:
 
     # 5. token injection: body contains __TEACH_TOKEN and __TEACH_SERVE.
     if b"__TEACH_TOKEN" not in body or b"__TEACH_SERVE" not in body:
-        return fail("token-injection", f"markers missing, body[:120]={body[:120]!r}")
+        return fail(
+            "token-injection", f"markers missing, body[:120]={body[:120]!r}"
+        )
 
     # 6. path escape: a ../-escaping path -> 404.
-    st, _headers, _body = handle_lesson(base, token, "/lessons/../../0001-x.html")
+    st, _headers, _body = handle_lesson(
+        base, token, "/lessons/../../0001-x.html"
+    )
     if st != 404:
         return fail("path-escape", f"expected 404, got {st}")
+    st, _headers, _body = handle_lesson(
+        base, token, "/lessons/../learning-records/0001-x.md"
+    )
+    if st != 404:
+        return fail("intra-workspace-escape", f"expected 404, got {st}")
 
     print("serve --check OK")
     return 0
@@ -1649,8 +1674,11 @@ def main(argv: list[str]) -> int:
     )
     sv.add_argument("--workspace", default=os.getcwd())
     sv.add_argument("--port", type=int, default=0)
-    sv.add_argument("--check", action="store_true",
-                    help="run the serve-path self-check (no socket) and exit")
+    sv.add_argument(
+        "--check",
+        action="store_true",
+        help="run the serve-path self-check (no socket) and exit",
+    )
     sv.set_defaults(func=cmd_serve)
 
     args = p.parse_args(argv[1:])

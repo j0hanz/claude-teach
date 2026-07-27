@@ -91,6 +91,10 @@ def _ensure_server(cwd):
         return
     if pid:
         kill_pid(pid)  # stale PID or workspace mismatch -> respawn
+        # force-kill skips cmd_serve's finally, so serve.json stays stale —
+        # clear it or the re-read below prints a dead port as the live URL.
+        with contextlib.suppress(OSError):
+            os.remove(serve_json_path())
     # Detached spawn: stdio sunk so the child never inherits the hook's pipes.
     # Built per-branch (not a **kwargs splat) so the platform-specific flag
     # picks the right Popen overload instead of a loosely-typed dict.
@@ -102,7 +106,8 @@ def _ensure_server(cwd):
                 stderr=subprocess.DEVNULL,
                 stdin=subprocess.DEVNULL,
                 creationflags=(
-                    subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP
+                    subprocess.DETACHED_PROCESS
+                    | subprocess.CREATE_NEW_PROCESS_GROUP
                 ),
             )
         else:
@@ -240,7 +245,9 @@ def main(argv):
         prog="teach_hook.py", description="teach SessionStart/Stop hook"
     )
     p.add_argument(
-        "--event", required=True, choices=["session-start", "session-end", "stop"]
+        "--event",
+        required=True,
+        choices=["session-start", "session-end", "stop"],
     )
     p.add_argument("--workspace", default=None)
     args = p.parse_args(argv[1:])

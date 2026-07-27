@@ -40,7 +40,9 @@
   // drop prior JS-created status/schedule/reconnect/error blocks so a retry
   // (or a 401→2xx transition after manual reload) never stacks duplicates.
   const clearDynamic = (root) =>
-    root.querySelectorAll('.quiz-status, .quiz-schedule, .quiz-reconnect, .quiz-error').forEach((el) => el.remove());
+    root
+      .querySelectorAll('.quiz-status, .quiz-schedule, .quiz-reconnect, .quiz-error')
+      .forEach((el) => el.remove());
 
   const persistLine = (line) => {
     try {
@@ -99,7 +101,11 @@
         const block = el('div', 'quiz-schedule');
         data.schedule.forEach((r) => {
           block.appendChild(
-            el('p', null, r.id + ' interval=' + r.interval + ' next=' + r.next + ' lapses=' + r.lapses),
+            el(
+              'p',
+              null,
+              r.id + ' interval=' + r.interval + ' next=' + r.next + ' lapses=' + r.lapses,
+            ),
           );
         });
         ctx.root.appendChild(block);
@@ -114,7 +120,9 @@
     }
     persistLine(ctx.line);
     const msg = resp
-      ? 'Scoring failed (' + resp.status + '). Result saved locally — retry when the server is back.'
+      ? 'Scoring failed (' +
+        resp.status +
+        '). Result saved locally — retry when the server is back.'
       : 'Network error. Result saved locally — retry when the server is back.';
     const wrap = el('div', 'quiz-error', null, 'alert');
     wrap.appendChild(el('p', null, msg));
@@ -349,9 +357,20 @@
       const serveMode = !!(window.__TEACH_SERVE && window.__TEACH_TOKEN);
       if (serveMode) {
         const ctx = {
-          root, releases, replay, line, resultEl, copyBtn, copyStatus,
-          copyText, selectResult, copiedLabel, copiedStatus, copyFailedLabel,
-          unseal, rememberUnsealed,
+          root,
+          releases,
+          replay,
+          line,
+          resultEl,
+          copyBtn,
+          copyStatus,
+          copyText,
+          selectResult,
+          copiedLabel,
+          copiedStatus,
+          copyFailedLabel,
+          unseal,
+          rememberUnsealed,
         };
         const payload = JSON.stringify({
           lesson: root.getAttribute('data-lesson'),
@@ -363,11 +382,13 @@
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: payload,
-          }).then(function (resp) {
-            return handleScoreResponse(resp, ctx);
-          }).catch(function () {
-            handleScoreResponse(null, ctx);
-          });
+          })
+            .then(function (resp) {
+              return handleScoreResponse(resp, ctx);
+            })
+            .catch(function () {
+              handleScoreResponse(null, ctx);
+            });
         ctx.postScore = postScore;
         postScore();
         return;

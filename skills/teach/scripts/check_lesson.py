@@ -17,6 +17,7 @@ Exit: 0 pass, 1 violations found, 2 usage/parse error.
 
 import contextlib
 import os
+import posixpath
 import re
 import sys
 from html.parser import HTMLParser
@@ -300,7 +301,9 @@ def is_outside_assets(ref):
     # eat a leading '/' and pass '/assets/...' as inside.
     while ref.startswith(("./", "../")):
         ref = ref[2:] if ref.startswith("./") else ref[3:]
-    return not ref.startswith("assets/")
+    # collapse embedded .. (assets/../x.js) — posixpath keeps '/' so the
+    # prefix test holds on Windows.
+    return not posixpath.normpath(ref).startswith("assets/")
 
 
 def resolve_local(html_dir, ref, self_mode):
