@@ -1,6 +1,6 @@
 /* quiz.js — reusable quiz widget for a lesson. Self-contained, works on file://.
  * Markup contract and behaviour: skills/teach/references/DESIGN.md § Components.
- * teach-template-version: 15
+ * teach-template-version: 16
  */
 (function () {
   'use strict';
