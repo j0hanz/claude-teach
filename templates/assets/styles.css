@@ -1,4 +1,4 @@
-/* teach-template-version: 15 */
+/* teach-template-version: 16 */
 
 /* Base */
 *,
@@ -33,7 +33,7 @@ body {
   padding: var(--s-6) var(--s-2) var(--s-7);
   display: grid;
   grid-template-columns: var(--measure) var(--margin-w);
-  column-gap: var(--s-6);
+  gap: var(--s-6);
 }
 
 :is(.lesson, .lesson-content) > * {
@@ -116,7 +116,7 @@ h2 {
   letter-spacing: -0.015em;
   margin: var(--s-5) 0 var(--s-2);
   padding-top: var(--s-2);
-  border-top: 1px solid var(--rule-2);
+  border-block-start: 1px solid var(--rule-2);
   display: flex;
   align-items: center;
   gap: var(--s-1);
@@ -311,7 +311,7 @@ a.cite:hover {
 .seal-note {
   margin: var(--s-3) 0 0;
   padding: var(--s-2) 0 0;
-  border-top: 1px solid var(--rule);
+  border-block-start: 1px solid var(--rule);
   transition: all 0.3s var(--ease-out);
 }
 
@@ -404,7 +404,7 @@ a.cite:hover {
   padding: 0;
   margin: 0;
   display: flex;
-  flex-flow: column;
+  flex-direction: column;
   gap: var(--s-1);
   counter-reset: option;
 }
@@ -618,18 +618,17 @@ a.cite:hover {
 .toc {
   grid-column: 1 / -1;
   display: flex;
-  flex-flow: wrap;
+  flex-wrap: wrap;
   gap: var(--s-1) var(--s-3);
   align-items: baseline;
   padding: var(--s-2) 0 var(--s-3) var(--s-4);
-  border-bottom: 1px solid var(--rule);
-  border-top: 1px solid var(--rule);
+  border-block: 1px solid var(--rule);
   background: var(--paper-3);
 }
 
 .toc-list {
   display: flex;
-  flex-flow: wrap;
+  flex-wrap: wrap;
   gap: var(--s-1) var(--s-3);
   align-items: baseline;
   list-style: none;
@@ -668,12 +667,12 @@ a.cite:hover {
   gap: var(--s-5);
   margin: var(--s-6) 0 0;
   padding-top: var(--s-3);
-  border-top: 1px solid var(--rule-2);
+  border-block-start: 1px solid var(--rule-2);
 }
 
 .lesson-nav-cell {
   display: flex;
-  flex-flow: column;
+  flex-direction: column;
   gap: 0.25rem;
   min-width: 0;
 }

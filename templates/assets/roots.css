@@ -1,21 +1,21 @@
-/* teach-template-version: 15 */
+/* teach-template-version: 16 */
 :root {
   color-scheme: light;
-  --paper: #f4f1ea;
-  --paper-2: #faf8f2;
-  --paper-3: #ebe6db;
-  --ink: #1d1a15;
-  --ink-soft: #524b43;
-  --rule: #d8cfc0;
-  --rule-2: #6b5d49;
-  --accent: #2e4472;
-  --accent-2: #3d5a8f;
-  --accent-bg: #e8e4d9;
-  --signal: #b8392a;
-  --wrong: #9b4639;
-  --success: #3a6b48;
-  --success-bg: #e4eadd;
-  --wrong-bg: #f1e7e3;
+  --paper: oklch(96% 0.012 80);
+  --paper-2: oklch(98% 0.008 80);
+  --paper-3: oklch(92% 0.015 75);
+  --ink: oklch(22% 0.012 60);
+  --ink-soft: oklch(45% 0.015 60);
+  --rule: oklch(82% 0.018 70);
+  --rule-2: oklch(48% 0.022 60);
+  --accent: oklch(45% 0.13 255);
+  --accent-2: oklch(55% 0.14 255);
+  --accent-bg: oklch(93% 0.025 80);
+  --signal: oklch(58% 0.18 28);
+  --wrong: oklch(50% 0.13 30);
+  --success: oklch(48% 0.11 150);
+  --success-bg: oklch(93% 0.03 150);
+  --wrong-bg: oklch(93% 0.03 30);
   --serif: 'Iowan Old Style', 'Palatino Linotype', 'Book Antiqua', Palatino, Georgia, serif;
   --sans: Inter, Aptos, 'Segoe UI Variable', 'Segoe UI', system-ui, sans-serif;
   --mono: 'SF Mono', 'Cascadia Code', 'JetBrains Mono', ui-monospace, Consolas, monospace;
@@ -33,28 +33,28 @@
   --tap: 3rem;
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-spring: cubic-bezier(0.175, 0.885, 0.32, 1.15);
-  --shadow-sm: 0 1px 0 var(--rule), 0 2px 6px rgba(26, 24, 20, 0.06);
+  --shadow-sm: 0 1px 0 var(--rule), 0 2px 6px oklch(20% 0.01 60 / 0.08);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
     color-scheme: dark;
-    --paper: #141210;
-    --paper-2: #1c1914;
-    --paper-3: #25211c;
-    --ink: #f4f1ea;
-    --ink-soft: #b0a89c;
-    --rule: #3e382f;
-    --rule-2: #7d7265;
-    --accent: #8baddc;
-    --accent-2: #9bbde9;
-    --accent-bg: #232836;
-    --signal: #e6836e;
-    --wrong: #c97a6a;
-    --success: #7cc88e;
-    --success-bg: #1f2a22;
-    --wrong-bg: #2f211e;
-    --shadow-sm: 0 1px 0 var(--rule), 0 2px 8px rgba(0, 0, 0, 0.35);
+    --paper: oklch(16% 0.008 70);
+    --paper-2: oklch(20% 0.01 70);
+    --paper-3: oklch(25% 0.012 70);
+    --ink: oklch(94% 0.012 80);
+    --ink-soft: oklch(72% 0.018 70);
+    --rule: oklch(34% 0.015 70);
+    --rule-2: oklch(62% 0.022 70);
+    --accent: oklch(78% 0.11 250);
+    --accent-2: oklch(85% 0.09 250);
+    --accent-bg: oklch(28% 0.04 260);
+    --signal: oklch(72% 0.16 30);
+    --wrong: oklch(70% 0.13 30);
+    --success: oklch(76% 0.12 150);
+    --success-bg: oklch(26% 0.05 150);
+    --wrong-bg: oklch(28% 0.05 30);
+    --shadow-sm: 0 1px 0 var(--rule), 0 2px 8px oklch(0% 0 0 / 0.4);
   }
 }
 
