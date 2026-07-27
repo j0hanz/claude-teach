@@ -1,20 +1,20 @@
-/* teach-template-version: 12 */
+/* teach-template-version: 13 */
 :root {
   color-scheme: light;
-  --paper: #e6ecef;
+  --paper: #f0f4f7;
   --paper-2: #ffffff;
-  --ink: #11181c;
-  --ink-soft: #5c6970;
-  --rule: #d7dbdf;
-  --rule-2: #6b7278;
-  --accent: #0d6581;
-  --accent-2: #08485e;
-  --accent-bg: #f0f6f8;
-  --signal: #d35f3d;
-  --wrong: #d73a49;
-  --success: #28a745;
-  --success-bg: #e6ffed;
-  --wrong-bg: #ffeef0;
+  --ink: #0f172a;
+  --ink-soft: #475569;
+  --rule: #d1d5db;
+  --rule-2: #64748b;
+  --accent: #0284c7;
+  --accent-2: #0369a1;
+  --accent-bg: #f0f9ff;
+  --signal: #f97316;
+  --wrong: #be123c;
+  --success: #0d9488;
+  --success-bg: #f0fdf4;
+  --wrong-bg: #fff1f2;
   --serif: 'Iowan Old Style', 'Palatino Linotype', 'Book Antiqua', Palatino, Georgia, serif;
   --sans: Inter, Aptos, 'Segoe UI Variable', 'Segoe UI', system-ui, sans-serif;
   --mono: 'SF Mono', 'Cascadia Code', 'JetBrains Mono', ui-monospace, Consolas, monospace;
@@ -27,27 +27,27 @@
   --s-7: 6rem;
   --measure: clamp(36rem, 30rem + 17vw, 45rem);
   --margin-w: clamp(15rem, 12rem + 9vw, 20rem);
-  --radius: 0.5rem;
-  --radius-sm: 0.25rem;
+  --radius: 0.625rem;
+  --radius-sm: 0.375rem;
   --tap: 3rem;
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
-  --ease-spring: cubic-bezier(0.175, 0.885, 0.32, 1.05);
-  --shadow-sm: 0 1px 2px rgba(17, 24, 28, 0.04), 0 2px 4px rgba(17, 24, 28, 0.08);
-  --shadow-md: 0 4px 6px rgba(17, 24, 28, 0.06), 0 10px 15px rgba(17, 24, 28, 0.1);
+  --ease-spring: cubic-bezier(0.175, 0.885, 0.32, 1.15);
+  --shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.05), 0 2px 6px rgba(15, 23, 42, 0.07);
+  --shadow-md: 0 4px 12px rgba(15, 23, 42, 0.08), 0 12px 24px rgba(15, 23, 42, 0.12);
 }
 
 @media print {
   :root {
     color-scheme: light;
-    --paper: #fff;
-    --paper-2: #fff;
-    --ink: #111;
-    --ink-soft: #4f4f4f;
-    --rule: #b8b8b8;
-    --rule-2: #666;
-    --accent: #174f69;
-    --accent-2: #174f69;
-    --signal: #9c3d28;
-    --wrong: #7d302c;
+    --paper: #ffffff;
+    --paper-2: #ffffff;
+    --ink: #0f172a;
+    --ink-soft: #334155;
+    --rule: #94a3b8;
+    --rule-2: #475569;
+    --accent: #0369a1;
+    --accent-2: #0369a1;
+    --signal: #c2410c;
+    --wrong: #9f1239;
   }
 }

@@ -1,4 +1,4 @@
-/* teach-template-version: 12 */
+/* teach-template-version: 13 */
 
 /* Base */
 *,
@@ -238,10 +238,13 @@ a.cite:hover {
 }
 
 .sidenote {
-  border-inline-start: 1px solid var(--rule-2);
+  border-inline-start: 2px solid var(--accent-2);
   padding-inline-start: var(--s-2);
+  padding-block: var(--s-1);
   margin: 0 0 var(--s-3);
-  background: color-mix(in srgb, var(--accent) 3%, var(--paper));
+  background: color-mix(in srgb, var(--accent) 5%, var(--paper-2));
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  box-shadow: var(--shadow-sm);
 }
 
 .sidenote,
