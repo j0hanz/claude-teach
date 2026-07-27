@@ -163,11 +163,7 @@
           confWrap.appendChild(cb);
         }
         const q = item.querySelector('.quiz-q');
-        if (q && q.nextSibling) {
-          item.insertBefore(confWrap, q.nextSibling);
-        } else {
-          item.appendChild(confWrap);
-        }
+        item.insertBefore(confWrap, q ? q.nextSibling : null);
       }
 
       const undo = document.createElement('button');
@@ -209,9 +205,7 @@
         if (fb) fb.textContent = fbText;
         if (focusWasOnUndo) buttons[chosen].focus();
 
-        try {
-          navigator.vibrate?.(right ? 50 : [50, 100, 50]);
-        } catch {}
+        navigator.vibrate?.(right ? 50 : [50, 100, 50]);
 
         confVals[i] = conf;
         outcomes[i] = right ? 'right' : 'wrong';
