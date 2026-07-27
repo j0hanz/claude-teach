@@ -1,33 +1,33 @@
 /* quiz.js — reusable quiz widget for a lesson. Self-contained, works on file://.
  * Markup contract and behaviour: skills/teach/references/COMPONENTS.md § Quiz.
- * teach-template-version: 17
+ * teach-template-version: 18
  */
 (function () {
   'use strict';
 
-  var SEAL_KEY = 'teach:unsealed:' + location.pathname;
-  var UNDO_MS = 3000;
+  const SEAL_KEY = 'teach:unsealed:' + location.pathname;
+  const UNDO_MS = 3000;
 
-  function alreadyUnsealed() {
+  const alreadyUnsealed = () => {
     try {
       return localStorage.getItem(SEAL_KEY) === '1';
-    } catch (e) {
+    } catch {
       return false;
     }
-  }
+  };
 
-  function rememberUnsealed() {
+  const rememberUnsealed = () => {
     try {
       localStorage.setItem(SEAL_KEY, '1');
-    } catch (e) {}
-  }
+    } catch {}
+  };
 
   function unseal(targetId, announce) {
-    var sealed = document.getElementById(targetId);
+    const sealed = document.getElementById(targetId);
     if (!sealed) return;
     sealed.classList.remove('sealed');
     sealed.removeAttribute('inert');
-    var note = document.querySelector('.seal-note');
+    const note = document.querySelector('.seal-note');
     if (!note) return;
     if (announce) {
       note.textContent = note.getAttribute('data-unsealed-label') || 'Lesson unsealed.';
@@ -36,18 +36,18 @@
   }
 
   function copyText(text, btn, copiedLabel, onSuccess, onFailure) {
-    var done = function () {
+    const done = () => {
       if (!btn) return;
-      var original = btn.textContent;
+      const original = btn.textContent;
       btn.textContent = copiedLabel;
-      if (onSuccess) onSuccess();
-      setTimeout(function () {
+      onSuccess?.();
+      setTimeout(() => {
         btn.textContent = original;
       }, 1200);
     };
-    var fallback = function () {
-      var copied = false;
-      var ta = document.createElement('textarea');
+    const fallback = () => {
+      let copied = false;
+      const ta = document.createElement('textarea');
       ta.value = text;
       ta.style.position = 'fixed';
       ta.style.opacity = '0';
@@ -55,40 +55,40 @@
       ta.select();
       try {
         copied = document.execCommand('copy');
-      } catch (e) {}
+      } catch {}
       document.body.removeChild(ta);
       if (copied) done();
-      else if (onFailure) onFailure();
+      else onFailure?.();
     };
     try {
-      if (navigator.clipboard && navigator.clipboard.writeText) {
+      if (navigator.clipboard?.writeText) {
         navigator.clipboard.writeText(text).then(done, fallback);
         return;
       }
-    } catch (e) {}
+    } catch {}
     fallback();
   }
 
   function initQuiz(root) {
-    var items = Array.prototype.slice.call(root.querySelectorAll('.quiz-item'));
+    const items = Array.from(root.querySelectorAll('.quiz-item'));
     if (!items.length) return;
-    var outcomes = new Array(items.length).fill(null);
-    var resultEl = root.querySelector('.quiz-result');
-    var copyBtn = root.querySelector('.quiz-copy');
-    var copyStatus = root.querySelector('.quiz-copy-status');
-    var releases = root.getAttribute('data-releases');
-    var confOn = root.getAttribute('data-confidence');
-    var confVals = new Array(items.length).fill(null);
-    var undoLabel = root.getAttribute('data-undo-label') || 'Undo';
-    var copiedLabel = root.getAttribute('data-copied-label') || 'Copied';
-    var copyFailedLabel =
+    const outcomes = Array(items.length).fill(null);
+    const resultEl = root.querySelector('.quiz-result');
+    const copyBtn = root.querySelector('.quiz-copy');
+    const copyStatus = root.querySelector('.quiz-copy-status');
+    const releases = root.getAttribute('data-releases');
+    const confOn = root.getAttribute('data-confidence');
+    const confVals = Array(items.length).fill(null);
+    const undoLabel = root.getAttribute('data-undo-label') || 'Undo';
+    const copiedLabel = root.getAttribute('data-copied-label') || 'Copied';
+    const copyFailedLabel =
       root.getAttribute('data-copy-failed-label') ||
       'Copy failed. Result selected; copy it manually.';
-    var copiedStatus =
+    const copiedStatus =
       root.getAttribute('data-copied-status') ||
       'Result copied. Paste it into your next message to your teacher.';
-    var progressEl = null;
-    var replay = !!releases && alreadyUnsealed();
+    let progressEl = null;
+    const replay = !!releases && alreadyUnsealed();
     if (replay) unseal(releases);
 
     if (items.length > 1) {
@@ -97,76 +97,72 @@
       root.insertBefore(progressEl, items[0]);
     }
 
-    function updateProgress() {
+    const updateProgress = () => {
       if (!progressEl) return;
-      var answered = outcomes.filter(function (outcome) {
-        return outcome !== null;
-      }).length;
-      progressEl.textContent = answered + ' of ' + items.length + ' answered';
-    }
+      const answered = outcomes.filter((o) => o !== null).length;
+      progressEl.textContent = `${answered} of ${items.length} answered`;
+    };
 
-    function selectResult() {
+    const selectResult = () => {
       if (!resultEl) return;
-      var selection = window.getSelection();
+      const selection = window.getSelection();
       if (!selection) return;
-      var range = document.createRange();
+      const range = document.createRange();
       range.selectNodeContents(resultEl);
       selection.removeAllRanges();
       selection.addRange(range);
-    }
+    };
 
     updateProgress();
 
-    items.forEach(function (item, i) {
-      var correct = parseInt(item.getAttribute('data-correct'), 10);
-      var buttons = Array.prototype.slice.call(item.querySelectorAll('.quiz-btn'));
-      var fb = item.querySelector('.quiz-fb');
-      var fbText = '';
+    items.forEach((item, i) => {
+      const correct = Number(item.getAttribute('data-correct'));
+      const buttons = Array.from(item.querySelectorAll('.quiz-btn'));
+      const fb = item.querySelector('.quiz-fb');
+      let fbText = '';
       if (fb) {
         fbText = fb.textContent;
         fb.textContent = '';
         fb.hidden = false;
       }
-      var timer = null;
-      var countdownTimer = null;
-      var chosen = -1;
-      var conf = null;
+      let timer = null;
+      let countdownTimer = null;
+      let chosen = -1;
+      let conf = null;
 
       // Optional 1-5 confidence rating, captured BEFORE the answer reveal. A
       // scheduling signal only (hypercorrection-aware re-teach), never a
       // comprehension booster. Opt-in per quiz via data-confidence; absent, this
       // block does not run and the result line is unchanged.
       if (confOn) {
-        var confWrap = document.createElement('div');
+        const confWrap = document.createElement('div');
         confWrap.className = 'quiz-conf';
         confWrap.setAttribute('role', 'group');
         confWrap.setAttribute('aria-label', 'How sure are you, 1 to 5?');
-        var confLabel = document.createElement('span');
+        const confLabel = document.createElement('span');
         confLabel.className = 'quiz-conf-label';
         confLabel.textContent = 'How sure?';
         confWrap.appendChild(confLabel);
-        for (var c = 1; c <= 5; c++) {
-          (function (n) {
-            var cb = document.createElement('button');
-            cb.type = 'button';
-            cb.className = 'quiz-conf-btn';
-            cb.textContent = String(n);
-            cb.setAttribute('aria-pressed', 'false');
-            cb.setAttribute('aria-label', n + ' out of 5');
-            cb.addEventListener('click', function () {
-              if (item.hasAttribute('data-answered') || timer !== null) return;
-              conf = n;
-              confWrap.querySelectorAll('.quiz-conf-btn').forEach(function (b) {
-                b.removeAttribute('data-on');
-                b.setAttribute('aria-pressed', 'false');
-              });
-              cb.setAttribute('data-on', '');
-              cb.setAttribute('aria-pressed', 'true');
+        for (let c = 1; c <= 5; c++) {
+          const cb = document.createElement('button');
+          cb.type = 'button';
+          cb.className = 'quiz-conf-btn';
+          cb.textContent = String(c);
+          cb.setAttribute('aria-pressed', 'false');
+          cb.setAttribute('aria-label', c + ' out of 5');
+          cb.addEventListener('click', () => {
+            if (item.hasAttribute('data-answered') || timer !== null) return;
+            conf = c;
+            confWrap.querySelectorAll('.quiz-conf-btn').forEach((b) => {
+              b.removeAttribute('data-on');
+              b.setAttribute('aria-pressed', 'false');
             });
-            confWrap.appendChild(cb);
-          })(c);
+            cb.setAttribute('data-on', '');
+            cb.setAttribute('aria-pressed', 'true');
+          });
+          confWrap.appendChild(cb);
         }
-        var q = item.querySelector('.quiz-q');
+        const q = item.querySelector('.quiz-q');
         if (q && q.nextSibling) {
           item.insertBefore(confWrap, q.nextSibling);
         } else {
@@ -174,39 +170,39 @@
         }
       }
 
-      var undo = document.createElement('button');
+      const undo = document.createElement('button');
       undo.type = 'button';
       undo.className = 'quiz-undo';
       undo.textContent = undoLabel;
       undo.hidden = true;
       item.appendChild(undo);
 
-      function setDisabled(on) {
-        buttons.forEach(function (b) {
+      const setDisabled = (on) => {
+        buttons.forEach((b) => {
           if (on) b.setAttribute('aria-disabled', 'true');
           else b.removeAttribute('aria-disabled');
         });
-      }
+      };
 
-      function clearCountdown() {
+      const clearCountdown = () => {
         if (countdownTimer !== null) clearInterval(countdownTimer);
         countdownTimer = null;
         undo.textContent = undoLabel;
-      }
+      };
 
-      function updateCountdown(commitAt) {
-        var seconds = Math.max(0, Math.ceil((commitAt - Date.now()) / 1000));
-        undo.textContent = undoLabel + ' (' + seconds + ')';
-      }
+      const updateCountdown = (commitAt) => {
+        const seconds = Math.max(0, Math.ceil((commitAt - Date.now()) / 1000));
+        undo.textContent = `${undoLabel} (${seconds})`;
+      };
 
-      function lock() {
+      const lock = () => {
         timer = null;
         clearCountdown();
         item.removeAttribute('data-pending');
         item.setAttribute('data-answered', '');
-        var focusWasOnUndo = document.activeElement === undo;
+        const focusWasOnUndo = document.activeElement === undo;
         undo.hidden = true;
-        var right = chosen === correct;
+        const right = chosen === correct;
         buttons[chosen].setAttribute('data-state', right ? 'right' : 'wrong');
         if (!right && buttons[correct]) buttons[correct].setAttribute('data-state', 'right');
         setDisabled(true);
@@ -214,80 +210,68 @@
         if (focusWasOnUndo) buttons[chosen].focus();
 
         try {
-          if (navigator.vibrate) {
-            navigator.vibrate(right ? 50 : [50, 100, 50]);
-          }
-        } catch (e) {}
+          navigator.vibrate?.(right ? 50 : [50, 100, 50]);
+        } catch {}
 
         confVals[i] = conf;
         outcomes[i] = right ? 'right' : 'wrong';
         updateProgress();
-        if (
-          outcomes.every(function (o) {
-            return o !== null;
-          })
-        )
-          finish();
-      }
+        if (outcomes.every((o) => o !== null)) finish();
+      };
 
-      undo.addEventListener('click', function () {
+      undo.addEventListener('click', () => {
         if (timer === null) return;
         clearTimeout(timer);
         timer = null;
         clearCountdown();
         item.removeAttribute('data-pending');
-        buttons.forEach(function (b) {
-          b.removeAttribute('data-state');
-        });
+        buttons.forEach((b) => b.removeAttribute('data-state'));
         setDisabled(false);
         undo.hidden = true;
-        var back = buttons[chosen] || buttons[0];
+        const back = buttons[chosen] || buttons[0];
         chosen = -1;
         if (back) back.focus();
       });
 
-      buttons.forEach(function (btn, b) {
-        btn.addEventListener('click', function () {
+      buttons.forEach((btn, b) => {
+        btn.addEventListener('click', () => {
           if (item.hasAttribute('data-answered') || timer !== null) return;
           chosen = b;
           item.setAttribute('data-pending', '');
           btn.setAttribute('data-state', 'chosen');
           setDisabled(true);
           undo.hidden = false;
-          var commitAt = Date.now() + UNDO_MS;
+          const commitAt = Date.now() + UNDO_MS;
           updateCountdown(commitAt);
-          countdownTimer = setInterval(function () {
-            updateCountdown(commitAt);
-          }, 1000);
+          countdownTimer = setInterval(() => updateCountdown(commitAt), 1000);
           timer = setTimeout(lock, UNDO_MS);
         });
       });
     });
 
     function finish() {
-      var label = root.getAttribute('data-label') || 'Cold open';
-      var lesson = root.getAttribute('data-lesson');
-      var line =
-        (lesson ? label + ' ' + lesson : label) +
+      const label = root.getAttribute('data-label') || 'Cold open';
+      const lesson = root.getAttribute('data-lesson');
+      const head = lesson ? `${label} ${lesson}` : label;
+      const line =
+        head +
         ': ' +
         outcomes
-          .map(function (o, i) {
-            return i + 1 + ' ' + o + (confVals[i] != null ? '/' + confVals[i] : '');
-          })
+          .map((o, i) => `${i + 1} ${o}${confVals[i] != null ? '/' + confVals[i] : ''}`)
           .join(', ');
       if (resultEl) resultEl.textContent = line;
       if (copyBtn && releases && !replay) {
         copyBtn.hidden = false;
-        copyBtn.addEventListener('click', function () {
+        copyBtn.addEventListener('click', () => {
           if (copyStatus) copyStatus.textContent = '';
           copyText(
             line,
             copyBtn,
             copiedLabel,
-            function () {
+            () => {
               if (copyStatus) copyStatus.textContent = copiedStatus;
             },
-            function () {
+            () => {
               selectResult();
               if (copyStatus) copyStatus.textContent = copyFailedLabel;
             },
@@ -301,10 +285,9 @@
     }
   }
 
-  function init() {
-    var quizzes = document.querySelectorAll('.quiz');
-    for (var i = 0; i < quizzes.length; i++) initQuiz(quizzes[i]);
-  }
+  const init = () => {
+    document.querySelectorAll('.quiz').forEach((q) => initQuiz(q));
+  };
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);
