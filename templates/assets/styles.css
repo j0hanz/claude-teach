@@ -710,11 +710,11 @@ a.cite {
     background 0.18s var(--ease-out),
     color 0.18s var(--ease-out),
     border-color 0.18s var(--ease-out),
-    transform 0.18s var(--ease-spring);
+    transform 0.18s var(--ease-spring),
+    opacity 0.35s var(--ease-out);
 }
 
 .quiz-copy[hidden] {
-  opacity: 0;
   display: none;
 }
 
@@ -1204,10 +1204,17 @@ details {
 
 @keyframes countdown-bar {
   0% {
-    transform: scaleX(0);
+    transform: scaleY(0);
   }
   100% {
-    transform: scaleX(1);
+    transform: scaleY(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .quiz-btn[data-state='chosen']::before {
+    animation: none;
+    transform: scaleY(1);
   }
 }
 
@@ -1411,10 +1418,6 @@ details {
   .lesson-content.sealed {
     pointer-events: auto;
     user-select: auto;
-  }
-
-  .cold-open {
-    box-shadow: none;
   }
 
   .cold-open > * {

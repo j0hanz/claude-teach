@@ -9,13 +9,10 @@
   --rule: oklch(85% 0.015 75);
   --rule-2: oklch(50% 0.022 60);
   --accent: oklch(45% 0.13 255);
-  --accent-2: oklch(55% 0.14 255);
   --accent-bg: oklch(94% 0.022 80);
   --signal: oklch(58% 0.18 28);
   --wrong: oklch(50% 0.13 30);
   --success: oklch(48% 0.11 150);
-  --success-bg: oklch(94% 0.025 150);
-  --wrong-bg: oklch(94% 0.025 30);
   --serif: 'Iowan Old Style', 'Palatino Linotype', 'Book Antiqua', Palatino, Georgia, serif;
   --sans: Inter, Aptos, 'Segoe UI Variable', 'Segoe UI', system-ui, sans-serif;
   --mono: 'SF Mono', 'Cascadia Code', 'JetBrains Mono', ui-monospace, Consolas, monospace;
@@ -50,13 +47,10 @@
     --rule: oklch(34% 0.015 70);
     --rule-2: oklch(62% 0.022 70);
     --accent: oklch(78% 0.11 250);
-    --accent-2: oklch(85% 0.09 250);
     --accent-bg: oklch(28% 0.04 260);
     --signal: oklch(72% 0.16 30);
     --wrong: oklch(70% 0.13 30);
     --success: oklch(76% 0.12 150);
-    --success-bg: oklch(26% 0.05 150);
-    --wrong-bg: oklch(28% 0.05 30);
     --shadow-sm: 0 1px 0 var(--rule);
   }
 }
@@ -72,13 +66,10 @@
     --rule: #999999;
     --rule-2: #555555;
     --accent: #1f3a5f;
-    --accent-2: #1f3a5f;
     --accent-bg: #f0f0f0;
     --signal: #8a2f1e;
     --wrong: #6b2a1e;
     --success: #2a4a32;
-    --success-bg: #eeeeee;
-    --wrong-bg: #eeeeee;
     --shadow-sm: none;
   }
 }
