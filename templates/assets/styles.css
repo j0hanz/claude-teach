@@ -574,7 +574,8 @@ a.cite {
   margin-bottom: 0;
 }
 
-.quiz-q {
+.quiz-q,
+.we-problem {
   font-family: var(--serif);
   font-weight: 700;
   font-size: clamp(1.0625rem, 1rem + 0.4vw, 1.1875rem);
@@ -744,7 +745,8 @@ a.cite {
   background: var(--paper-2);
   border: 1px solid var(--rule);
   border-inline-start: var(--rule-thick) solid var(--rule-2);
-  border-radius: 0 var(--radius) var(--radius) 0;
+  border-start-start-radius: 0;
+  border-end-start-radius: 0;
 }
 
 .quiz-result {
@@ -755,7 +757,8 @@ a.cite {
   background: var(--paper-2);
   border: 1px solid var(--rule);
   border-inline-start: var(--rule-thick) solid var(--accent);
-  border-radius: 0 var(--radius) var(--radius) 0;
+  border-start-start-radius: 0;
+  border-end-start-radius: 0;
   transition: opacity 0.4s var(--ease-out);
 }
 
@@ -856,15 +859,6 @@ a.cite {
   border-radius: var(--radius);
   padding: var(--s-3) var(--s-3) var(--s-2);
   margin: var(--s-3) 0;
-}
-
-.we-problem {
-  font-family: var(--serif);
-  font-weight: 700;
-  font-size: clamp(1.0625rem, 1rem + 0.4vw, 1.1875rem);
-  line-height: 1.35;
-  margin: 0 0 var(--s-2);
-  color: var(--ink);
 }
 
 .we-steps {
@@ -1321,7 +1315,8 @@ details {
     padding: var(--s-1) var(--s-2);
     background: color-mix(in srgb, var(--paper-3) 70%, var(--paper));
     border-inline-start: var(--rule-thin) solid var(--rule-2);
-    border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+    border-start-start-radius: 0;
+    border-end-start-radius: 0;
   }
 
   .cold-open {
