@@ -101,34 +101,34 @@ p {
   text-wrap: pretty;
 }
 
-.eyebrow {
-  font-family: var(--sans);
-  font-size: 0.75rem;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--ink-soft);
-  margin: 0 0 var(--s-1);
-}
-
+.eyebrow,
 .toc-eyebrow,
-.lesson-nav-eyebrow {
-  font-family: var(--sans);
-  font-size: 0.75rem;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--accent);
-}
-
+.lesson-nav-eyebrow,
 .toc a,
 .quiz-undo,
 .quiz-copy {
   font-family: var(--sans);
   font-size: 0.75rem;
   font-weight: 700;
-  letter-spacing: 0.1em;
   text-transform: uppercase;
+}
+
+.eyebrow {
+  letter-spacing: 0.12em;
+  color: var(--ink-soft);
+  margin: 0 0 var(--s-1);
+}
+
+.toc-eyebrow,
+.lesson-nav-eyebrow {
+  letter-spacing: 0.12em;
+  color: var(--accent);
+}
+
+.toc a,
+.quiz-undo,
+.quiz-copy {
+  letter-spacing: 0.1em;
   color: var(--accent);
 }
 
@@ -313,13 +313,6 @@ a.cite {
   display: inline-flex;
   align-items: center;
   gap: 0.45em;
-  font-family: var(--sans);
-  font-size: 0.75rem;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--ink-soft);
-  margin: 0 0 var(--s-1);
   padding: 0;
   background: none;
 }
@@ -541,7 +534,8 @@ a.cite {
     border-color 0.3s var(--ease-out);
 }
 
-.seal-note.is-unsealed {
+.seal-note.is-unsealed,
+.quiz-status.is-ok {
   color: var(--success);
   font-weight: 700;
   border-top: 1px solid color-mix(in srgb, var(--success) 40%, transparent);
@@ -785,10 +779,6 @@ a.cite {
 }
 
 .quiz-status.is-ok {
-  color: var(--success);
-  font-weight: 700;
-  border-top: 1px solid color-mix(in srgb, var(--success) 40%, transparent);
-  padding: var(--s-2);
   margin-top: var(--s-2);
 }
 
@@ -809,18 +799,7 @@ a.cite {
   margin: 0;
 }
 
-.quiz-reconnect {
-  font-family: var(--sans);
-  font-size: 0.875rem;
-  color: var(--ink-soft);
-  padding: var(--s-2) var(--s-3);
-  background: var(--paper-2);
-  border: 1px solid var(--rule);
-  border-inline-start: var(--rule-thick) solid var(--signal);
-  border-radius: var(--radius);
-  margin: var(--s-2) 0 0;
-}
-
+.quiz-reconnect,
 .quiz-error {
   font-family: var(--sans);
   font-size: 0.875rem;
@@ -828,9 +807,16 @@ a.cite {
   padding: var(--s-2) var(--s-3);
   background: var(--paper-2);
   border: 1px solid var(--rule);
-  border-inline-start: var(--rule-thick) solid var(--wrong);
   border-radius: var(--radius);
   margin: var(--s-2) 0 0;
+}
+
+.quiz-reconnect {
+  border-inline-start: var(--rule-thick) solid var(--signal);
+}
+
+.quiz-error {
+  border-inline-start: var(--rule-thick) solid var(--wrong);
 }
 
 .quiz-error .quiz-retry {
@@ -852,13 +838,23 @@ a.cite {
 /* Worked example — numbered steps in a left-rail list, takeaway under a
    hairline. The ::before handles counter + position; the .we-step-dot
    keeps the size + visual on a separate child if we ever need it. */
-.worked-example {
+.worked-example,
+.callout,
+.self-explain,
+details.aside {
   background: var(--paper-2);
   border: 1px solid var(--rule);
-  border-inline-start: var(--rule-thick) solid var(--accent);
   border-radius: var(--radius);
-  padding: var(--s-3) var(--s-3) var(--s-2);
   margin: var(--s-3) 0;
+}
+
+.worked-example,
+.callout {
+  border-inline-start: var(--rule-thick) solid var(--accent);
+}
+
+.worked-example {
+  padding: var(--s-3) var(--s-3) var(--s-2);
 }
 
 .we-steps {
@@ -917,10 +913,6 @@ a.cite {
    on [open]. */
 .self-explain,
 details.aside {
-  margin: var(--s-3) 0;
-  border: 1px solid var(--rule);
-  border-radius: var(--radius);
-  background: var(--paper-2);
   padding: 0 var(--s-3);
 }
 
@@ -1068,12 +1060,7 @@ details.aside > *:not(summary) {
    for the stripe colour. */
 .callout {
   grid-column: 1;
-  background: var(--paper-2);
-  border: 1px solid var(--rule);
-  border-inline-start: var(--rule-thick) solid var(--accent);
-  border-radius: var(--radius);
   padding: var(--s-2) var(--s-3);
-  margin: var(--s-3) 0;
 }
 
 .callout > p {
@@ -1216,6 +1203,10 @@ details {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
   .quiz-btn[data-state='chosen']::before {
     animation: none;
     transform: scaleY(1);
@@ -1258,12 +1249,7 @@ details {
     border-color: var(--ink);
   }
 
-  .quiz-copy:hover {
-    background: var(--accent);
-    color: var(--paper-2);
-    border-color: var(--accent);
-  }
-
+  .quiz-copy:hover,
   .toc a:hover .toc-stop {
     background: var(--accent);
     border-color: var(--accent);
