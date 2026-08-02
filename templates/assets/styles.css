@@ -534,8 +534,7 @@ a.cite {
     border-color 0.3s var(--ease-out);
 }
 
-.seal-note.is-unsealed,
-.quiz-status.is-ok {
+.seal-note.is-unsealed {
   color: var(--success);
   font-weight: 700;
   border-top: 1px solid color-mix(in srgb, var(--success) 40%, transparent);
@@ -778,25 +777,11 @@ a.cite {
   margin: var(--s-1) 0 0;
 }
 
-.quiz-status.is-ok {
-  margin-top: var(--s-2);
-}
-
 .quiz-schedule {
   font-family: var(--sans);
   font-size: 0.875rem;
   color: var(--ink-soft);
   margin: var(--s-2) 0 0;
-}
-
-.quiz-schedule dt {
-  font-family: var(--sans);
-  margin: var(--s-1) 0 0;
-}
-
-.quiz-schedule dd {
-  font-family: var(--mono);
-  margin: 0;
 }
 
 .quiz-reconnect,

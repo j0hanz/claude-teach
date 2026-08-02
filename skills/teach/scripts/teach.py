@@ -1035,17 +1035,7 @@ def cmd_index(args: "argparse.Namespace") -> int:
     return 0
 
 
-class ScoreResult(list[dict]):
-    """list[dict] of per-record scoring results. index_msg carries the
-    build_index skip message ("" = success; relpath is always "index.html"
-    since build_index writes cwd/index.html). A list subclass so the writer
-    can hand the caller both the per-record rows and the index outcome in one
-    return, without re-calling build_index."""
-
-    index_msg: str = ""
-
-
-def score_open_cold_open(cwd: str, result_line: str) -> ScoreResult:
+def score_open_cold_open(cwd: str, result_line: str) -> tuple[list[dict], str]:
     """Apply the scoring table to every record an open cold-open ledger names.
 
     The single writer of schedule + index fields (REQ-010): chat-side
@@ -1058,10 +1048,10 @@ def score_open_cold_open(cwd: str, result_line: str) -> ScoreResult:
     score_record; write_text(delete_ledger_line(notes)); save_record each;
     rebuild build_index.
 
-    Returns one dict per record scored: {id, outcome, interval, next, lapses,
-    status, confidence} where id = record basename without extension and the
-    schedule fields come from rec["fm"] after scoring. The returned ScoreResult
-    also carries .index_msg ("" on success, else the build_index skip reason).
+    Returns (rows, index_msg): rows is one dict per record scored — {id,
+    outcome, interval, next, lapses, status, confidence} where id = record
+    basename without extension and the schedule fields come from rec["fm"]
+    after scoring; index_msg is "" on success, else the build_index skip reason.
     """
     if not is_workspace(cwd):
         raise TeachError(1, f"not a teach workspace ({cwd})")
@@ -1108,7 +1098,7 @@ def score_open_cold_open(cwd: str, result_line: str) -> ScoreResult:
     write_text(os.path.join(cwd, "NOTES.md"), delete_ledger_line(notes))
     for rec, _, changed in plan:
         save_record(rec, changed)
-    out = ScoreResult(
+    rows = [
         {
             "id": os.path.splitext(os.path.basename(rec["path"]))[0],
             "outcome": outcome,
@@ -1119,16 +1109,17 @@ def score_open_cold_open(cwd: str, result_line: str) -> ScoreResult:
             "confidence": rec["fm"].get("confidence"),
         }
         for rec, outcome, _ in plan
-    )
+    ]
+    index_msg = ""
     try:
         build_index(cwd)
     except TeachError as e:
-        out.index_msg = e.msg
-    return out
+        index_msg = e.msg
+    return rows, index_msg
 
 
 def cmd_score(args: "argparse.Namespace") -> int:
-    results = score_open_cold_open(args.workspace, args.result)
+    results, index_msg = score_open_cold_open(args.workspace, args.result)
     for r in results:
         conf_s = f" confidence={r['confidence']}" if r["confidence"] else ""
         print(
@@ -1136,8 +1127,8 @@ def cmd_score(args: "argparse.Namespace") -> int:
             f"interval={r['interval']} next={r['next']} "
             f"lapses={r['lapses']} status={r['status']}{conf_s}"
         )
-    if results.index_msg:
-        print(f"index: skipped ({results.index_msg})")
+    if index_msg:
+        print(f"index: skipped ({index_msg})")
     else:
         print("index: index.html")
     return 0
@@ -1402,7 +1393,7 @@ def handle_score(
             serve_state,
         )
     try:
-        records = score_open_cold_open(workspace, line)
+        records, _index_msg = score_open_cold_open(workspace, line)
     except TeachError as e:
         return 409, {"error": e.msg}, serve_state
     schedule = [

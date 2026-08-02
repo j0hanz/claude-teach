@@ -61,16 +61,18 @@ from teach import (  # noqa: E402  # pyright: ignore[reportMissingImports]
 )
 
 
-def _guard_path():
-    """Path to the Stop hook's one-shot guard, or None when unavailable.
+def _plugin_data_path(name):
+    """Path to a file under ${CLAUDE_PLUGIN_DATA}, or None when unset.
 
-    ${CLAUDE_PLUGIN_DATA} reaches hook processes and MCP/LSP subprocesses only —
-    never the Bash tool the model runs `ledger` and `score` from. So only hook
-    code may depend on it, and the workspace ledger line stays the single source
-    of truth for whether a cold open is outstanding.
+    ${CLAUDE_PLUGIN_DATA} reaches hook processes and MCP/LSP subprocesses only
+    — never the Bash tool the model runs `ledger` and `score` from. So only hook
+    code may depend on it; the workspace ledger line stays the single source of
+    truth for whether a cold open is outstanding. Without the data dir there is
+    no way to remember state between turns, so each gate that uses it disables
+    itself rather than trap the session in a loop it cannot exit by complying.
     """
     d = os.environ.get("CLAUDE_PLUGIN_DATA")
-    return os.path.join(d, "nagged.txt") if d else None
+    return os.path.join(d, name) if d else None
 
 
 def _plugin_root():
@@ -200,7 +202,7 @@ def event_stop(cwd, payload):
     if payload.get("stop_hook_active"):
         return 0
     ledger = parse_ledger_line(read_notes(cwd))
-    guard = _guard_path()
+    guard = _plugin_data_path("nagged.txt")
     if guard is None:
         # loud on stderr, never on stdout, and only when there was something to
         # block on: without a guard file the block below would repeat every
@@ -269,19 +271,6 @@ def event_stop(cwd, payload):
 # open with a wall of pre-existing faults.
 SWEEP_WINDOW_S = 900
 MAX_FAULTS = 20
-
-
-def _sweep_path():
-    """Path to the sweep's signature file, or None when unavailable.
-
-    Same reason as _guard_path: ${CLAUDE_PLUGIN_DATA} reaches hook processes
-    only. Without it there is no way to remember what was already reported, and
-    a fault the model chooses not to fix would block every single turn — so the
-    sweep disables itself rather than trap the session in a loop it cannot exit
-    by complying.
-    """
-    d = os.environ.get("CLAUDE_PLUGIN_DATA")
-    return os.path.join(d, "swept.json") if d else None
 
 
 def _rel(cwd, path):
@@ -452,7 +441,7 @@ def sweep(cwd, seen, now):
 def event_stop_sweep(cwd, payload):
     if payload.get("stop_hook_active"):
         return 0
-    state_path = _sweep_path()
+    state_path = _plugin_data_path("swept.json")
     if state_path is None:
         # ASCII only: stderr goes to the raw console, cp1252 on Windows.
         print(

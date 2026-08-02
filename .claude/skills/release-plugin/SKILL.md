@@ -6,12 +6,10 @@ description: Use when cutting a new version release for the squads Claude Code p
 Version-bump-and-ship workflow for **this repo only** — squads is a Claude Code
 plugin, not an npm package.
 
-## Files that carry the version (all 4, kept in sync)
+## Files that carry the version (both kept in sync)
 
 | File                              | Field                                        |
 | --------------------------------- | -------------------------------------------- |
-| `package.json`                    | `"version"`                                  |
-| `package-lock.json`               | `"version"`                                  |
 | `.claude-plugin/plugin.json`      | `"version"`                                  |
 | `.claude-plugin/marketplace.json` | `plugins[0].version` (nested, not top-level) |
 
@@ -28,17 +26,16 @@ git log <last-tag>..HEAD --oneline       # commits since then
 
 ## Steps
 
-1. **Bump** the 3 JSON manifests to the same `<NEW>` version, then sync the lockfile: `npm install --package-lock-only` (rewrites both version fields in `package-lock.json` from `package.json`).
+1. **Bump** both JSON manifests to the same `<NEW>` version.
 2. **Verify**:
    ```bash
-   git grep -n "\"version\": \"<NEW>\"" -- package.json .claude-plugin/plugin.json .claude-plugin/marketplace.json   # must print exactly 3 lines
-   git grep -n "\"version\": \"<OLD>\"" -- package.json .claude-plugin/plugin.json .claude-plugin/marketplace.json   # must print zero
-   git grep -c "\"version\": \"<NEW>\"" -- package-lock.json   # must print 2
+   git grep -n "\"version\": \"<NEW>\"" -- .claude-plugin/plugin.json .claude-plugin/marketplace.json   # must print exactly 2 lines
+   git grep -n "\"version\": \"<OLD>\"" -- .claude-plugin/plugin.json .claude-plugin/marketplace.json   # must print zero
    ```
 3. **Validate**: run exactly `claude plugin validate . --strict` — must pass before committing.
 4. **Commit** (stage only the 4 version files):
    ```bash
-   git add package.json package-lock.json .claude-plugin/plugin.json .claude-plugin/marketplace.json
+   git add .claude-plugin/plugin.json .claude-plugin/marketplace.json
    git commit -m "chore: bump version to <NEW>"
    ```
 5. **Tag**: `git tag -a v<NEW> -m "Version <NEW>"`.
