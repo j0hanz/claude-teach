@@ -170,12 +170,19 @@ Wisdom come from test skill outside learning environment. Question call for it? 
 
 ## Hooks
 
-Three plugin hook fire automatic; you do not invoke them.
+Four plugin hook fire automatic; you do not invoke them.
 
 - **SessionStart** — workspace a teach one? Print few line (date, open-ledger status, count due, provisional-mission flag, resume target) so fresh session not miss open cold open, name this skill as entry point. Then start or reuse the serve server: read `${CLAUDE_PLUGIN_DATA}/serve.json`; PID alive and workspace match → reuse, print `serve: http://127.0.0.1:PORT`; stale PID or workspace mismatch → kill, respawn `teach.py serve --workspace <cwd>` detached; no `serve.json` → spawn same. Server bind `127.0.0.1` only, OS-assigned ephemeral port — no Windows firewall prompt, loop close with network off. Spawn that does not bind in ~0.8s report and skip; session continue either way, server is opt-in friction-removal not hard dependency.
 - **SessionEnd** — workspace a teach one with a live server? Kill the PID in `serve.json`, clear the stale `serve.json` lockfile. Silent no-op when no `serve.json` or it belong to a different workspace.
 - **Stop** — lesson shipped and loop not close? Block once, name missing `teach.py score` write. Stay silent on turn lesson shipped: learner not opened it yet, nag there cost an `asked` abandon path count. Also stay silent once `asked` non-zero — counter proof you already asked. Score or abandon line, it re-arm for next lesson.
+- **Stop (sweep)** — second Stop handler, separate from gate above because it fail different: gate silent when no ledger open, which is exactly when half these fault happen. Once per turn, over only what changed since last sweep, block once naming what it found:
+  - lesson `check_lesson.py` reject — catch lesson you edited after validating, or shipped without step 6, whichever way learner reach it (`Start-Process`, serve URL, or you just naming path)
+  - lesson carry cold open with no ledger line open while record it test still due — you skipped `teach.py ledger`, so paste have nowhere to land and those record stay overdue for good
+  - `NOTES.md` line say `unscored cold open` but no longer match shape — hand-edit make cold open invisible to every reader including gate above
+  - learning record with no `next:` — load clean, count active, never become due, so never retest and nothing else say so
 
-All three silent no-op outside teach workspace. Python hard dependency (validator already need it); hook try `python` then `python3`.
+  Same file unchanged not report twice — fix it or leave it, either way it not block you again until bytes move. Silent when `${CLAUDE_PLUGIN_DATA}` unset.
+
+All four silent no-op outside teach workspace. Python hard dependency (validator already need it); hook pick `python`, else `python3`.
 
 Paste flow remain the fallback: a served lesson close cold-open loop in browser via `POST /score`, but `file://` lesson keep today's copy-button paste flow with no behavioral change — backward compatible, existing workspace keep working without the server.

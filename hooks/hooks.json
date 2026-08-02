@@ -1,11 +1,12 @@
 {
+  "description": "claude-teach session hooks. Bash-only (shell form): the interpreter is picked with `command -v`, which PowerShell cannot parse. Requires python or python3 on PATH; silent no-op outside a teach workspace.",
   "hooks": {
     "SessionStart": [
       {
         "hooks": [
           {
             "type": "command",
-            "command": "python \"${CLAUDE_PLUGIN_ROOT}/hooks/teach_hook.py\" --event session-start || python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/teach_hook.py\" --event session-start"
+            "command": "\"$(command -v python || command -v python3)\" \"${CLAUDE_PLUGIN_ROOT}/hooks/teach_hook.py\" --event session-start"
           }
         ]
       }
@@ -15,7 +16,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python \"${CLAUDE_PLUGIN_ROOT}/hooks/teach_hook.py\" --event session-end || python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/teach_hook.py\" --event session-end"
+            "command": "\"$(command -v python || command -v python3)\" \"${CLAUDE_PLUGIN_ROOT}/hooks/teach_hook.py\" --event session-end",
+            "timeout": 10
           }
         ]
       }
@@ -25,7 +27,11 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python \"${CLAUDE_PLUGIN_ROOT}/hooks/teach_hook.py\" --event stop || python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/teach_hook.py\" --event stop"
+            "command": "\"$(command -v python || command -v python3)\" \"${CLAUDE_PLUGIN_ROOT}/hooks/teach_hook.py\" --event stop"
+          },
+          {
+            "type": "command",
+            "command": "\"$(command -v python || command -v python3)\" \"${CLAUDE_PLUGIN_ROOT}/hooks/teach_hook.py\" --event stop-sweep"
           }
         ]
       }
