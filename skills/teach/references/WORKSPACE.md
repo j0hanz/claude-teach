@@ -1,6 +1,6 @@
 # Workspace Formats
 
-Four root docs capture workspace stable content state — created lazy, each when first need. Together answer: why learn this ([Mission](#mission)), where knowledge come from ([Resources](#resources)), what words mean ([Glossary](#glossary)), how user want sessions run ([Notes](#notes)). Every teaching decision trace back to these.
+Four root docs hold workspace stable state — created lazy, each when first need. Together answer: why learn this ([Mission](#mission)), where knowledge come from ([Resources](#resources)), what words mean ([Glossary](#glossary)), how user want sessions run ([Notes](#notes)). Every teaching decision trace back here.
 
 | File           | Holds                                                  | Spec                    |
 | -------------- | ------------------------------------------------------ | ----------------------- |
@@ -9,13 +9,13 @@ Four root docs capture workspace stable content state — created lazy, each whe
 | `GLOSSARY.md`  | Canonical language of topic.                           | [Glossary](#glossary)   |
 | `NOTES.md`     | User preferences and your working notes.               | [Notes](#notes)         |
 
-All four live at workspace root. Create each when session flow in [SKILL.md](../SKILL.md) first need it — never speculative. [Learning record](RECORDS.md) format separate; tracks what learned, not what workspace knows.
+All four at workspace root. Create each when session flow in [SKILL.md](../SKILL.md) first need it — never speculative. [Learning record](RECORDS.md) format separate; track what learned, not what workspace know.
 
 ---
 
 ## Mission
 
-`MISSION.md` captures _reason_ user learns topic — concrete real-world goal chased. Every teaching decision — what teach next, which resources surface, which exercises design — trace back to this doc. Without it, lessons feel abstract.
+`MISSION.md` capture _reason_ user learn topic — concrete real-world goal chased. Every teaching decision — what teach next, which resources surface, which exercises design — trace back here. Without it, lessons feel abstract.
 
 ### Template
 
@@ -47,13 +47,13 @@ All four live at workspace root. Create each when session flow in [SKILL.md](../
 - **Push back on vagueness.** User cannot say why? Interview first, write nothing. Bad mission worse than no mission.
 - **Revise when reality shifts.** Missions change. Goal move = update file. No stale mission steer future sessions. Mission shift from learning = also write [learning record](RECORDS.md) capturing shift, cross-linked here.
 - **Keep it short.** `MISSION.md` past one screen = not compass anymore, now plan.
-- **Mark provisional missions.** User decline interview: write narrowest mission their words support, put `**Provisional**` on own line directly under `# Mission:` heading, reopen next session. Provisional mission reopens once, then proceeds — second session with `**Provisional**` still on it, treat settled, teach. Provisional mission steers teaching, never settles it.
+- **Mark provisional missions.** User decline interview: write narrowest mission their words support, put `**Provisional**` on own line directly under `# Mission:` heading, reopen next session. Provisional mission reopen once, then proceed — second session with `**Provisional**` still on it, treat settled, teach. Provisional mission steer teaching, never settle it.
 
 ---
 
 ## Resources
 
-`RESOURCES.md` curated set of trusted sources for topic. Lesson knowledge come from here, never parametric guess. Wisdom come from communities listed here. See [SKILL.md](../SKILL.md) step 3 — thin resources means find sources before teach anything.
+`RESOURCES.md` curated set of trusted sources for topic. Lesson knowledge come from here, never parametric guess. Wisdom come from communities listed here. See [SKILL.md](../SKILL.md) step 3 — thin resources mean find sources before teach anything.
 
 ### Template
 
@@ -74,9 +74,9 @@ All four live at workspace root. Create each when session flow in [SKILL.md](../
 ### Rules
 
 - **High-trust only.** Prefer primary sources, recognised experts, peer-reviewed work, communities strong moderation. Resource marketing dressed as education: leave out.
-- **Annotate every entry.** Bare link useless in three months. Add one line: what covers, when reach for it.
-- **Group by Knowledge / Wisdom.** Mirrors philosophy in [SKILL.md](../SKILL.md) — knowledge captured, wisdom borrowed from practitioners. Fine for resource appear in one group only.
-- **Surface gaps explicitly.** No good resource for area mission needs: write `## Gaps` section listing what missing. Drives future search.
+- **Annotate every entry.** Bare link useless in three months. Add one line: what cover, when reach for it.
+- **Group by Knowledge / Wisdom.** Mirror philosophy in [SKILL.md](../SKILL.md) — knowledge captured, wisdom borrowed from practitioners. Fine for resource appear in one group only.
+- **Surface gaps explicitly.** No good resource for area mission need: write `## Gaps` section listing what missing. Drive future search.
 - **Prune ruthlessly.** Resource wrong, shallow, or off-mission: remove, not bury. Better five sharp sources than thirty mediocre.
 - **Record community preferences.** User opt out joining communities: note here so future sessions stop proposing them.
 
@@ -84,9 +84,9 @@ All four live at workspace root. Create each when session flow in [SKILL.md](../
 
 ## Glossary
 
-`GLOSSARY.md` canonical language for this teaching workspace. All lessons, exercises, learning records follow its terms. Building it _is_ learning: compress concept into tight definition prove user understands it.
+`GLOSSARY.md` canonical language for this teaching workspace. All lessons, exercises, learning records follow its terms. Building it _is_ learning: compress concept into tight definition prove user understand it.
 
-Term enter glossary only after user demonstrates understanding — see [SKILL.md](../SKILL.md) step 8, where evidence exists. Once term in, use it every lesson. Promotion before evidence = dictionary user reads to learn, not record of what they know.
+Term enter glossary only after user demonstrate understanding — see [SKILL.md](../SKILL.md) step 8, where evidence exists. Once term in, use it every lesson. Promotion before evidence = dictionary user read to learn, not record of what they know.
 
 ### Template
 
@@ -104,10 +104,10 @@ _Avoid_: loose synonyms to flag
 
 ### Rules
 
-- **Add term only when user understands it.** Glossary records compressed knowledge, not dictionary user reads to learn. User just met concept: wait til use it correctly before promote here.
-- **Be opinionated.** Many words same concept: pick best, list rest as aliases to avoid. That how language compresses.
+- **Add term only when user understands it.** Glossary record compressed knowledge, not dictionary user read to learn. User just met concept: wait til use it correctly before promote here.
+- **Be opinionated.** Many words same concept: pick best, list rest as aliases to avoid. That how language compress.
 - **Keep definitions tight.** One or two sentences. Define what term _is_, not what it does or how to do it.
-- **Use glossary's own terms inside definitions.** Term in glossary: prefer it everywhere, including inside other definitions. Makes complex terms easier later.
+- **Use glossary's own terms inside definitions.** Term in glossary: prefer it everywhere, including inside other definitions. Make complex terms easier later.
 - **Group under subheadings** when natural clusters emerge (e.g. `## Anatomy`, `## Programming`). Flat list fine when terms cohere.
 - **Flag ambiguities explicitly.** Term used loosely in wider field: note resolution: "In this workspace, 'set' always means a working set — warm-ups are tracked separately."
 - **Revise as understanding deepens.** Definition from week one may be wrong by week six. Update in place; no stale entries.
