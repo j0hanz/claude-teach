@@ -98,7 +98,7 @@ def cold_open_faults(pairs):
 
 
 # The per-lesson hooks are a closed set of names, and roots.css is where that
-# set lives (TOKENS.md § Per-lesson hooks). Read it back out of the CSS the page
+# set lives (DESIGN.md § Per-lesson hooks). Read it back out of the CSS the page
 # actually links rather than restating it here — the set is already written down
 # in four prose places, and a fifth copy is a fifth thing to drift. An absent
 # attribute reads as the base :root, which is why no rule naming a "default"
@@ -337,7 +337,7 @@ def check_quiz_css(css):
     These are properties of the stylesheet the page ends up with, not of any one
     block. Run per block they fail a lesson for adding four lines of inline style
     for a topic component, and push the model to duplicate tokens that live in
-    exactly one place (TOKENS.md). Only a document that actually has a
+    exactly one place (DESIGN.md § Tokens). Only a document that actually has a
     quiz owes them.
 
     Reported against line 1 for the same reason: no single block owes them, and
@@ -661,7 +661,7 @@ def _broken_link_errors(parser, html_dir):
 
 def _quiz_errors(parser, self_mode, html_name):
     """Every quiz on the page against the markup contract, cold-open rules
-    included (COMPONENTS.md § Quiz)."""
+    included (DESIGN.md § Quiz)."""
     errors = []
     stem = os.path.splitext(html_name)[0] if html_name else ""
     for q in parser.quizzes:
@@ -843,38 +843,21 @@ def _seal_errors(parser):
     # nobody can open, which is how this hole stayed green.
     open_seals = parser.sealed_ids & released
 
-    # a sealed body is inert and blurred until quiz.js releases it; with no
-    # quiz.js on the page the lesson is unreadable and unrecoverable
-    if open_seals and not any(
+    # Any quiz on the page needs quiz.js — the result line, copy control and
+    # release gate all live in it. Two rules, one scan: a sealed body with no
+    # script is unreadable and unrecoverable, so it gets its own name and wins
+    # when both apply; a practice quiz with no seal is the other case.
+    has_quiz_js = any(
         os.path.basename(s.split("#")[0].split("?")[0]) == "quiz.js"
         for _, s in parser.script_srcs
-    ):
+    )
+    if not has_quiz_js and (open_seals or parser.quizzes):
         errors.append(
             (
                 1,
-                "sealed-no-quiz-script",
-                "lesson body is sealed but no quiz.js is linked; "
-                'add <script src="../assets/quiz.js"></script>',
-            )
-        )
-
-    # any quiz on the page, sealed or not, needs quiz.js — the result line,
-    # copy control and release gate all live in it. The sealed-body case above
-    # fires first when open_seals exist, so this catches the practice quiz
-    # with no seal at all.
-    if (
-        parser.quizzes
-        and not open_seals
-        and not any(
-            os.path.basename(s.split("#")[0].split("?")[0]) == "quiz.js"
-            for _, s in parser.script_srcs
-        )
-    ):
-        errors.append(
-            (
-                1,
-                "quiz-no-script",
-                "page has .quiz but no quiz.js is linked; "
+                "sealed-no-quiz-script" if open_seals else "quiz-no-script",
+                ("lesson body is sealed" if open_seals else "page has .quiz")
+                + " but no quiz.js is linked; "
                 'add <script src="../assets/quiz.js"></script>',
             )
         )

@@ -11,27 +11,12 @@
         ]
       }
     ],
-    "SessionEnd": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "\"$(command -v python || command -v python3)\" \"${CLAUDE_PLUGIN_ROOT}/hooks/teach_hook.py\" --event session-end",
-            "timeout": 10
-          }
-        ]
-      }
-    ],
     "Stop": [
       {
         "hooks": [
           {
             "type": "command",
             "command": "\"$(command -v python || command -v python3)\" \"${CLAUDE_PLUGIN_ROOT}/hooks/teach_hook.py\" --event stop"
-          },
-          {
-            "type": "command",
-            "command": "\"$(command -v python || command -v python3)\" \"${CLAUDE_PLUGIN_ROOT}/hooks/teach_hook.py\" --event stop-sweep"
           }
         ]
       }

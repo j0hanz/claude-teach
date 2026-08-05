@@ -1,11 +1,11 @@
 <!doctype html>
 <!-- {{QUIZ-STRINGS — course not in English? add every data-* override for the words quiz.js write
-to the html tag below, per references/COMPONENTS.md § Quiz. Then delete this comment; English
+to the html tag below, per references/DESIGN.md § Quiz. Then delete this comment; English
 course, delete it unfilled.}} -->
 <html
   lang="{{LANG}}"
-  data-accent="{{ACCENT — a name from TOKENS.md § Per-lesson hooks; drop this attribute for the default}}"
-  data-density="{{DENSITY — a name from TOKENS.md § Per-lesson hooks; drop this attribute for the default}}"
+  data-accent="{{ACCENT — a name from DESIGN.md § Per-lesson hooks; drop this attribute for the default}}"
+  data-density="{{DENSITY — a name from DESIGN.md § Per-lesson hooks; drop this attribute for the default}}"
 >
   <head>
     <meta charset="utf-8" />
@@ -108,11 +108,11 @@ course, delete it unfilled.}} -->
         </p>
         {{KNOWLEDGE-BLOCKS — optional components this lesson earns, in the order it earns them:
         callout, figure, self-explanation reveal, aside, table, and one .sidenote per further
-        citation. Gate density on record state. Markup: references/COMPONENTS.md.}}
+        citation. Gate density on record state. Markup: references/DESIGN.md § Components.}}
 
         <h2 id="skills">{{STOP-3}}</h2>
         {{SKILLS-BLOCKS — worked example (required for a procedural skill), parallel bare problem,
-        practice quiz — faded by record state. Markup: references/COMPONENTS.md.}}
+        practice quiz — faded by record state. Markup: references/DESIGN.md § Components.}}
 
         <section class="synthesis" id="synthesis">
           <h2>
@@ -139,7 +139,7 @@ course, delete it unfilled.}} -->
         <h2 id="where-next">{{STOP-4}}</h2>
         <p>
           {{WHERE-NEXT — name and link the primary source, the related lesson, the reference doc and
-          course home. Navigation only. Link shapes: references/COMPONENTS.md § Where next.}}
+          course home. Navigation only. Link shapes: references/DESIGN.md § Where next.}}
         </p>
         <p>{{FOLLOW-UP — one line inviting the question they have not asked yet.}}</p>
 

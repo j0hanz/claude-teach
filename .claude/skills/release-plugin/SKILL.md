@@ -33,14 +33,14 @@ git log <last-tag>..HEAD --oneline       # commits since then
    git grep -n "\"version\": \"<OLD>\"" -- .claude-plugin/plugin.json .claude-plugin/marketplace.json   # must print zero
    ```
 3. **Validate**: run exactly `claude plugin validate . --strict` — must pass before committing.
-4. **Commit** (stage only the 4 version files):
+4. **Commit** (stage only the two manifests):
    ```bash
    git add .claude-plugin/plugin.json .claude-plugin/marketplace.json
    git commit -m "chore: bump version to <NEW>"
    ```
 5. **Tag**: `git tag -a v<NEW> -m "Version <NEW>"`.
 6. **Confirm with the user before pushing** — push is visible to others and not easily reversible.
-7. **Push**: `git push origin master && git push origin v<NEW>`.
+7. **Push**: `git push origin main && git push origin v<NEW>`.
 8. **Release**: `gh release create v<NEW> --title "v<NEW>" --notes "<notes>"`, notes summarizing the commits since `<last-tag>` grouped by fix/feat/etc. `gh release view v<NEW>` must print it.
 9. **Finalize**: `git status` must show a clean working tree.
 

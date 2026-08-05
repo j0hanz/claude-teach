@@ -21,22 +21,14 @@ teach workspace if MISSION.md or learning-records/ exists in it.
 Exit: 0 ok, 1 ambiguity/workspace-violation (refuse, write nothing), 2 usage/parse error.
 """
 
+import argparse
 import contextlib
 import glob
-import http.server
-import json
 import os
 import re
-import secrets
-import signal
-import subprocess
 import sys
-import tempfile
 from datetime import date, timedelta
-from typing import TYPE_CHECKING, TypedDict, cast
-
-if TYPE_CHECKING:
-    import argparse
+from typing import TypedDict
 
 # ponytail: one guard at the stream, not an ASCII hunt through every string.
 # The report prints em dashes; a cp437 console (still the OEM default in
@@ -64,7 +56,6 @@ class RecordDict(TypedDict):
     status: str
     next: date | None
     title: str
-    confidence: int | None
 
 
 class LedgerLine(TypedDict):
@@ -123,21 +114,14 @@ def num_str(x: int | float | str) -> str:
 
 
 def _parse_interval(s: str | None) -> int | float:
-    """Interval is float-tolerant on reload. score_record writes fractional
-    intervals via num_str whenever doubling or ceiling is fractional, so an
-    int-only guard here rejects them on the next load and silently resets the
-    schedule to 1. Preserve int when integral to match num_str's output.
-
-    nan/inf fall back to 1: float() accepts them, but int(nan) raises
-    ValueError and int(inf) raises OverflowError, and a hand-edited
-    `interval: nan` must not crash load_record."""
-    if s is None:
-        return 1
+    """Days between reviews, at least 1. score_record only ever writes whole
+    days, so the float tolerance here is for a hand-edited record; nan and inf
+    fall back to 1 rather than crash load_record on int()."""
     try:
-        v = float(s)
-    except (ValueError, TypeError):
+        v = float(s or 1)
+    except ValueError:
         return 1
-    if v < 1 or v != v or v == float("inf") or v == float("-inf"):
+    if not 1 <= v < float("inf"):  # also catches nan
         return 1
     return int(v) if v == int(v) else v
 
@@ -282,11 +266,6 @@ def load_record(path: str) -> RecordDict:
             else None
         ),
         "title": _record_title(body),
-        "confidence": (
-            int(fm["confidence"])
-            if "confidence" in fm and fm["confidence"].strip().isdigit()
-            else None
-        ),
     }
     return rec
 
@@ -515,17 +494,13 @@ def parse_cold_open_comment(html: str) -> list[tuple[int, str]]:
 # --- result line / scoring ---------------------------------------------------
 def parse_result_line(
     line: str,
-) -> tuple[str | None, list[tuple[int, str, int | None]]]:
-    """'Cold open 0007-x: 1 right, 2 wrong' -> ('0007-x', [(1,'right',None),(2,'wrong',None)]).
+) -> tuple[str | None, list[tuple[int, str]]]:
+    """'Cold open 0007-x: 1 right, 2 wrong' -> ('0007-x', [(1,'right'),(2,'wrong')]).
 
     The id in the head binds the line to the lesson that produced it. A line
     without one comes from a quiz.js older than template v3; cmd_score refuses it
     rather than guessing which ledger it belongs to.
     Abandon is a separate invocation (result arg == 'abandon'), not parsed here.
-
-    An optional '/N' confidence suffix may ride on each outcome token
-    ('1 right/4') when the cold-open quiz carried data-confidence (template v17+).
-    Absent, the third tuple element is None and behaviour is unchanged.
     """
     s = line.strip()
     if ":" not in s:
@@ -539,36 +514,19 @@ def parse_result_line(
         parts = tok.split()
         if len(parts) != 2:
             raise TeachError(2, f'unparseable outcome "{tok}" in "{line}"')
-        pos_s, outcome_tok = parts
+        pos_s, outcome = parts
         try:
             pos = int(pos_s)
         except ValueError:
             raise TeachError(
                 2, f'bad position "{pos_s}" in "{line}"'
             ) from None
-        conf: int | None = None
-        if "/" in outcome_tok:
-            outcome, _, conf_s = outcome_tok.partition("/")
-            try:
-                conf = int(conf_s)
-            except ValueError:
-                raise TeachError(
-                    2, f'bad confidence "{conf_s}" in "{line}"'
-                ) from None
-            # RECORDS.md: confidence is 1-5. /9 or /0 is a mis-tap the schedule
-            # must not store — reject same shape as an unknown outcome.
-            if conf < 1 or conf > 5:
-                raise TeachError(
-                    2, f'bad confidence {conf}: must be 1-5 in "{line}"'
-                ) from None
-        else:
-            outcome = outcome_tok
         if outcome not in ("right", "wrong"):
             raise TeachError(
                 2, f'outcome "{outcome}" not right/wrong in "{line}"'
             )
-        results.append((pos, outcome, conf))
-    positions = [p for p, _, _ in results]
+        results.append((pos, outcome))
+    positions = [p for p, _ in results]
     if positions != list(range(1, len(results) + 1)):
         raise TeachError(
             2, f"positions {positions} must be 1..{len(results)} contiguous"
@@ -581,29 +539,10 @@ def score_record(
     outcome: str,
     doubling: float,
     ceiling: float,
-    confidence: int | None = None,
 ) -> set[str]:
-    """Apply one scoring row (RECORDS.md § Scoring). Mutates rec; returns set(changed keys).
-
-    confidence, when not None, is the 1-5 pre-reveal rating from a data-confidence
-    cold open (template v17+): a scheduling signal stored for hypercorrection-aware
-    re-teach priority, never a comprehension measure. None leaves the field untouched.
-    """
+    """Apply one scoring row (RECORDS.md § Scoring). Mutates rec; returns set(changed keys)."""
     changed: set[str] = set()
     t = today()
-    if confidence is not None:
-        rec["fm"]["confidence"] = str(confidence)
-        rec["confidence"] = confidence
-        changed.add("confidence")
-    else:
-        # cold open carried no /N: clear last cold-open confidence so HC
-        # (SKILL.md:42, last cold-open confidence >=4 with a lapse) cannot
-        # fire on a stale earlier rating. Deletion routes through the
-        # changed set — serialize_frontmatter drops a popped key's line.
-        if "confidence" in rec["fm"]:
-            rec["fm"].pop("confidence", None)
-            rec["confidence"] = None
-            changed.add("confidence")
     if outcome == "right":
         if rec["interval"] < ceiling:
             new_iv = min(rec["interval"] * doubling, ceiling)
@@ -612,7 +551,7 @@ def score_record(
             # definition everywhere: interval-days-to-next = round half up
             # (int(round()) is banker's: 4.5 -> 4).
             new_iv_int = int(new_iv + 0.5)
-            rec["fm"]["interval"] = num_str(new_iv_int)
+            rec["fm"]["interval"] = str(new_iv_int)
             rec["interval"] = new_iv_int
             rec["fm"]["next"] = (t + timedelta(days=new_iv_int)).isoformat()
             rec["next"] = t + timedelta(days=new_iv_int)
@@ -637,7 +576,7 @@ def score_record(
         # round the current interval: a fractional interval (fractional
         # doubling survives in storage) would truncate under timedelta.
         new_iv_int = int(rec["interval"] + 0.5)  # round half up
-        rec["fm"]["interval"] = num_str(new_iv_int)
+        rec["fm"]["interval"] = str(new_iv_int)
         rec["interval"] = new_iv_int
         rec["fm"]["next"] = (t + timedelta(days=new_iv_int)).isoformat()
         rec["next"] = t + timedelta(days=new_iv_int)
@@ -684,7 +623,7 @@ def resolve_record_path(cwd: str, rec_id: str) -> str:
 
 
 # --- subcommands ------------------------------------------------------------
-def cmd_state(args: "argparse.Namespace") -> int:
+def cmd_state(args: argparse.Namespace) -> int:
     cwd = args.workspace
     if not is_workspace(cwd):
         print(f"teach-state 0  not a teach workspace  ({cwd})")
@@ -712,7 +651,6 @@ def cmd_state(args: "argparse.Namespace") -> int:
     pool = due_pool(due)
     distinct = len({r["lesson"] for r in pool})
     assets = asset_status(cwd)
-    inv = inventory(cwd)
     print(f"teach-state 1  workspace={cwd}  today={t.isoformat()}")
     print(f"mission     {mission_status(cwd)}")
     print(f"project     {project_markers(cwd)}")
@@ -748,7 +686,6 @@ def cmd_state(args: "argparse.Namespace") -> int:
     nr = next_number(os.path.join(cwd, "learning-records"))
     print(f"next        lessons/{nl:04d}-   learning-records/{nr:04d}-")
     print("assets     " + "   ".join(f"{n} {st}" for n, st in assets))
-    print("inventory   " + inv)
     return 0
 
 
@@ -760,35 +697,24 @@ def _due_line(cwd: str, r: RecordDict, t: date) -> str:
     else:
         over_s = "unscheduled"
     reteach = "  RE-TEACH" if r["lapses"] >= 3 else ""
-    # High-confidence-wrong (confidence>=4 with a lapse) is a hypercorrection
-    # re-teach candidate (Metcalfe 2017); surface it so step 4 of SKILL.md can
-    # prefer it. confidence is the last cold-open rating.
-    hc = (
-        "  HC"
-        if (
-            r["confidence"] is not None
-            and r["confidence"] >= 4
-            and r["lapses"] >= 1
-        )
-        else ""
-    )
     rid = os.path.splitext(os.path.basename(r["path"]))[0]
     prior = prior_cold_opens(cwd, rid)
     prior_s = ", ".join(prior) if prior else "—"
     return (
         f"  {rid:<16} {over_s:<8} interval={r['interval']:<3} lapses={r['lapses']}  "
-        f"from {r['lesson'] or '—'}  prior cold opens: {prior_s}{reteach}{hc}"
+        f"from {r['lesson'] or '—'}  prior cold opens: {prior_s}{reteach}"
     )
 
 
 def mission_status(cwd: str) -> str:
+    """absent | provisional | settled — one vocabulary, shared with the hook."""
     p = os.path.join(cwd, "MISSION.md")
     if not os.path.isfile(p):
         return "absent"
     txt = read_text(p)
     if re.search(r"\*\*provisional\*\*", txt, re.I):
         return "provisional"
-    return "ok, not provisional"
+    return "settled"
 
 
 def project_markers(cwd: str) -> str:
@@ -836,31 +762,6 @@ def _stamp_verdict(copied: int | None, template: int | None) -> str:
     if copied == template:
         return "ok"
     return f"STALE (v{copied}, current v{template}) — re-copy the template"
-
-
-def inventory(cwd: str) -> str:
-    lessons = len(glob.glob(os.path.join(cwd, "lessons", "*.html")))
-    reference = len(glob.glob(os.path.join(cwd, "reference", "*.html")))
-    know, comm = _source_counts(cwd)
-    return f"{lessons} lessons, {reference} reference docs, {know} knowledge + {comm} community sources"
-
-
-def _source_counts(cwd: str) -> tuple[int, int]:
-    """(knowledge, community) bullets under RESOURCES.md's own ## headings."""
-    know, comm = 0, 0
-    rp = os.path.join(cwd, "RESOURCES.md")
-    if os.path.isfile(rp):
-        section = None
-        for ln in read_text(rp).split("\n"):
-            h = ln.strip().lower()
-            if h.startswith("## "):
-                section = h[3:]
-            elif ln.strip().startswith("- ") and section:
-                if "knowledge" in section:
-                    know += 1
-                elif "community" in section:
-                    comm += 1
-    return know, comm
 
 
 def _doc_title(path: str) -> str:
@@ -1066,7 +967,7 @@ def build_index(cwd: str) -> str:
     return out
 
 
-def cmd_index(args: "argparse.Namespace") -> int:
+def cmd_index(args: argparse.Namespace) -> int:
     print(f"index: {build_index(args.workspace)}")
     return 0
 
@@ -1074,14 +975,13 @@ def cmd_index(args: "argparse.Namespace") -> int:
 def score_open_cold_open(cwd: str, result_line: str) -> tuple[list[dict], str]:
     """Apply the scoring table to every record an open cold-open ledger names.
 
-    The single writer of schedule + index fields (REQ-010): chat-side
-    `teach.py score` and the POST /score handler both route through here, so
-    no caller writes schedule or index fields independently.
+    The single writer of schedule + index fields: no caller writes them
+    independently.
 
     Returns (rows, index_msg): rows is one dict per record scored — {id,
-    outcome, interval, next, lapses, status, confidence} where id = record
-    basename without extension and the schedule fields come from rec["fm"]
-    after scoring; index_msg is "" on success, else the build_index skip reason.
+    outcome, interval, next, lapses, status} where id = record basename without
+    extension and the schedule fields come from rec["fm"] after scoring;
+    index_msg is "" on success, else the build_index skip reason.
     """
     if not is_workspace(cwd):
         raise TeachError(1, f"not a teach workspace ({cwd})")
@@ -1091,9 +991,7 @@ def score_open_cold_open(cwd: str, result_line: str) -> tuple[list[dict], str]:
         raise TeachError(1, "no open cold-open ledger line in NOTES.md")
     doubling, ceiling, _ = resolve_spacing(notes)
     if result_line.strip().lower() == "abandon":
-        outcomes = [
-            (i + 1, "abandon", None) for i in range(len(ledger["tests"]))
-        ]
+        outcomes = [(i + 1, "abandon") for i in range(len(ledger["tests"]))]
     else:
         lesson_id, results = parse_result_line(result_line)
         ledger_id = os.path.splitext(os.path.basename(ledger["lesson"]))[0]
@@ -1120,10 +1018,10 @@ def score_open_cold_open(cwd: str, result_line: str) -> tuple[list[dict], str]:
             )
         outcomes = results
     plan = []
-    for pos, outcome, conf in outcomes:
+    for pos, outcome in outcomes:
         rec = load_record(resolve_record_path(cwd, ledger["tests"][pos - 1]))
         plan.append(
-            (rec, outcome, score_record(rec, outcome, doubling, ceiling, conf))
+            (rec, outcome, score_record(rec, outcome, doubling, ceiling))
         )
     # save ALL records first, delete the ledger line LAST: a crash mid-write
     # never destroys the recovery handle (the ledger) before the writes it
@@ -1140,7 +1038,6 @@ def score_open_cold_open(cwd: str, result_line: str) -> tuple[list[dict], str]:
             "next": rec["fm"].get("next"),
             "lapses": rec["fm"].get("lapses"),
             "status": rec["fm"].get("status", "active"),
-            "confidence": rec["fm"].get("confidence"),
         }
         for rec, outcome, _ in plan
     ]
@@ -1152,23 +1049,13 @@ def score_open_cold_open(cwd: str, result_line: str) -> tuple[list[dict], str]:
     return rows, index_msg
 
 
-def cmd_score(args: "argparse.Namespace") -> int:
-    if getattr(args, "check", False):
-        return _score_check()
-    if not args.result:
-        print(
-            "teach.py score: error: the result line is required "
-            "(or pass --check to run the self-check)",
-            file=sys.stderr,
-        )
-        return 2
+def cmd_score(args: argparse.Namespace) -> int:
     results, index_msg = score_open_cold_open(args.workspace, args.result)
     for r in results:
-        conf_s = f" confidence={r['confidence']}" if r["confidence"] else ""
         print(
             f"{r['id']}.md: {r['outcome']} -> "
             f"interval={r['interval']} next={r['next']} "
-            f"lapses={r['lapses']} status={r['status']}{conf_s}"
+            f"lapses={r['lapses']} status={r['status']}"
         )
     if index_msg:
         print(f"index: skipped ({index_msg})")
@@ -1177,7 +1064,7 @@ def cmd_score(args: "argparse.Namespace") -> int:
     return 0
 
 
-def cmd_ledger(args: "argparse.Namespace") -> int:
+def cmd_ledger(args: argparse.Namespace) -> int:
     cwd = args.workspace
     lesson_path = args.lesson
     if not os.path.isabs(lesson_path):
@@ -1207,7 +1094,7 @@ def cmd_ledger(args: "argparse.Namespace") -> int:
     return 0
 
 
-def cmd_asked(args: "argparse.Namespace") -> int:
+def cmd_asked(args: argparse.Namespace) -> int:
     cwd = args.workspace
     if not is_workspace(cwd):
         raise TeachError(1, f"not a teach workspace ({cwd})")
@@ -1255,718 +1142,50 @@ def append_working_note(notes: str, line: str) -> str:
     return "\n".join(lines)
 
 
-# --- serve: loopback HTTP for one workspace (REQ-001/002/014) ----------------
-def serve_json_path() -> str:
-    """Where the running server records {pid, port, token, workspace}.
-
-    CLAUDE_PLUGIN_DATA wins; else a per-user tmp dir. Parent is created.
-    TASK-007's hook imports this to find/reuse/stop the server."""
-    data = os.environ.get("CLAUDE_PLUGIN_DATA")
-    if data:
-        p = os.path.join(data, "serve.json")
-    else:
-        p = os.path.join(tempfile.gettempdir(), "teach-serve", "serve.json")
-    d = os.path.dirname(p)
-    if d and not os.path.isdir(d):
-        with contextlib.suppress(OSError):
-            os.makedirs(d, exist_ok=True)
-    return p
-
-
-def read_serve_state() -> dict:
-    """serve.json as a dict, or {} when missing/unparseable. TASK-008 also
-    calls this without a socket."""
-    try:
-        return json.loads(read_text(serve_json_path()))
-    except (OSError, ValueError):
-        return {}
-
-
-def write_serve_state(state: dict) -> None:
-    """Atomic write of serve.json. write_text is tmp+os.replace, so a crash
-    mid-write never leaves a half file. cmd_serve's initial {pid,port,token,
-    workspace} is preserved by callers passing the prior state through."""
-    write_text(serve_json_path(), json.dumps(state))
-
-
-def pid_alive(pid: int) -> bool:
-    """True if pid is a live process. Never raises."""
-    if not pid:
-        return False
-    if os.name == "nt":
-        try:
-            import ctypes
-
-            k = ctypes.windll.kernel32
-            h = k.OpenProcess(0x1000, False, pid)  # SYNCHRONIZE access
-            if not h:
-                return False
-            k.CloseHandle(h)
-            return True
-        except OSError:
-            return False
-    try:
-        os.kill(pid, 0)
-        return True
-    except OSError:
-        return False
-
-
-def kill_pid(pid: int) -> None:
-    """Stop pid if running. Tolerant: no error if already gone."""
-    if not pid:
-        return
-    if os.name == "nt":
-        with contextlib.suppress(OSError, subprocess.SubprocessError):
-            subprocess.run(
-                ["taskkill", "/PID", str(pid), "/F"], capture_output=True
-            )
-        return
-    with contextlib.suppress(OSError):
-        os.kill(pid, signal.SIGTERM)
-
-
-class ServeServer(http.server.ThreadingHTTPServer):
-    # ponytail: ThreadingHTTPServer so a slow POST can't block a GET;
-    # single-user low-freq, plain HTTPServer would also be fine.
-    workspace: str = ""
-    token: str = ""
-
-
-def handle_lesson(
-    workspace: str, token: str, path: str
-) -> tuple[int, dict[str, str], bytes]:
-    """PURE: resolve a GET path under workspace, return (status, headers, body).
-
-    Only /lessons/... is served. Path escape outside workspace -> 404. The
-    token script is injected just before </body>. No ACAO header (same-origin
-    only, REQ-014). TASK-008 serve --check calls this with no socket."""
-    raw_path = path.split("?", 1)[0]
-    if not raw_path.startswith("/lessons/"):
-        return 404, {}, b"not found"
-    rel = raw_path.lstrip("/")  # /lessons/x.html -> lessons/x.html
-    ws_abs = os.path.abspath(workspace)
-    target = os.path.abspath(os.path.join(ws_abs, rel))
-    try:
-        common = os.path.commonpath([ws_abs, target])
-    except ValueError:  # different drives on Windows
-        return 404, {}, b"not found"
-    if common != ws_abs:
-        return 404, {}, b"not found"
-    lessons_abs = os.path.join(ws_abs, "lessons")
-    if os.path.commonpath([lessons_abs, target]) != lessons_abs:
-        return 404, {}, b"not found"
-    if not os.path.isfile(target):
-        return 404, {}, b"not found"
-    try:
-        html = read_text(target)
-    except OSError:
-        return 404, {}, b"not found"
-    inject = (
-        '<script>window.__TEACH_TOKEN="'
-        + token
-        + '"; window.__TEACH_SERVE=1;</script>'
-    )
-    body = html.replace("</body>", inject + "</body>", 1).encode("utf-8")
-    return 200, {"Content-Type": "text/html; charset=utf-8"}, body
-
-
-def handle_score(
-    workspace: str, token: str, serve_state: dict, body: bytes
-) -> tuple[int, dict, dict]:
-    """PURE: score a cold-open result line posted from a served lesson.
-
-    Returns (status, payload, new_serve_state). The handler persists
-    new_serve_state; this fn never touches the socket or serve.json. The
-    scoring core (score_open_cold_open) stays the single writer of schedule
-    + index fields (REQ-010) — this fn only reads serve.json's last_score
-    for idempotency, calls the core, and records the last (lesson, line).
-
-    TASK-008 serve --check calls this with no socket."""
-    try:
-        req = json.loads(body.decode("utf-8")) if body else None
-    except (ValueError, UnicodeDecodeError):
-        return 400, {"error": "bad request"}, serve_state
-    if not isinstance(req, dict) or "lesson" not in req or "line" not in req:
-        return 400, {"error": "bad request"}, serve_state
-    lesson = req["lesson"]
-    line = req["line"]
-    if not isinstance(lesson, str) or not isinstance(line, str):
-        return 400, {"error": "bad request"}, serve_state
-    if not req.get("token") or req.get("token") != token:
-        return 401, {"error": "unauthorized"}, serve_state
-
-    ws_abs = os.path.abspath(workspace)
-    try:
-        norm = os.path.normpath(os.path.join(ws_abs, lesson))
-        common = os.path.commonpath([ws_abs, norm])
-    except ValueError:  # different drives on Windows
-        return 400, {"error": "bad request"}, serve_state
-    if common != ws_abs:  # path escape
-        return 400, {"error": "bad request"}, serve_state
-    lesson_rel = os.path.relpath(norm, ws_abs).replace(os.sep, "/")
-    lesson_stem = os.path.splitext(os.path.basename(lesson_rel))[0]
-
-    ledger = parse_ledger_line(read_notes(workspace))
-    last_score = serve_state.get("last_score")
-    if ledger is None:  # closed
-        if (
-            last_score
-            and last_score.get("lesson") == lesson_stem
-            and last_score.get("line") == line
-        ):
-            return (
-                200,
-                {
-                    "scored": True,
-                    "already": True,
-                    "schedule": last_score.get("schedule", []),
-                },
-                serve_state,
-            )
-        return 409, {"error": "ledger closed, different line"}, serve_state
-
-    # ledger open
-    ledger_stem = os.path.splitext(os.path.basename(ledger["lesson"]))[0]
-    if lesson_stem != ledger_stem:
-        return (
-            409,
-            {"error": f"open ledger is for {ledger_stem}, not {lesson_stem}"},
-            serve_state,
-        )
-    try:
-        records, _index_msg = score_open_cold_open(workspace, line)
-    except TeachError as e:
-        return 409, {"error": e.msg}, serve_state
-    schedule = [
-        {
-            "id": r["id"],
-            "interval": r["interval"],
-            "next": r["next"],
-            "lapses": r["lapses"],
-        }
-        for r in records
-    ]
-    new_state = dict(serve_state)
-    new_state["last_score"] = {
-        "lesson": lesson_stem,
-        "line": line,
-        "schedule": schedule,
-    }
-    return 200, {"scored": True, "schedule": schedule}, new_state
-
-
-class ServeHandler(http.server.BaseHTTPRequestHandler):
-    def log_message(self, format, *args) -> None:  # noqa: A002 (shadows builtin)
-        pass  # silence the default stderr access log
-
-    def _respond(self) -> None:
-        # BaseHTTPRequestHandler.server is typed BaseServer; the server we
-        # bind is a ServeServer carrying .workspace/.token.
-        srv = cast(ServeServer, self.server)
-        try:
-            status, headers, body = handle_lesson(
-                srv.workspace, srv.token, self.path
-            )
-        except Exception:
-            status, headers, body = 500, {}, b"internal error"
-        self.send_response(status)
-        for k, v in headers.items():
-            self.send_header(k, v)
-        self.send_header("Content-Length", str(len(body)))
-        self.end_headers()
-        if self.command != "HEAD":
-            self.wfile.write(body)
-
-    def do_GET(self) -> None:
-        self._respond()
-
-    def do_HEAD(self) -> None:
-        self._respond()
-
-    def do_POST(self) -> None:
-        # ponytail: single-user low-freq POSTs; the ThreadingHTTPServer race
-        # on serve.json is negligible and write_text is atomic (os.replace).
-        # Per-request state lock if a second poster ever appears.
-        try:
-            length = int(self.headers.get("Content-Length", "0") or "0")
-        except ValueError:
-            length = 0
-        body = self.rfile.read(length) if length > 0 else b""
-        state = read_serve_state()
-        srv = cast(ServeServer, self.server)
-        status, payload, new_state = handle_score(
-            srv.workspace, srv.token, state, body
-        )
-        data = json.dumps(payload).encode("utf-8")
-        self.send_response(status)
-        # No Access-Control-Allow-Origin: same-origin only (REQ-014).
-        self.send_header("Content-Type", "application/json")
-        self.send_header("Content-Length", str(len(data)))
-        self.end_headers()
-        self.wfile.write(data)
-        if new_state is not state:  # a scoring change to persist
-            with contextlib.suppress(OSError):
-                write_serve_state(new_state)
-
-
-def _serve_check() -> int:
-    """serve --check: exercise the serve-path pure helpers with NO socket.
-
-    Builds a throwaway workspace under C:/tmp/tv008, calls handle_lesson +
-    handle_score directly (REQ-011). Exit 0 only if every assertion passes;
-    on the first failure print the assertion name + detail and exit 1.
-    """
-    import shutil
-
-    base = "C:/tmp/tv008"
-    with contextlib.suppress(FileNotFoundError):
-        shutil.rmtree(base)
-    os.makedirs(os.path.join(base, "learning-records"))
-    os.makedirs(os.path.join(base, "lessons"))
-    write_text(
-        os.path.join(base, "learning-records", "0001-x.md"),
-        "---\ninterval: 1\nlapses: 0\nstatus: active\nnext: 2026-07-27\n---\n\n# 0001-x\n",
-    )
-    write_text(
-        os.path.join(base, "lessons", "0001-x.html"),
-        "<!doctype html><html><head><title>0001-x</title></head>"
-        "<body><p>lesson</p></body></html>",
-    )
-    write_text(
-        os.path.join(base, "NOTES.md"),
-        "# Notes\n\nunscored cold open: lessons/0001-x.html tests 0001-x (asked: 0)\n",
-    )
-    token = "check-token-xyz"
-    state: dict = {}
-
-    def fail(name: str, detail: str) -> int:
-        print(f"serve --check FAIL: {name}\n  {detail}", file=sys.stderr)
-        return 1
-
-    def post(lesson: str, line: str, tok: str | None) -> bytes:
-        req = {"lesson": lesson, "line": line}
-        if tok is not None:
-            req["token"] = tok
-        return json.dumps(req).encode("utf-8")
-
-    line = "Cold open 0001-x: 1 right"
-    st, payload, state = handle_score(
-        base, token, state, post("0001-x", line, None)
-    )
-    if st != 401:
-        return fail(
-            "token-reject-missing", f"expected 401, got {st} {payload}"
-        )
-    st, payload, state = handle_score(
-        base, token, state, post("0001-x", line, "wrong")
-    )
-    if st != 401:
-        return fail("token-reject-wrong", f"expected 401, got {st} {payload}")
-
-    # 2. ledger bind: open ledger for 0001-x, good token -> 200 scored + schedule;
-    #    mismatched lesson -> 409.
-    good = post("0001-x", line, token)
-    st, payload, state = handle_score(base, token, state, good)
-    if st != 200 or not payload.get("scored") or "schedule" not in payload:
-        return fail(
-            "ledger-bind-score",
-            f"expected 200 scored+schedule, got {st} {payload}",
-        )
-    st, payload, state = handle_score(
-        base, token, state, post("9999-z", "Cold open 9999-z: 1 right", token)
-    )
-    if st != 409:
-        return fail(
-            "ledger-bind-mismatch", f"expected 409, got {st} {payload}"
-        )
-
-    # 3. idempotent duplicate: ledger now closed, same line -> 200 already + schedule.
-    st, payload, state = handle_score(base, token, state, good)
-    if st != 200 or not payload.get("already") or "schedule" not in payload:
-        return fail(
-            "idempotent-duplicate",
-            f"expected 200 already+schedule, got {st} {payload}",
-        )
-
-    # 4. same-origin no-CORS: handle_lesson headers carry no ACAO key (case-insensitive).
-    st, headers, body = handle_lesson(base, token, "/lessons/0001-x.html")
-    acao = next(
-        (k for k in headers if k.lower() == "access-control-allow-origin"),
-        None,
-    )
-    if st != 200 or acao is not None:
-        return fail(
-            "same-origin-no-cors",
-            f"status {st}, ACAO={acao}, headers={headers}",
-        )
-
-    # 5. token injection: body contains __TEACH_TOKEN and __TEACH_SERVE.
-    if b"__TEACH_TOKEN" not in body or b"__TEACH_SERVE" not in body:
-        return fail(
-            "token-injection", f"markers missing, body[:120]={body[:120]!r}"
-        )
-
-    # 6. path escape: a ../-escaping path -> 404.
-    st, _headers, _body = handle_lesson(
-        base, token, "/lessons/../../0001-x.html"
-    )
-    if st != 404:
-        return fail("path-escape", f"expected 404, got {st}")
-    st, _headers, _body = handle_lesson(
-        base, token, "/lessons/../learning-records/0001-x.md"
-    )
-    if st != 404:
-        return fail("intra-workspace-escape", f"expected 404, got {st}")
-
-    print("serve --check OK")
-    return 0
-
-
-def _score_check() -> int:
-    """score --check: exercise every scoring row against expected
-    interval/next/lapses/status, plus confidence storage and the asked path.
-
-    Builds a throwaway workspace in a fresh tempdir, opens a ledger, and
-    scores each row via the single writer (score_open_cold_open). Plain
-    asserts, fails loud — mirrors _serve_check, no framework. Exit 0 only if
-    every assertion passes; on the first failure print the name + detail and
-    exit 1.
-    """
-    import tempfile
-
-    base = tempfile.mkdtemp(prefix="teach-score-")
-    os.makedirs(os.path.join(base, "learning-records"))
-    os.makedirs(os.path.join(base, "lessons"))
-
-    def fail(name: str, detail: str) -> int:
-        print(f"score --check FAIL: {name}\n  {detail}", file=sys.stderr)
-        return 1
-
-    def write_rec(
-        rid: str,
-        interval: int | float,
-        lapses: int = 0,
-        status: str = "active",
-        nxt: str = "2026-07-27",
-        confidence: int | None = None,
-    ) -> None:
-        fm = [
-            f"interval: {num_str(interval)}",
-            f"lapses: {lapses}",
-            f"status: {status}",
-            f"next: {nxt}",
-        ]
-        if confidence is not None:
-            fm.append(f"confidence: {confidence}")
-        write_text(
-            os.path.join(base, "learning-records", rid + ".md"),
-            "---\n" + "\n".join(fm) + "\n---\n\n# " + rid + "\n",
-        )
-
-    def open_ledger(tests: list[str]) -> None:
-        line = (
-            f"- unscored cold open: lessons/0001-x.html tests "
-            f"{', '.join(tests)} (asked: 0)"
-        )
-        write_text(os.path.join(base, "NOTES.md"), "# Notes\n\n" + line + "\n")
-
-    def reload(rid: str) -> RecordDict:
-        return load_record(os.path.join(base, "learning-records", rid + ".md"))
-
-    global TODAY
-    saved_today = TODAY
-    TODAY = date(2026, 8, 5)
-    try:
-        t = TODAY
-
-        # 1. Right below ceiling: interval 1 * doubling 2 = 2, lapses reset.
-        write_rec("0001-a", interval=1)
-        open_ledger(["0001-a"])
-        rows, _ = score_open_cold_open(base, "Cold open 0001-x: 1 right")
-        if (
-            rows[0]["interval"] != "2"
-            or rows[0]["next"] != (t + timedelta(days=2)).isoformat()
-            or rows[0]["lapses"] != "0"
-            or rows[0]["status"] != "active"
-        ):
-            return fail("right-below-ceiling", f"got {rows[0]}")
-        r = reload("0001-a")
-        if (
-            r["interval"] != 2
-            or r["next"] != t + timedelta(days=2)
-            or r["lapses"] != 0
-            or r["status"] != "active"
-        ):
-            return fail(
-                "right-below-ceiling-reload",
-                f"got interval={r['interval']} next={r['next']} lapses={r['lapses']} status={r['status']}",
-            )
-
-        # 2. Right at ceiling: retire, interval/next untouched, lapses reset.
-        write_rec("0002-b", interval=90)
-        open_ledger(["0002-b"])
-        rows, _ = score_open_cold_open(base, "Cold open 0001-x: 1 right")
-        if (
-            rows[0]["status"] != "retired"
-            or rows[0]["lapses"] != "0"
-            or rows[0]["interval"] != "90"
-            or rows[0]["next"] != "2026-07-27"
-        ):
-            return fail("right-at-ceiling-retire", f"got {rows[0]}")
-        r = reload("0002-b")
-        if r["status"] != "retired" or r["lapses"] != 0:
-            return fail(
-                "right-at-ceiling-retire-reload",
-                f"got status={r['status']} lapses={r['lapses']}",
-            )
-
-        # 3. Wrong: interval -> 1, next +1 day, lapses +1.
-        write_rec("0003-c", interval=4, lapses=1)
-        open_ledger(["0003-c"])
-        rows, _ = score_open_cold_open(base, "Cold open 0001-x: 1 wrong")
-        if (
-            rows[0]["interval"] != "1"
-            or rows[0]["next"] != (t + timedelta(days=1)).isoformat()
-            or rows[0]["lapses"] != "2"
-            or rows[0]["status"] != "active"
-        ):
-            return fail("wrong", f"got {rows[0]}")
-        r = reload("0003-c")
-        if (
-            r["interval"] != 1
-            or r["next"] != t + timedelta(days=1)
-            or r["lapses"] != 2
-        ):
-            return fail(
-                "wrong-reload",
-                f"got interval={r['interval']} next={r['next']} lapses={r['lapses']}",
-            )
-
-        # 4. abandon: next += round(interval), no lapse, no status change.
-        write_rec("0004-d", interval=3)
-        open_ledger(["0004-d"])
-        rows, _ = score_open_cold_open(base, "abandon")
-        if (
-            rows[0]["next"] != (t + timedelta(days=3)).isoformat()
-            or rows[0]["lapses"] != "0"
-            or rows[0]["status"] != "active"
-            or rows[0]["interval"] != "3"
-        ):
-            return fail("abandon", f"got {rows[0]}")
-        r = reload("0004-d")
-        if (
-            r["next"] != t + timedelta(days=3)
-            or r["lapses"] != 0
-            or r["status"] != "active"
-        ):
-            return fail(
-                "abandon-reload",
-                f"got next={r['next']} lapses={r['lapses']} status={r['status']}",
-            )
-
-        # 5. asked path: bump_asked 0 -> 1 -> 2 (no-answer/asked row).
-        write_rec("0005-e", interval=5)
-        open_ledger(["0005-e"])
-        notes = read_notes(base)
-        notes, n = bump_asked(notes)
-        if n != 1:
-            return fail("asked-bump-1", f"expected 1, got {n}")
-        write_text(os.path.join(base, "NOTES.md"), notes)
-        notes, n = bump_asked(notes)
-        if n != 2:
-            return fail("asked-bump-2", f"expected 2, got {n}")
-        # asked:2 abandon path: score "abandon" closes the ledger.
-        write_text(os.path.join(base, "NOTES.md"), notes)
-        rows, _ = score_open_cold_open(base, "abandon")
-        if rows[0]["next"] != (t + timedelta(days=5)).isoformat():
-            return fail("asked-then-abandon", f"got {rows[0]}")
-        if parse_ledger_line(read_notes(base)) is not None:
-            return fail("asked-then-abandon-ledger", "ledger not deleted")
-
-        # 6. confidence storage on /N, then clear when a cold open omits /N.
-        write_rec("0006-f", interval=1, confidence=3)
-        open_ledger(["0006-f"])
-        rows, _ = score_open_cold_open(base, "Cold open 0001-x: 1 right/4")
-        if rows[0]["confidence"] != "4":
-            return fail("confidence-store", f"got {rows[0]}")
-        r = reload("0006-f")
-        if r["confidence"] != 4 or "confidence" not in r["fm"]:
-            return fail(
-                "confidence-store-reload",
-                f"got confidence={r['confidence']} fm={r['fm']}",
-            )
-        # a follow-up cold open with no /N clears the field (HC cannot fire stale).
-        write_rec("0006-f", interval=2, confidence=4)
-        open_ledger(["0006-f"])
-        rows, _ = score_open_cold_open(base, "Cold open 0001-x: 1 right")
-        if rows[0]["confidence"] is not None:
-            return fail("confidence-clear", f"expected None, got {rows[0]}")
-        r = reload("0006-f")
-        if r["confidence"] is not None or "confidence" in r["fm"]:
-            return fail(
-                "confidence-clear-reload",
-                f"got confidence={r['confidence']} fm keys={list(r['fm'])}",
-            )
-
-        # 7. fractional doubling rounds, does not truncate (1 * 1.5 = 1.5 -> 2 days).
-        write_rec("0007-g", interval=1)
-        write_text(
-            os.path.join(base, "NOTES.md"),
-            "# Notes\n\n- spacing: {doubling: 1.5, ceiling: 10}\n\n"
-            "- unscored cold open: lessons/0001-x.html tests 0007-g (asked: 0)\n",
-        )
-        rows, _ = score_open_cold_open(base, "Cold open 0001-x: 1 right")
-        if (
-            rows[0]["interval"] != "2"
-            or rows[0]["next"] != (t + timedelta(days=2)).isoformat()
-        ):
-            return fail("fractional-round-right", f"got {rows[0]}")
-        # abandon with a fractional stored interval rounds too.
-        write_rec("0008-h", interval=1.5)
-        write_text(
-            os.path.join(base, "NOTES.md"),
-            "# Notes\n\n- spacing: {doubling: 1.5, ceiling: 10}\n\n"
-            "- unscored cold open: lessons/0001-x.html tests 0008-h (asked: 0)\n",
-        )
-        rows, _ = score_open_cold_open(base, "abandon")
-        if (
-            rows[0]["next"] != (t + timedelta(days=2)).isoformat()
-            or rows[0]["interval"] != "2"
-        ):
-            return fail("fractional-round-abandon", f"got {rows[0]}")
-
-        # 8. confidence range validation: /9 and /0 rejected, /5 accepted.
-        try:
-            parse_result_line("Cold open 0001-x: 1 right/9")
-        except TeachError as e:
-            if e.code != 2 or "must be 1-5" not in e.msg:
-                return fail(
-                    "confidence-range-9", f"got code={e.code} msg={e.msg}"
-                )
-        else:
-            return fail(
-                "confidence-range-9", "expected TeachError, none raised"
-            )
-        try:
-            parse_result_line("Cold open 0001-x: 1 right/0")
-        except TeachError:
-            pass
-        else:
-            return fail(
-                "confidence-range-0", "expected TeachError, none raised"
-            )
-        # /5 parses fine.
-        try:
-            _, parsed = parse_result_line("Cold open 0001-x: 1 right/5")
-        except TeachError as e:
-            return fail("confidence-range-5", f"unexpected TeachError: {e}")
-        if parsed[0][2] != 5:
-            return fail("confidence-range-5", f"got conf={parsed[0][2]}")
-
-        print("score --check OK")
-        return 0
-    finally:
-        TODAY = saved_today
-
-
-def cmd_serve(args: "argparse.Namespace") -> int:
-    if getattr(args, "check", False):
-        return _serve_check()
-    cwd = args.workspace
-    if not is_workspace(cwd):
-        raise TeachError(1, f"not a teach workspace ({cwd})")
-    workspace = os.path.abspath(cwd)
-    token = secrets.token_urlsafe(32)
-    # 127.0.0.1 only — never 0.0.0.0 (REQ-014): no firewall prompt, works
-    # with the network cable out.
-    httpd = ServeServer(("127.0.0.1", args.port), ServeHandler)
-    httpd.workspace = workspace
-    httpd.token = token
-    port = httpd.server_address[1]
-    sj = serve_json_path()
-    write_text(
-        sj,
-        json.dumps(
-            {
-                "pid": os.getpid(),
-                "port": port,
-                "token": token,
-                "workspace": workspace,
-            }
-        ),
-    )
-    print(f"serve: http://127.0.0.1:{port}")
-    sys.stdout.flush()
-    try:
-        httpd.serve_forever()
-    except KeyboardInterrupt:
-        pass
-    finally:
-        httpd.shutdown()
-        httpd.server_close()
-        with contextlib.suppress(OSError):
-            os.remove(sj)
-    return 0
-
-
 def main(argv: list[str]) -> int:
-    import argparse
-
     p = argparse.ArgumentParser(
         prog="teach.py", description="teach course runtime"
     )
     sub = p.add_subparsers(dest="cmd", required=True)
+    # every subcommand takes --workspace, and adding it six times is six places
+    # for the default to drift off os.getcwd()
+    ws = argparse.ArgumentParser(add_help=False)
+    ws.add_argument("--workspace", default=os.getcwd())
 
-    sp = sub.add_parser("state", help="print the workspace state report")
-    sp.add_argument("--workspace", default=os.getcwd())
+    sp = sub.add_parser(
+        "state", parents=[ws], help="print the workspace state report"
+    )
     sp.set_defaults(func=cmd_state)
 
     sc = sub.add_parser(
-        "score", help="apply the scoring table to an open cold open"
+        "score",
+        parents=[ws],
+        help="apply the scoring table to an open cold open",
     )
-    sc.add_argument(
-        "result", nargs="?", help='result line verbatim, or "abandon"'
-    )
-    sc.add_argument("--workspace", default=os.getcwd())
-    sc.add_argument(
-        "--check",
-        action="store_true",
-        help="run the scoring self-check (no workspace needed) and exit",
-    )
+    sc.add_argument("result", help='result line verbatim, or "abandon"')
     sc.set_defaults(func=cmd_score)
 
     ld = sub.add_parser(
-        "ledger", help="open a cold-open ledger line from a lesson"
+        "ledger",
+        parents=[ws],
+        help="open a cold-open ledger line from a lesson",
     )
     ld.add_argument("lesson", help="lessons/NNNN-slug.html")
-    ld.add_argument("--workspace", default=os.getcwd())
     ld.set_defaults(func=cmd_ledger)
 
     ak = sub.add_parser(
         "asked",
+        parents=[ws],
         help="record one unanswered request for the cold-open result line",
     )
-    ak.add_argument("--workspace", default=os.getcwd())
     ak.set_defaults(func=cmd_asked)
 
     ix = sub.add_parser(
-        "index", help="write the learner-facing course home page"
+        "index",
+        parents=[ws],
+        help="write the learner-facing course home page",
     )
-    ix.add_argument("--workspace", default=os.getcwd())
     ix.set_defaults(func=cmd_index)
-
-    sv = sub.add_parser(
-        "serve", help="serve lessons over loopback HTTP (one workspace)"
-    )
-    sv.add_argument("--workspace", default=os.getcwd())
-    sv.add_argument("--port", type=int, default=0)
-    sv.add_argument(
-        "--check",
-        action="store_true",
-        help="run the serve-path self-check (no socket) and exit",
-    )
-    sv.set_defaults(func=cmd_serve)
 
     args = p.parse_args(argv[1:])
     try:

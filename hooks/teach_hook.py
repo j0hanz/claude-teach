@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""teach_hook.py — SessionStart/SessionEnd/Stop hook entry point for the teach plugin.
+"""teach_hook.py — SessionStart/Stop hook entry point for the teach plugin.
 
 Wired from hooks/hooks.json; never invoked by the model. The deterministic state
 it reads (ledger line, learning records, mission) is owned by
@@ -7,9 +7,7 @@ skills/teach/scripts/teach.py — this file only decides what a hook event shoul
 say about that state, and stays a silent no-op outside a teach workspace.
 
 Usage:
-  teach_hook.py --event session-start|session-end|stop|stop-sweep
-                                                (hook payload JSON on stdin)
-  teach_hook.py --event selfcheck               (no payload; exercises the sweep)
+  teach_hook.py --event session-start|stop     (hook payload JSON on stdin)
 
 Exit: 0 always for a well-formed event — a hook that cannot evaluate must not
 deny, and on Stop any non-zero exit is a block whose message is stderr. 2 only
@@ -18,14 +16,9 @@ on usage error (argparse).
 
 import argparse
 import contextlib
-import glob
-import io
 import json
 import os
-import socket
-import subprocess
 import sys
-import time
 
 # teach.py is the state layer; it lives under skills/, not here.
 sys.path.insert(
@@ -41,25 +34,16 @@ sys.path.insert(
 
 # resolved by the sys.path line above, which no static analyzer follows
 from teach import (  # noqa: E402  # pyright: ignore[reportMissingImports]
-    LEDGER_RE,
     TeachError,
-    find_cold_open_comment,
     is_workspace,
-    kill_pid,
-    ledger_body,
     load_records,
     mission_status,
-    parse_frontmatter,
     parse_ledger_line,
-    pid_alive,
     read_notes,
-    read_serve_state,
     read_text,
     resume_target,
-    serve_json_path,
     split_records,
     today,
-    write_serve_state,
     write_text,
 )
 
@@ -71,170 +55,17 @@ def _plugin_data_path(name):
     — never the Bash tool the model runs `ledger` and `score` from. So only hook
     code may depend on it; the workspace ledger line stays the single source of
     truth for whether a cold open is outstanding. Without the data dir there is
-    no way to remember state between turns, so each gate that uses it disables
+    no way to remember state between turns, so the gate that uses it disables
     itself rather than trap the session in a loop it cannot exit by complying.
     """
     d = os.environ.get("CLAUDE_PLUGIN_DATA")
     return os.path.join(d, name) if d else None
 
 
-def _plugin_root():
-    # hooks/ lives one level under the plugin root; the sys.path insert above
-    # walks the same chain to reach skills/teach/scripts.
-    return os.path.normpath(
-        os.path.join(os.path.dirname(os.path.abspath(__file__)), os.pardir)
-    )
-
-
-def _probe_port(port, timeout=0.2):
-    """Cheap liveness probe of the bound port.
-
-    ponytail: short-timeout TCP connect to 127.0.0.1:port — a recycled-PID
-    serve.json whose port nothing answers fails here, so reuse falls through
-    to the kill+respawn path instead of printing a dead serve URL. No /health
-    route on this server; the accept alone is enough signal.
-    """
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.settimeout(timeout)
-        try:
-            s.connect(("127.0.0.1", port))
-            return True
-        except OSError:
-            return False
-
-
-@contextlib.contextmanager
-def _serve_lock():
-    """Cross-process lock around the read-kill-spawn-read TOCTOU window.
-
-    ponytail: lock scope is the _ensure_server reuse/respawn decision only —
-    sibling lock file so serve.json itself is free to be removed and
-    rewritten under us. msvcrt.locking on Windows, fcntl.flock elsewhere.
-    Held across the ~0.8s spawn wait so two concurrent SessionStarts on the
-    same workspace do not both spawn and orphan a server.
-    """
-    lock_path = serve_json_path() + ".lock"
-    with open(
-        lock_path, "a"
-    ) as f:  # "a": create-no-truncate, don't wipe a holder's lock
-        if os.name == "nt":
-            import msvcrt
-
-            msvcrt.locking(f.fileno(), msvcrt.LK_LOCK, 1)
-            try:
-                yield
-            finally:
-                with contextlib.suppress(OSError):
-                    msvcrt.locking(f.fileno(), msvcrt.LK_UNLCK, 1)
-        else:
-            import fcntl
-
-            fcntl.flock(f.fileno(), fcntl.LOCK_EX)
-            try:
-                yield
-            finally:
-                with contextlib.suppress(OSError):
-                    fcntl.flock(f.fileno(), fcntl.LOCK_UN)
-
-
-def _add_owner(sid, state):
-    """Append this session to serve.json's owner refcount.
-
-    ponytail: multi-owner scope — serve.json is a single shared file across
-    sessions on the same workspace; every SessionStart appends its session_id
-    so SessionEnd decrements and only the LAST owner tears the server down
-    (fixes both halves of the race the old last-wins owner left open). No-op
-    when the harness sends no session_id (degrades to the old workspace-match
-    kill).
-    """
-    if not sid or not state.get("port"):
-        return
-    owners = state.get("owners") or []
-    if sid not in owners:
-        owners.append(sid)
-    state["owners"] = owners
-    state.pop("owner", None)  # migrate legacy single-owner field
-    with contextlib.suppress(OSError):
-        write_serve_state(state)
-
-
-def _ensure_server(cwd, payload):
-    """Reuse, respawn, or spawn the teach serve server for cwd.
-
-    Prints the serve URL on success, a one-line stderr note on failure. Never
-    raises and never blocks SessionStart (REQ-008): a spawn that does not bind
-    in ~0.8s is reported and skipped."""
-    script = os.path.join(
-        _plugin_root(), "skills", "teach", "scripts", "teach.py"
-    )
-    # teach.py serve stores workspace as os.path.abspath; compare on that form
-    # so a forward-slash cwd from the hook matches the backslash form on Windows.
-    ws = os.path.abspath(cwd)
-    sid = payload.get("session_id")
-    with _serve_lock():
-        state = read_serve_state()
-        pid = state.get("pid")
-        if (
-            pid
-            and pid_alive(pid)
-            and state.get("workspace") == ws
-            and _probe_port(state["port"])
-        ):
-            _add_owner(sid, state)
-            print(f"serve: http://127.0.0.1:{state['port']}")
-            return
-        if pid:
-            # ponytail: probe failed here means a recycled PID whose port is
-            # dead — kill is the existing respawn path; a recycled PID could
-            # be an unrelated process, but workspace match in serve.json
-            # narrows it to a former teach serve.
-            kill_pid(pid)  # stale PID or workspace mismatch -> respawn
-            # force-kill skips cmd_serve's finally, so serve.json stays stale —
-            # clear it or the re-read below prints a dead port as the live URL.
-            with contextlib.suppress(OSError):
-                os.remove(serve_json_path())
-        # Detached spawn: stdio sunk so the child never inherits the hook's pipes.
-        # Built per-branch (not a **kwargs splat) so the platform-specific flag
-        # picks the right Popen overload instead of a loosely-typed dict.
-        with contextlib.suppress(OSError):
-            if os.name == "nt":
-                subprocess.Popen(
-                    [sys.executable, script, "serve", "--workspace", cwd],
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL,
-                    stdin=subprocess.DEVNULL,
-                    creationflags=(
-                        subprocess.DETACHED_PROCESS
-                        | subprocess.CREATE_NEW_PROCESS_GROUP
-                    ),
-                )
-            else:
-                subprocess.Popen(
-                    [sys.executable, script, "serve", "--workspace", cwd],
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL,
-                    stdin=subprocess.DEVNULL,
-                    start_new_session=True,
-                )
-        time.sleep(0.8)
-        state = read_serve_state()
-        if state.get("port"):
-            _add_owner(sid, state)
-            print(f"serve: http://127.0.0.1:{state['port']}")
-        else:
-            print("teach: serve did not start", file=sys.stderr)
-
-
-def event_session_start(cwd, payload):
+def event_session_start(cwd):
     ledger = parse_ledger_line(read_notes(cwd))
     t = today()
     due = len(split_records(load_records(cwd))[2])
-    ms = mission_status(cwd)
-    mission = (
-        "provisional"
-        if ms == "provisional"
-        else ("absent" if ms == "absent" else "settled")
-    )
     lines = [
         "teach: workspace live",
         f"date: {t.isoformat()}",
@@ -245,7 +76,7 @@ def event_session_start(cwd, payload):
             else "ledger: closed"
         ),
         f"due: {due}",
-        f"mission: {mission}",
+        f"mission: {mission_status(cwd)}",
     ]
     rt = resume_target(cwd)
     if rt is None:
@@ -266,35 +97,6 @@ def event_session_start(cwd, payload):
     # cannot block. If a future harness requires hookSpecificOutput wrapping,
     # wrap here — one-line change.
     print("\n".join(lines))
-    _ensure_server(cwd, payload)
-    return 0
-
-
-def event_session_end(cwd, payload):
-    # REQ-009: stop the server for this workspace and clear the stale lockfile.
-    # Silent no-op when no serve.json or it belongs to a different workspace.
-    # ponytail: multi-owner scope — serve.json is shared across sessions on
-    # the same workspace; owners are refcounted, so ending one of N sessions
-    # only decrements and the last owner tears the server down. No session_id
-    # degrades to the old workspace-match kill.
-    state = read_serve_state()
-    pid = state.get("pid")
-    ws = os.path.abspath(cwd)
-    sid = payload.get("session_id")
-    owners = state.get("owners")
-    if owners is None:
-        owners = [state.get("owner")] if state.get("owner") else []
-    if sid and sid in owners:
-        owners = [o for o in owners if o != sid]
-        state["owners"] = owners
-        with contextlib.suppress(OSError):
-            write_serve_state(state)
-    last = not sid or not owners
-    if pid and pid_alive(pid) and state.get("workspace") == ws and last:
-        kill_pid(pid)
-    if state.get("workspace") == ws and last:
-        with contextlib.suppress(OSError):
-            os.remove(serve_json_path())
     return 0
 
 
@@ -358,428 +160,13 @@ def event_stop(cwd, payload):
     return 0
 
 
-# --- stop sweep --------------------------------------------------------------
-# Second Stop handler, own guard file, own failure mode. The gate above blocks
-# on an open ledger; this one blocks on a workspace that stopped matching its
-# own contract. Kept apart because they fail differently: the gate is silent
-# when no ledger is open, which is exactly when several of these faults happen.
-#
-# Every check here is an existing exact rule, never a judgement — check_lesson's
-# exit code, LEDGER_RE, cold_open_pairs, the frontmatter keys RECORDS.md
-# requires. Nothing in it writes workspace state; teach.py still owns that.
-
-# Cold start: a file with no recorded signature counts as new only if it was
-# touched recently, so installing this hook over a 40-lesson course does not
-# open with a wall of pre-existing faults.
-SWEEP_WINDOW_S = 900
-MAX_FAULTS = 20
-
-
-def _rel(cwd, path):
-    try:
-        return os.path.relpath(path, cwd).replace(os.sep, "/")
-    except ValueError:  # different drives on Windows
-        return path
-
-
-def _key(path):
-    """Signature-dict key. normcase+abspath for the same reason _ensure_server
-    compares on abspath: the hook payload's cwd may arrive forward-slashed
-    while glob returns the Windows form, and the loop guard is the
-    safety-critical half — keyed on the raw path it re-arms on path form alone
-    and blocks every turn on a fault it already reported.
-    """
-    return os.path.normcase(os.path.abspath(path))
-
-
-def _changed(paths, seen, now):
-    """[(path, signature), ...] for files whose bytes moved since last sweep.
-
-    Doubles as the loop guard and as the cursor: a fault reported once is not
-    reported again until the file actually changes.
-    """
-    out = []
-    for p in paths:
-        try:
-            st = os.stat(p)
-        except OSError:
-            continue
-        sig = f"{st.st_mtime_ns}:{st.st_size}"
-        k = _key(p)
-        if k in seen:
-            if seen[k] != sig:
-                out.append((p, sig))
-        elif now - st.st_mtime < SWEEP_WINDOW_S:
-            out.append((p, sig))
-    return out
-
-
-def _lesson_faults(cwd, path):
-    """check_lesson.py's own verdict on one lesson, as report lines.
-
-    Run in-process — this module already puts scripts/ on sys.path — so the
-    sweep costs no extra interpreter. stdout is captured because the Stop
-    channel is JSON and must not carry anything else.
-    """
-    import check_lesson  # pyright: ignore[reportMissingImports]
-
-    buf = io.StringIO()
-    with contextlib.redirect_stdout(buf):
-        rc = check_lesson.main(["check_lesson.py", path])
-    if not rc:
-        return []
-    lines = buf.getvalue().splitlines()
-    if not lines:  # rc 2: unreadable or unparseable, detail went to stderr
-        return [f"{_rel(cwd, path)}: check_lesson.py exited {rc}"]
-    return [ln.replace(path, _rel(cwd, path), 1) for ln in lines]
-
-
-def _unopened_ledger_faults(cwd, lesson_paths):
-    """Cold open built, no ledger line open, records it tests still due.
-
-    The mirror of the Stop gate, which fires only when a ledger IS open — so
-    today this half is silent: `score` has nothing to close, the learner's
-    paste has nowhere to land, and the due records stay overdue for good.
-    Self-clearing: a cold open already scored this turn left its records
-    not-due, so it does not report.
-    """
-    if parse_ledger_line(read_notes(cwd)) is not None:
-        return []
-    from check_lesson import (  # pyright: ignore[reportMissingImports]
-        cold_open_pairs,
-    )
-
-    due_nums = None
-    out = []
-    for p in lesson_paths:
-        try:
-            pairs = cold_open_pairs(find_cold_open_comment(read_text(p)))
-        except Exception:
-            continue  # unparseable lesson is _lesson_faults' report, not this
-        if not pairs:
-            continue
-        if due_nums is None:
-            due_nums = {
-                os.path.basename(r["path"])[:4]
-                for r in split_records(load_records(cwd))[2]
-            }
-        if any(rid[:4] in due_nums for _, rid in pairs):
-            rel = _rel(cwd, p)
-            out.append(
-                f"{rel}: cold open built but no ledger line is open — run "
-                f"`teach.py ledger {rel}`. Until then the result line cannot "
-                f"be scored and the records it tests stay overdue."
-            )
-    return out
-
-
-def _ledger_line_faults(cwd):
-    """A NOTES.md line that says 'unscored cold open' but no longer parses.
-
-    Silent by construction: parse_ledger_line cannot see it, so `state` reports
-    the ledger closed, the Stop gate goes quiet, and the cold open ceases to
-    exist. Nothing else anywhere says so.
-    """
-    out = []
-    for ln in read_notes(cwd).split("\n"):
-        s = ledger_body(ln)
-        if s.lower().startswith("unscored cold open") and not LEDGER_RE.match(
-            s
-        ):
-            out.append(
-                f"NOTES.md: ledger line does not parse: {s!r} — the shape is "
-                f"`unscored cold open: lessons/NNNN-slug.html tests NNNN-a, "
-                f"NNNN-b (asked: 0)`. Never hand-edit it; use `teach.py "
-                f"ledger`, `teach.py asked`, `teach.py score`."
-            )
-    return out
-
-
-def _record_faults(cwd, record_paths):
-    """A learning record with no `next:` loads clean, counts as active, and is
-    never due — so it is never retested and nothing reports it. Unlike a
-    malformed record, which load_records at least names on stderr."""
-    out = []
-    for p in record_paths:
-        try:
-            fm = parse_frontmatter(read_text(p))[0]
-        except (TeachError, OSError):
-            continue  # load_records already names unparseable records
-        if not fm.get("next", "").strip():
-            out.append(
-                f"{_rel(cwd, p)}: frontmatter has no `next:` — the record "
-                f"loads clean and counts as active, but never becomes due, so "
-                f"it is never retested. Add `next: YYYY-MM-DD`, `interval:` "
-                f"and `lapses:` (references/RECORDS.md)."
-            )
-    return out
-
-
-def sweep(cwd, seen, now):
-    """Every fault in the workspace worth blocking on, plus the signatures to
-    remember. Pure apart from reading the workspace — selfcheck drives it."""
-    lessons = _changed(
-        sorted(glob.glob(os.path.join(cwd, "lessons", "*.html"))), seen, now
-    )
-    records = _changed(
-        sorted(glob.glob(os.path.join(cwd, "learning-records", "*.md"))),
-        seen,
-        now,
-    )
-    notes = _changed([os.path.join(cwd, "NOTES.md")], seen, now)
-
-    faults = []
-    for p, _ in lessons:
-        faults += _lesson_faults(cwd, p)
-    faults += _unopened_ledger_faults(cwd, [p for p, _ in lessons])
-    faults += _record_faults(cwd, [p for p, _ in records])
-    if notes:
-        faults += _ledger_line_faults(cwd)
-    return faults, lessons + records + notes
-
-
-def event_stop_sweep(cwd, payload):
-    if payload.get("stop_hook_active"):
-        return 0
-    state_path = _plugin_data_path("swept.json")
-    if state_path is None:
-        # ASCII only: stderr goes to the raw console, cp1252 on Windows.
-        print(
-            "teach: CLAUDE_PLUGIN_DATA unset - workspace sweep disabled "
-            "(no signature file, cannot report a fault only once)",
-            file=sys.stderr,
-        )
-        return 0
-    try:
-        seen = json.loads(read_text(state_path))
-        if not isinstance(seen, dict):
-            seen = {}
-    except (OSError, ValueError):
-        seen = {}
-    faults, fresh = sweep(cwd, seen, time.time())
-    for p, sig in fresh:
-        seen[_key(p)] = sig
-    try:
-        write_text(state_path, json.dumps(seen))
-    except OSError:
-        # Mirrors the CLAUDE_PLUGIN_DATA-unset warning above: on write
-        # failure the "not report twice" guarantee breaks silently, so say
-        # so or faults re-report every turn with no hint why.
-        # ASCII only: stderr goes to the raw console, cp1252 on Windows.
-        print(
-            "teach: could not persist sweep state — faults may re-report",
-            file=sys.stderr,
-        )
-    if not faults:
-        return 0
-    shown = faults[:MAX_FAULTS]
-    msg = "teach: workspace check failed —\n" + "\n".join(shown)
-    if len(faults) > MAX_FAULTS:
-        msg += f"\n… and {len(faults) - MAX_FAULTS} more"
-    print(json.dumps({"decision": "block", "reason": msg}))
-    return 0
-
-
-def selfcheck():
-    """Exercise every sweep detector against a throwaway workspace, no payload.
-
-    The sweep never runs by hand — it needs a Stop event and a plugin data dir —
-    so this is the one runnable check that fails if a detector stops detecting.
-    Exit 0 only if every assertion passes.
-    """
-    import shutil
-    import tempfile
-
-    base = tempfile.mkdtemp(prefix="teach-sweep-")
-    fails = []
-
-    def want(name, got, ok):
-        if not ok:
-            fails.append(f"{name}: {got!r}")
-
-    try:
-        os.makedirs(os.path.join(base, "lessons"))
-        os.makedirs(os.path.join(base, "learning-records"))
-        write_text(
-            os.path.join(base, "learning-records", "0001-x.md"),
-            "---\nnext: 2020-01-01\ninterval: 1\nlapses: 0\n---\n\n# x\n",
-        )
-        write_text(
-            os.path.join(base, "learning-records", "0002-y.md"),
-            "---\ninterval: 1\nlapses: 0\n---\n\n# y\n",
-        )
-        # no lang attribute -> check_lesson reports a11y-lang
-        write_text(
-            os.path.join(base, "lessons", "0001-x.html"),
-            "<!doctype html><html><head><title>x</title></head><body>"
-            '<div class="cold-open"><!-- cold-open: 1=0001-x --></div>'
-            "</body></html>",
-        )
-
-        f = _lesson_faults(base, os.path.join(base, "lessons", "0001-x.html"))
-        want("lesson-invalid", f, any("a11y-lang" in x for x in f))
-
-        lessons = [os.path.join(base, "lessons", "0001-x.html")]
-        f = _unopened_ledger_faults(base, lessons)
-        want("ledger-unopened", f, len(f) == 1)
-
-        write_text(
-            os.path.join(base, "NOTES.md"),
-            "# Notes\n\n## Working notes\n\n- unscored cold open: "
-            "lessons/0001-x.html tests 0001-x (asked: 0)\n",
-        )
-        f = _unopened_ledger_faults(base, lessons)
-        want("ledger-open-silent", f, f == [])
-        f = _ledger_line_faults(base)
-        want("ledger-line-ok", f, f == [])
-
-        write_text(
-            os.path.join(base, "NOTES.md"),
-            "# Notes\n\n- unscored cold open: lessons/0001-x.html tests "
-            "0001-x asked 0\n",
-        )
-        f = _ledger_line_faults(base)
-        want("ledger-line-mangled", f, len(f) == 1)
-
-        recs = sorted(
-            glob.glob(os.path.join(base, "learning-records", "*.md"))
-        )
-        f = _record_faults(base, recs)
-        want("record-no-next", f, len(f) == 1 and "0002-y" in f[0])
-
-        # loop guard: a fault reported once must not report again unchanged
-        seen = {}
-        now = time.time()
-        first, fresh = sweep(base, seen, now)
-        want("sweep-reports", first, len(first) > 0)
-        for p, sig in fresh:
-            seen[_key(p)] = sig
-        second, _ = sweep(base, seen, now)
-        want("sweep-idempotent", second, second == [])
-
-        # cold start: a file older than the window is seeded, not reported
-        old = now - SWEEP_WINDOW_S - 60
-        for p in [*lessons, *recs, os.path.join(base, "NOTES.md")]:
-            os.utime(p, (old, old))
-        want("cold-start-quiet", None, sweep(base, {}, now)[0] == [])
-    finally:
-        shutil.rmtree(base, ignore_errors=True)
-
-    if fails:
-        for line in fails:
-            print(f"selfcheck FAIL {line}", file=sys.stderr)
-        sweep_rc = 1
-    else:
-        print("selfcheck OK")
-        sweep_rc = 0
-    gate_rc = selfcheck_gate()
-    return sweep_rc or gate_rc
-
-
-def selfcheck_gate():
-    """Drive event_stop through its state machine: arm -> block -> asked ->
-    silent -> score -> re-arm. tmpdir-based like the sweep selfcheck.
-
-    event_stop never runs by hand — it needs a Stop event and a guard file
-    under CLAUDE_PLUGIN_DATA — so this is the one runnable check that fails
-    if the gate stops gating. Exit 0 only if every assertion passes.
-    """
-    import shutil
-    import tempfile
-
-    base = tempfile.mkdtemp(prefix="teach-gate-")
-    fails = []
-
-    def want(name, got, ok):
-        if not ok:
-            fails.append(f"{name}: {got!r}")
-
-    old_pd = os.environ.get("CLAUDE_PLUGIN_DATA")
-    try:
-        os.environ["CLAUDE_PLUGIN_DATA"] = base
-        os.makedirs(os.path.join(base, "lessons"))
-        guard = os.path.join(base, "nagged.txt")
-
-        def write_ledger(asked):
-            line = (
-                f"unscored cold open: lessons/0001-x.html tests 0001-x "
-                f"(asked: {asked})"
-            )
-            write_text(
-                os.path.join(base, "NOTES.md"), f"# Notes\n\n- {line}\n"
-            )
-
-        def stop():
-            buf = io.StringIO()
-            with contextlib.redirect_stdout(buf):
-                rc = event_stop(base, {})
-            return rc, buf.getvalue()
-
-        # ship-turn arm: first Stop after the ledger opened -> arm, no block.
-        write_ledger(0)
-        rc, out = stop()
-        want("arm-rc", rc, rc == 0)
-        want("arm-silent", out, out == "")
-        want(
-            "arm-guard",
-            None,
-            os.path.isfile(guard)
-            and read_text(guard).strip() == "lessons/0001-x.html",
-        )
-
-        # second stop -> block, and guard flips to the nagged marker.
-        rc, out = stop()
-        want("block-rc", rc, rc == 0)
-        want("block-decision", out, '"block"' in out and '"reason"' in out)
-        want("block-guard", None, "nagged" in read_text(guard))
-
-        # asked -> silent: ledger now asked:1, guard already nagged, no block.
-        write_ledger(1)
-        rc, out = stop()
-        want("asked-silent", out, out == "")
-
-        # score -> ledger closed -> re-arm: guard removed, no block.
-        write_text(
-            os.path.join(base, "NOTES.md"), "# Notes\n\n- nothing open\n"
-        )
-        rc, out = stop()
-        want("rearmed-rc", rc, rc == 0)
-        want("rearmed-silent", out, out == "")
-        want("rearmed-guard-gone", None, not os.path.isfile(guard))
-    finally:
-        shutil.rmtree(base, ignore_errors=True)
-        if old_pd is None:
-            os.environ.pop("CLAUDE_PLUGIN_DATA", None)
-        else:
-            os.environ["CLAUDE_PLUGIN_DATA"] = old_pd
-
-    if fails:
-        for line in fails:
-            print(f"selfcheck_gate FAIL {line}", file=sys.stderr)
-        return 1
-    print("selfcheck_gate OK")
-    return 0
-
-
 def main(argv):
     p = argparse.ArgumentParser(
         prog="teach_hook.py", description="teach session hooks"
     )
-    p.add_argument(
-        "--event",
-        required=True,
-        choices=[
-            "session-start",
-            "session-end",
-            "stop",
-            "stop-sweep",
-            "selfcheck",
-        ],
-    )
+    p.add_argument("--event", required=True, choices=["session-start", "stop"])
     p.add_argument("--workspace", default=None)
     args = p.parse_args(argv[1:])
-    if args.event == "selfcheck":
-        return selfcheck()
 
     payload = {}
     if not sys.stdin.isatty():
@@ -792,11 +179,7 @@ def main(argv):
         return 0  # silent no-op outside a teach workspace
     try:
         if args.event == "session-start":
-            return event_session_start(cwd, payload)
-        if args.event == "session-end":
-            return event_session_end(cwd, payload)
-        if args.event == "stop-sweep":
-            return event_stop_sweep(cwd, payload)
+            return event_session_start(cwd)
         return event_stop(cwd, payload)
     # Exit 0 on every failure, never e.code: on Stop a non-zero exit is a block
     # whose message is stderr, so an unexpected parse or IO failure would turn

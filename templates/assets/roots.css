@@ -1,4 +1,4 @@
-/* teach-template-version: 24 */
+/* teach-template-version: 25 */
 :root {
   color-scheme: light;
   --paper: oklch(97% 0.008 85);
@@ -40,7 +40,7 @@
 /* Per-lesson accent — `<html data-accent="…">`. Hue only, so light, dark and
    print keep their own lightness and chroma and no rule here has to be
    restated per scheme. Closed set on purpose: a lesson pick a name, never a
-   value; a free colour in a lesson restate a token (TOKENS.md) and the course
+   value; a free colour in a lesson restate a token (DESIGN.md § Tokens) and the course
    stop reading as one course. --signal stay fixed — the route stop is
    identity, the accent is the lesson's own. */
 :root[data-accent='cobalt'] {
@@ -62,7 +62,7 @@
 /* Per-lesson density — `<html data-density="…">`. Section rhythm only;
    component padding (--s-1…4) stay fixed, so a compact lesson is a shorter
    page, not a different one. --measure never move: line length is a
-   typographic decision, not a density knob (TOKENS.md). */
+   typographic decision, not a density knob (DESIGN.md § Tokens). */
 :root[data-density='compact'] {
   --s-5: 2.25rem;
   --s-6: 3rem;
