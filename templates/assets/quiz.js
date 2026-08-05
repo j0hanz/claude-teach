@@ -1,12 +1,47 @@
 /* quiz.js — reusable quiz widget for a lesson. Self-contained, works on file://.
  * Markup contract and behaviour: skills/teach/references/COMPONENTS.md § Quiz.
- * teach-template-version: 20
+ * teach-template-version: 23
  */
 (function () {
   'use strict';
 
   const SEAL_KEY = 'teach:unsealed:' + location.pathname;
   const UNDO_MS = 3000;
+
+  // Every string the widget writes into a page, with its English default — the
+  // one place any of them live. Override with the matching attribute on .quiz
+  // for one quiz, or on <html> for the whole lesson: closest() takes the nearer
+  // one, so an existing per-quiz override still wins. A non-English course sets
+  // what it needs once beside lang and never forks the widget.
+  // Tabled in COMPONENTS.md § Quiz.
+  const DEFAULTS = {
+    'data-label': 'Cold open',
+    'data-undo-label': 'Undo',
+    'data-copied-label': 'Copied',
+    'data-copy-failed-label': 'Copy failed. Result selected; copy it manually.',
+    'data-copied-status': 'Result copied. Paste it into your next message to your teacher.',
+    'data-unsealed-label': 'Lesson unsealed.',
+    'data-progress-label': '{n} of {total} answered',
+    'data-scored-label': 'Scored. Schedule updated.',
+    'data-reconnect-label': 'Session restarted — reload this lesson to reconnect',
+    'data-score-failed-label':
+      'Scoring failed ({status}). Result saved locally — retry when the server is back.',
+    'data-network-failed-label':
+      'Network error. Result saved locally — retry when the server is back.',
+    'data-retry-label': 'Retry',
+    'data-confidence-legend': 'How sure are you, 1 to 5?',
+    'data-confidence-label': 'How sure?',
+    'data-confidence-option-label': '{n} out of 5',
+  };
+
+  // {name} slots fill from vals. A translated string carries its own slot
+  // positions — word order moves between languages, so the widget never
+  // concatenates fragments around a number.
+  const t = (from, attr, vals) => {
+    const src = from.closest('[' + attr + ']');
+    const s = (src && src.getAttribute(attr)) || DEFAULTS[attr];
+    return vals ? s.replace(/\{(\w+)\}/g, (_, k) => vals[k]) : s;
+  };
 
   const alreadyUnsealed = () => {
     try {
@@ -30,7 +65,7 @@
     const note = document.querySelector('.seal-note');
     if (!note) return;
     if (announce) {
-      note.textContent = note.getAttribute('data-unsealed-label') || 'Lesson unsealed.';
+      note.textContent = t(note, 'data-unsealed-label');
       note.classList.add('is-unsealed');
     } else note.remove();
   }
@@ -73,13 +108,13 @@
       ctx.copyText(
         ctx.line,
         ctx.copyBtn,
-        ctx.copiedLabel,
+        t(ctx.root, 'data-copied-label'),
         () => {
-          if (ctx.copyStatus) ctx.copyStatus.textContent = ctx.copiedStatus;
+          if (ctx.copyStatus) ctx.copyStatus.textContent = t(ctx.root, 'data-copied-status');
         },
         () => {
           ctx.selectResult();
-          if (ctx.copyStatus) ctx.copyStatus.textContent = ctx.copyFailedLabel;
+          if (ctx.copyStatus) ctx.copyStatus.textContent = t(ctx.root, 'data-copy-failed-label');
         },
       );
     });
@@ -95,7 +130,7 @@
       ctx.rememberUnsealed();
       clearPending();
       if (ctx.copyBtn) ctx.copyBtn.hidden = true;
-      ctx.root.appendChild(el('p', 'quiz-status', 'Scored. Schedule updated.', 'status'));
+      ctx.root.appendChild(el('p', 'quiz-status', t(ctx.root, 'data-scored-label'), 'status'));
       return resp.json().then((data) => {
         if (!data || !Array.isArray(data.schedule)) return;
         const block = el('div', 'quiz-schedule');
@@ -113,23 +148,21 @@
     }
     if (resp && resp.status === 401) {
       ctx.root.appendChild(
-        el('p', 'quiz-reconnect', 'Session restarted — reload this lesson to reconnect', 'status'),
+        el('p', 'quiz-reconnect', t(ctx.root, 'data-reconnect-label'), 'status'),
       );
       wireCopyFallback(ctx);
       return;
     }
     persistLine(ctx.line);
     const msg = resp
-      ? 'Scoring failed (' +
-        resp.status +
-        '). Result saved locally — retry when the server is back.'
-      : 'Network error. Result saved locally — retry when the server is back.';
+      ? t(ctx.root, 'data-score-failed-label', { status: resp.status })
+      : t(ctx.root, 'data-network-failed-label');
     const wrap = el('div', 'quiz-error', null, 'alert');
     wrap.appendChild(el('p', null, msg));
     const retry = document.createElement('button');
     retry.type = 'button';
     retry.className = 'quiz-retry';
-    retry.textContent = 'Retry';
+    retry.textContent = t(ctx.root, 'data-retry-label');
     retry.addEventListener('click', () => ctx.postScore());
     wrap.appendChild(retry);
     ctx.root.appendChild(wrap);
@@ -179,14 +212,7 @@
     const releases = root.getAttribute('data-releases');
     const confOn = root.getAttribute('data-confidence');
     const confVals = Array(items.length).fill(null);
-    const undoLabel = root.getAttribute('data-undo-label') || 'Undo';
-    const copiedLabel = root.getAttribute('data-copied-label') || 'Copied';
-    const copyFailedLabel =
-      root.getAttribute('data-copy-failed-label') ||
-      'Copy failed. Result selected; copy it manually.';
-    const copiedStatus =
-      root.getAttribute('data-copied-status') ||
-      'Result copied. Paste it into your next message to your teacher.';
+    const undoLabel = t(root, 'data-undo-label');
     let progressEl = null;
     const replay = !!releases && alreadyUnsealed();
     if (replay) unseal(releases);
@@ -200,7 +226,10 @@
     const updateProgress = () => {
       if (!progressEl) return;
       const answered = outcomes.filter((o) => o !== null).length;
-      progressEl.textContent = `${answered} of ${items.length} answered`;
+      progressEl.textContent = t(root, 'data-progress-label', {
+        n: answered,
+        total: items.length,
+      });
     };
 
     const selectResult = () => {
@@ -238,10 +267,10 @@
         const confWrap = document.createElement('div');
         confWrap.className = 'quiz-conf';
         confWrap.setAttribute('role', 'group');
-        confWrap.setAttribute('aria-label', 'How sure are you, 1 to 5?');
+        confWrap.setAttribute('aria-label', t(root, 'data-confidence-legend'));
         const confLabel = document.createElement('span');
         confLabel.className = 'quiz-conf-label';
-        confLabel.textContent = 'How sure?';
+        confLabel.textContent = t(root, 'data-confidence-label');
         confWrap.appendChild(confLabel);
         for (let c = 1; c <= 5; c++) {
           const cb = document.createElement('button');
@@ -249,7 +278,7 @@
           cb.className = 'quiz-conf-btn';
           cb.textContent = String(c);
           cb.setAttribute('aria-pressed', 'false');
-          cb.setAttribute('aria-label', c + ' out of 5');
+          cb.setAttribute('aria-label', t(root, 'data-confidence-option-label', { n: c }));
           cb.addEventListener('click', () => {
             if (item.hasAttribute('data-answered') || timer !== null) return;
             conf = c;
@@ -344,7 +373,7 @@
     });
 
     function finish() {
-      const label = root.getAttribute('data-label') || 'Cold open';
+      const label = t(root, 'data-label');
       const lesson = root.getAttribute('data-lesson');
       const head = lesson ? `${label} ${lesson}` : label;
       const line =
@@ -366,9 +395,6 @@
           copyStatus,
           copyText,
           selectResult,
-          copiedLabel,
-          copiedStatus,
-          copyFailedLabel,
           unseal,
           rememberUnsealed,
         };
@@ -400,13 +426,13 @@
           copyText(
             line,
             copyBtn,
-            copiedLabel,
+            t(root, 'data-copied-label'),
             () => {
-              if (copyStatus) copyStatus.textContent = copiedStatus;
+              if (copyStatus) copyStatus.textContent = t(root, 'data-copied-status');
             },
             () => {
               selectResult();
-              if (copyStatus) copyStatus.textContent = copyFailedLabel;
+              if (copyStatus) copyStatus.textContent = t(root, 'data-copy-failed-label');
             },
           );
         });

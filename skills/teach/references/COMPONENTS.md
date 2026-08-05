@@ -52,7 +52,7 @@ Stop 1 point at the cold open. Lesson with nothing due carry none (see below) �
 
 `.cold-open`, `--paper-2` calibration field, transit-blue top rule, fine frame. `COLD-OPEN-EYEBROW` and `COLD-OPEN-TITLE` label it, `COLD-OPEN-INTRO` is one plain sentence explaining answer-from-memory and the release condition. Hold quiz. Field span both column; what it hold stay bound to `--measure`, so cold-open quiz and practice quiz further down same lesson one component at one width, ✓ mark stay next to word it mark.
 
-**No due record, no cold open** ([SKILL.md](../SKILL.md) step 5). Then drop the whole `.cold-open` section and the `.seal-note` with it, drop `sealed`, `inert` and `data-seal-label` off `.lesson-content`, and re-anchor stop 1 per [Lesson route](#lesson-route). Half-dropping it is the failure: a sealed body with no quiz to release it is a lesson nobody can open, and `check_lesson.py` catch that pairing, not the missing anchor — the anchor is caught by `broken-anchor`.
+**No due record, no cold open** ([SKILL.md](../SKILL.md) step 5). Then drop the whole `.cold-open` section and the `.seal-note` with it, drop `sealed`, `inert` and `data-seal-label` off `.lesson-content`, and re-anchor stop 1 per [Lesson route](#lesson-route). Half-dropping it is the failure: a sealed body with no quiz to release it is a lesson nobody can open, and `check_lesson.py` fail it (`sealed-never-released`) — the missing anchor is a separate catch, `broken-anchor`.
 
 ## Lead
 
@@ -78,15 +78,31 @@ Shape only:
 
 Two to four `.quiz-btn` per item; count is the lesson's, `data-correct` a 0-based index into it, and `check_lesson.py` range-check the pair. Equal-width `.quiz-btn` option so formatting never leak answer (rule from [SKILL.md](../SKILL.md) `## Skills`; same character-count per option where possible). Right/wrong carry mono ✓/✗ mark plus border + tint — border colour and tint both colour, mark what keep state readable without it. Answered option carry `aria-disabled`: still focusable, mark stay reachable, but no longer offer action that do nothing. Result line and per-item feedback `role="status"`: both appear without focus moving, unannounced result line a result line screen-reader user never learn exist — so both start **empty and in tree**, and `quiz.js` fill them. Live region that arrive already full the case screen reader most often miss. `.quiz-fb` keep its `hidden` and authored text in markup, what a no-JS page need; init hoist that text into JS and empty element. Copy control must work on `file://` — no copy control, no spaced-repetition loop. This section quiz contract; [`templates/assets/quiz.js`](../../../templates/assets/quiz.js) implement it.
 
-**Labels.** `quiz.js` hold an English default for every string it write, each overridable by a `data-*` on `.quiz`, so a non-English lesson translate without touching the widget. Template spell out only `data-label`, the one that vary per lesson — restating a default in markup is a second copy that drift.
+**Labels.** Every string `quiz.js` write into a page live in one place — its `DEFAULTS` map — and every one take an override attribute. Put the attribute **on `<html>`** and it cover the whole lesson; put it on one `.quiz` and that quiz win, because the widget resolve with `closest()`. So a non-English course set what it need beside `lang` once, and never fork the widget.
 
-| Attribute                | Fills                                   | Default in `quiz.js`                                              |
-| ------------------------ | --------------------------------------- | ----------------------------------------------------------------- |
-| `data-label`             | head of the result line (`QUIZ-LABEL`)  | `Cold open`                                                       |
-| `data-undo-label`        | undo control; countdown append to it    | `Undo`                                                            |
-| `data-copied-label`      | copy control, briefly, after a copy     | `Copied`                                                          |
-| `data-copied-status`     | `.quiz-copy-status` after a copy        | `Result copied. Paste it into your next message to your teacher.` |
-| `data-copy-failed-label` | `.quiz-copy-status` after a failed copy | `Copy failed. Result selected; copy it manually.`                 |
+Restating a default in markup is a second copy that drift, so a lesson spell out only what it change. The template spell out one: `data-label`, which genuinely differ between a cold open and a practice quiz in the same lesson.
+
+| Attribute                      | Fills                                    | Default                                                                            |
+| ------------------------------ | ---------------------------------------- | ---------------------------------------------------------------------------------- |
+| `data-label`                   | head of the result line (`QUIZ-LABEL`)   | `Cold open`                                                                        |
+| `data-progress-label`          | `.quiz-progress`, any quiz past one item | `{n} of {total} answered`                                                          |
+| `data-undo-label`              | undo control; countdown append to it     | `Undo`                                                                             |
+| `data-copied-label`            | copy control, briefly, after a copy      | `Copied`                                                                           |
+| `data-copied-status`           | `.quiz-copy-status` after a copy         | `Result copied. Paste it into your next message to your teacher.`                  |
+| `data-copy-failed-label`       | `.quiz-copy-status` after a failed copy  | `Copy failed. Result selected; copy it manually.`                                  |
+| `data-unsealed-label`          | `.seal-note` once the body release       | `Lesson unsealed.`                                                                 |
+| `data-confidence-legend`       | `.quiz-conf` group name (screen-reader)  | `How sure are you, 1 to 5?`                                                        |
+| `data-confidence-label`        | `.quiz-conf-label`                       | `How sure?`                                                                        |
+| `data-confidence-option-label` | each `.quiz-conf-btn` name               | `{n} out of 5`                                                                     |
+| `data-scored-label`            | `.quiz-status` after the server score it | `Scored. Schedule updated.`                                                        |
+| `data-reconnect-label`         | `.quiz-reconnect` on a 401               | `Session restarted — reload this lesson to reconnect`                              |
+| `data-score-failed-label`      | `.quiz-error` on a non-2xx               | `Scoring failed ({status}). Result saved locally — retry when the server is back.` |
+| `data-network-failed-label`    | `.quiz-error` when the POST never land   | `Network error. Result saved locally — retry when the server is back.`             |
+| `data-retry-label`             | `.quiz-retry` control                    | `Retry`                                                                            |
+
+`{n}`, `{total}` and `{status}` fill from the widget. Keep the slot, move it where the sentence need it — a translation own its own word order, which is why the widget never glue a number onto a fragment.
+
+The last five only appear in serve mode ([SKILL.md](../SKILL.md) § Hooks); a `file://` lesson never show them.
 
 `teach.py score` key on the `NNNN-slug` at the end of the head, never on `data-label` words, so translating the label cannot break scoring.
 

@@ -615,9 +615,31 @@ def verify(type_, parser, css_blocks, html_dir, self_mode=False, html_name=""):
                     )
                 )
 
+        # A seal opens one way only: a quiz whose data-releases names it —
+        # quiz.js has no other path to it. A lesson that drops its cold open
+        # and leaves the body sealed is inert, blurred and unopenable, so the
+        # seal owes a releaser before the two checks below mean anything.
+        released = {q["releases"] for q in parser.quizzes if q["releases"]}
+        for sid in sorted(parser.sealed_ids - released):
+            errors.append(
+                (
+                    1,
+                    "sealed-never-released",
+                    f'"{sid}" carries class="sealed" but no quiz '
+                    f"data-releases it; nothing on the page can open it - "
+                    f"drop sealed/inert/data-seal-label with the cold open, "
+                    f"or add the cold open back",
+                )
+            )
+        # Both below are faults of a seal that a quiz does open. Run them over
+        # every sealed id and a lesson that correctly dropped its cold open
+        # gets told to add a .seal-note - the fix that produces a sealed lesson
+        # nobody can open, which is how this hole stayed green.
+        open_seals = parser.sealed_ids & released
+
         # a sealed body is inert and blurred until quiz.js releases it; with no
         # quiz.js on the page the lesson is unreadable and unrecoverable
-        if parser.sealed_ids and not any(
+        if open_seals and not any(
             os.path.basename(s.split("?")[0]) == "quiz.js"
             for _, s in parser.script_srcs
         ):
@@ -634,7 +656,7 @@ def verify(type_, parser, css_blocks, html_dir, self_mode=False, html_name=""):
         # inert prunes that subtree from the accessibility tree — without a
         # .seal-note outside the seal the instruction reaches nobody who
         # cannot see the blur (DESIGN.md § Signature)
-        if parser.sealed_ids and not parser.has_seal_note:
+        if open_seals and not parser.has_seal_note:
             errors.append(
                 (
                     1,

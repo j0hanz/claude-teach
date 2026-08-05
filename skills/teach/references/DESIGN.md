@@ -61,7 +61,7 @@ Quiet on purpose: faint veil, cobalt rule, small uppercase label. No confetti, n
 
 Learner who can predict page before it load stop reading it. Lesson 12 must not be lesson 1 with different word. Template carry no fixed lesson copy for that reason — what a lesson choose:
 
-- **Every string.** All copy arrive as [template argument](COMPONENTS.md#template-arguments), route stop label and section heading included. Course in another language translate shell once and reuse it; today `lang` is the only thing that could follow the learner.
+- **Every string.** All copy arrive as [template argument](COMPONENTS.md#template-arguments), route stop label and section heading included. The strings `quiz.js` write at runtime — progress count, undo, copy status, serve-mode errors — are not arguments but still not the widget's to keep: each take an override attribute, set once on `<html>` for the whole lesson ([COMPONENTS.md § Quiz](COMPONENTS.md#quiz)). Between the two, nothing English reach a non-English learner.
 - **Which optional component appear, and in what order** — `KNOWLEDGE-BLOCKS` and `SKILLS-BLOCKS` are free slots. Callout, figure, self-explanation, aside, worked example, practice quiz: order inside a section carry no meaning, so it is the lesson's. Gate the choice on record state (fading rule), never on variety for its own sake.
 - **Accent** — `<html data-accent>`, closed set of four hue name. Hue only: light, dark and print keep their own lightness.
 - **Density** — `<html data-density>`, section rhythm only. Short lesson breathe less, long lesson breathe more; component padding and `--measure` never move.
