@@ -1,8 +1,11 @@
 <!doctype html>
+<!-- {{QUIZ-STRINGS — course not in English? add every data-* override for the words quiz.js write
+to the html tag below, per references/COMPONENTS.md § Quiz. Then delete this comment; English
+course, delete it unfilled.}} -->
 <html
   lang="{{LANG}}"
-  data-accent="{{ACCENT — cobalt|teal|violet|plum; drop this attribute for cobalt}}"
-  data-density="{{DENSITY — compact|roomy; drop this attribute for the default}}"
+  data-accent="{{ACCENT — a name from TOKENS.md § Per-lesson hooks; drop this attribute for the default}}"
+  data-density="{{DENSITY — a name from TOKENS.md § Per-lesson hooks; drop this attribute for the default}}"
 >
   <head>
     <meta charset="utf-8" />
@@ -47,7 +50,9 @@
 
       <section class="cold-open" id="recall" aria-labelledby="recall-title">
         <!-- cold-open: 1={{RECORD-ID}} -->
-        <p class="eyebrow">{{COLD-OPEN-EYEBROW}}</p>
+        <p class="eyebrow">
+          {{COLD-OPEN-EYEBROW — optional; drop this whole p when the title carry it}}
+        </p>
         <h2 id="recall-title">{{COLD-OPEN-TITLE}}</h2>
         <p class="cold-open-intro">
           {{COLD-OPEN-INTRO — answer from memory, and what unlocks the lesson.}}
@@ -102,8 +107,8 @@
           ¹ <a href="{{URL}}">{{Author, Title}}</a> — {{one line on what it covers}}.
         </p>
         {{KNOWLEDGE-BLOCKS — optional components this lesson earns, in the order it earns them:
-        callout, figure, self-explanation reveal, aside, table. Gate density on record state.
-        Markup: references/COMPONENTS.md.}}
+        callout, figure, self-explanation reveal, aside, table, and one .sidenote per further
+        citation. Gate density on record state. Markup: references/COMPONENTS.md.}}
 
         <h2 id="skills">{{STOP-3}}</h2>
         {{SKILLS-BLOCKS — worked example (required for a procedural skill), parallel bare problem,
@@ -120,7 +125,7 @@
             >{{SYNTHESIS-TITLE}}
           </h2>
           <ul class="synthesis-points">
-            <li>{{core idea, one line}}</li>
+            <li>{{core idea, one line — 3 to 5 of these, one per idea}}</li>
             <li>{{core idea, one line}}</li>
             <li>{{core idea, one line}}</li>
           </ul>
@@ -137,7 +142,6 @@
           course home. Navigation only. Link shapes: references/COMPONENTS.md § Where next.}}
         </p>
         <p>{{FOLLOW-UP — one line inviting the question they have not asked yet.}}</p>
-        <p class="sidenote" id="n2">² <a href="{{URL}}">{{Author, Title}}</a> — {{one line}}.</p>
 
         <nav class="lesson-nav" aria-label="{{NAV-LABEL}}">
           <div class="lesson-nav-cell">

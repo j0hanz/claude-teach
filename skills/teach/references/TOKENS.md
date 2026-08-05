@@ -56,7 +56,9 @@ Two attribute on `<html>`, both optional, both a **name from a closed set** — 
 
 Attribute absent read as the default; a lesson that want the default drop the attribute rather than spell it. Density has no `default` name for that reason — the base `:root` is it, and a name would restate values that already live there.
 
-`check_lesson.py` read the allowed name straight out of the linked CSS and fail a lesson that use any other (`unknown-accent`, `unknown-density`) — a misspelt name would otherwise render the default and look correct. Add a name to `roots.css` and it is allowed; this table is documentation, never the source.
+`check_lesson.py` read the allowed name straight out of the linked CSS and fail a lesson that use any other (`unknown-accent`, `unknown-density`) — a misspelt name would otherwise render the default and look correct. Add a name to `roots.css` and it is allowed; this table is documentation, never the source, and the one table — template and [COMPONENTS.md](COMPONENTS.md#template-arguments) point here rather than restate the names, so a fifth copy cannot drift.
+
+`<html>` carry a third kind of hook that is no token: the `data-*` overrides for words `quiz.js` write, which the `QUIZ-STRINGS` slot above the tag exist to remind ([COMPONENTS.md § Quiz](COMPONENTS.md#quiz)). Same element, different layer — string, not value.
 
 `--signal` take no hook: vermilion mark route stop and release edge in every lesson, and that is course identity, not lesson choice.
 

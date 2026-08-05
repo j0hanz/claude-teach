@@ -11,34 +11,38 @@ Every component here is plain HTML + the shared stylesheet; nothing needs a new 
 - `{{UPPER-KEBAB}}` — **named argument**, table below. Wording is the lesson's, never the template's; that is what stop lesson 12 reading as lesson 1 with different words.
 - `{{lowercase prose}}` — fill-in guidance at point of use (a sidenote line, a synthesis point). Not named, not tabled.
 
+Argument marked _optional_ in the table drop with the element that hold it — that is the point of it, one fewer fixed line every lesson repeat. Every other one fill.
+
 Both gone from a finished lesson: `check_lesson.py` reject any surviving `{{` (`unfilled-placeholder`), except inside `<pre>`/`<code>`, where a lesson teaching a brace-syntax template language need them. What a lesson may vary beyond its copy — optional block choice and order, accent, density — and what it may not: [DESIGN.md § Variation](DESIGN.md#variation).
 
-| Argument                                                               | Slot                                 | Fill with                                                                                                                             |
-| ---------------------------------------------------------------------- | ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------- |
-| `LANG`                                                                 | `<html lang>`                        | BCP-47 tag of the language lesson written in                                                                                          |
-| `ACCENT`                                                               | `<html data-accent>`                 | `cobalt` (default), `teal`, `violet`, `plum` — [TOKENS.md § Per-lesson hooks](TOKENS.md#per-lesson-hooks); drop attribute for default |
-| `DENSITY`                                                              | `<html data-density>`                | `compact`, `roomy` — same reference; drop attribute for default                                                                       |
-| `TITLE`                                                                | `<title>`, `h1`                      | lesson title                                                                                                                          |
-| `TOPIC`                                                                | `<title>`                            | course topic                                                                                                                          |
-| `EYEBROW`                                                              | `.lesson-header .eyebrow`            | where lesson sit, e.g. `Lesson 4 · ownership`                                                                                         |
-| `LEAD`                                                                 | `.lead`                              | one thing lesson land — output of reconciling sources, not restatement of first                                                       |
-| `ROUTE-LABEL`                                                          | `.toc` `aria-label` + `.toc-eyebrow` | what the route is called; same string both slots                                                                                      |
-| `STOP-1`…`STOP-4`                                                      | route stops, and `h2` of section 2–4 | [Lesson route](#lesson-route)                                                                                                         |
-| `RECORD-ID`                                                            | `<!-- cold-open: … -->`              | `NNNN-slug` of record each item test — one pair per `.quiz-item`                                                                      |
-| `COLD-OPEN-EYEBROW`, `COLD-OPEN-TITLE`, `COLD-OPEN-INTRO`              | `.cold-open`                         | [Cold open](#cold-open)                                                                                                               |
-| `QUIZ-LABEL`                                                           | `.quiz` `data-label`                 | head of result line; free text, scoring key on the id that follow it                                                                  |
-| `LESSON-ID`                                                            | `.quiz` `data-lesson`                | own file stem, `NNNN-slug`                                                                                                            |
-| `QUESTION`, `OPT`, `FEEDBACK`                                          | `.quiz-item`                         | [Quiz](#quiz)                                                                                                                         |
-| `COPY-LABEL`                                                           | `.quiz-copy`                         | copy-control label                                                                                                                    |
-| `SEAL-NOTE`, `UNSEALED-LABEL`                                          | `.seal-note`                         | [DESIGN.md § Signature](DESIGN.md#signature--the-retrieval-gate)                                                                      |
-| `SEAL-LABEL`                                                           | `.lesson-content` `data-seal-label`  | the veil's own line                                                                                                                   |
-| `BODY`                                                                 | first `<p>` under Knowledge          | [SKILL.md](../SKILL.md) `## Knowledge` authoring rules                                                                                |
-| `URL`                                                                  | sidenote and body links              | citation target                                                                                                                       |
-| `KNOWLEDGE-BLOCKS`, `SKILLS-BLOCKS`                                    | after the Knowledge / Skills `h2`    | optional components this lesson earn, in the order it earn them                                                                       |
-| `SYNTHESIS-TITLE`, `SYNTHESIS-PROMPT`                                  | `.synthesis`                         | [Synthesis](#synthesis)                                                                                                               |
-| `WHERE-NEXT`, `FOLLOW-UP`                                              | Where next                           | [Where next](#where-next)                                                                                                             |
-| `NAV-LABEL`, `PREV-LABEL`, `NEXT-LABEL`                                | `.lesson-nav`                        | navigation labels                                                                                                                     |
-| `PREV-LESSON`, `PREV-LESSON-TITLE`, `NEXT-LESSON`, `NEXT-LESSON-TITLE` | `.lesson-nav`                        | neighbour file stem and title; no neighbour → drop that whole `.lesson-nav-cell`                                                      |
+| Argument                                                               | Slot                                 | Fill with                                                                                                                   |
+| ---------------------------------------------------------------------- | ------------------------------------ | --------------------------------------------------------------------------------------------------------------------------- |
+| `LANG`                                                                 | `<html lang>`                        | BCP-47 tag of the language lesson written in                                                                                |
+| `ACCENT`                                                               | `<html data-accent>`                 | a name from [TOKENS.md § Per-lesson hooks](TOKENS.md#per-lesson-hooks) — never a colour; drop attribute for default         |
+| `DENSITY`                                                              | `<html data-density>`                | a name from the same table; drop attribute for default                                                                      |
+| `QUIZ-STRINGS`                                                         | comment above `<html>`               | optional — the `data-*` overrides this lesson need for words `quiz.js` write ([Quiz](#quiz)) go on `<html>`; delete comment |
+| `TITLE`                                                                | `<title>`, `h1`                      | lesson title                                                                                                                |
+| `TOPIC`                                                                | `<title>`                            | course topic                                                                                                                |
+| `EYEBROW`                                                              | `.lesson-header .eyebrow`            | where lesson sit, e.g. `Lesson 4 · ownership`                                                                               |
+| `LEAD`                                                                 | `.lead`                              | one thing lesson land — output of reconciling sources, not restatement of first                                             |
+| `ROUTE-LABEL`                                                          | `.toc` `aria-label` + `.toc-eyebrow` | what the route is called; same string both slots                                                                            |
+| `STOP-1`…`STOP-4`                                                      | route stops, and `h2` of section 2–4 | [Lesson route](#lesson-route)                                                                                               |
+| `RECORD-ID`                                                            | `<!-- cold-open: … -->`              | `NNNN-slug` of record each item test — one pair per `.quiz-item`                                                            |
+| `COLD-OPEN-TITLE`, `COLD-OPEN-INTRO`                                   | `.cold-open`                         | [Cold open](#cold-open)                                                                                                     |
+| `COLD-OPEN-EYEBROW`                                                    | `.cold-open .eyebrow`                | optional — drop the `p` when the title carry it; [Cold open](#cold-open)                                                    |
+| `QUIZ-LABEL`                                                           | `.quiz` `data-label`                 | head of result line; free text, scoring key on the id that follow it                                                        |
+| `LESSON-ID`                                                            | `.quiz` `data-lesson`                | own file stem, `NNNN-slug`                                                                                                  |
+| `QUESTION`, `OPT`, `FEEDBACK`                                          | `.quiz-item`                         | [Quiz](#quiz)                                                                                                               |
+| `COPY-LABEL`                                                           | `.quiz-copy`                         | copy-control label                                                                                                          |
+| `SEAL-NOTE`, `UNSEALED-LABEL`                                          | `.seal-note`                         | [DESIGN.md § Signature](DESIGN.md#signature--the-retrieval-gate)                                                            |
+| `SEAL-LABEL`                                                           | `.lesson-content` `data-seal-label`  | the veil's own line — the only text the veil have, so a sealed body without it fail (`seal-label-missing`)                  |
+| `BODY`                                                                 | first `<p>` under Knowledge          | [SKILL.md](../SKILL.md) `## Knowledge` authoring rules                                                                      |
+| `URL`                                                                  | sidenote and body links              | citation target                                                                                                             |
+| `KNOWLEDGE-BLOCKS`, `SKILLS-BLOCKS`                                    | after the Knowledge / Skills `h2`    | optional components this lesson earn, in the order it earn them                                                             |
+| `SYNTHESIS-TITLE`, `SYNTHESIS-PROMPT`                                  | `.synthesis`                         | [Synthesis](#synthesis)                                                                                                     |
+| `WHERE-NEXT`, `FOLLOW-UP`                                              | Where next                           | [Where next](#where-next)                                                                                                   |
+| `NAV-LABEL`, `PREV-LABEL`, `NEXT-LABEL`                                | `.lesson-nav`                        | navigation labels                                                                                                           |
+| `PREV-LESSON`, `PREV-LESSON-TITLE`, `NEXT-LESSON`, `NEXT-LESSON-TITLE` | `.lesson-nav`                        | neighbour file stem and title; no neighbour → drop that whole `.lesson-nav-cell`                                            |
 
 ## Lesson route
 
@@ -50,7 +54,7 @@ Stop 1 point at the cold open. Lesson with nothing due carry none (see below) �
 
 ## Cold open
 
-`.cold-open`, `--paper-2` calibration field, transit-blue top rule, fine frame. `COLD-OPEN-EYEBROW` and `COLD-OPEN-TITLE` label it, `COLD-OPEN-INTRO` is one plain sentence explaining answer-from-memory and the release condition. Hold quiz. Field span both column; what it hold stay bound to `--measure`, so cold-open quiz and practice quiz further down same lesson one component at one width, ✓ mark stay next to word it mark.
+`.cold-open`, `--paper-2` calibration field, transit-blue top rule, fine frame. `COLD-OPEN-TITLE` label it — over an optional `COLD-OPEN-EYEBROW`, which drop with its `p` when the title already say where the block sit; three stacked label on one small field is the sameness this template exist to avoid. `COLD-OPEN-INTRO` is one plain sentence explaining answer-from-memory and the release condition. Hold quiz. Field span both column; what it hold stay bound to `--measure`, so cold-open quiz and practice quiz further down same lesson one component at one width, ✓ mark stay next to word it mark.
 
 **No due record, no cold open** ([SKILL.md](../SKILL.md) step 5). Then drop the whole `.cold-open` section and the `.seal-note` with it, drop `sealed`, `inert` and `data-seal-label` off `.lesson-content`, and re-anchor stop 1 per [Lesson route](#lesson-route). Half-dropping it is the failure: a sealed body with no quiz to release it is a lesson nobody can open, and `check_lesson.py` fail it (`sealed-never-released`) — the missing anchor is a separate catch, `broken-anchor`.
 
@@ -78,9 +82,9 @@ Shape only:
 
 Two to four `.quiz-btn` per item; count is the lesson's, `data-correct` a 0-based index into it, and `check_lesson.py` range-check the pair. Equal-width `.quiz-btn` option so formatting never leak answer (rule from [SKILL.md](../SKILL.md) `## Skills`; same character-count per option where possible). Right/wrong carry mono ✓/✗ mark plus border + tint — border colour and tint both colour, mark what keep state readable without it. Answered option carry `aria-disabled`: still focusable, mark stay reachable, but no longer offer action that do nothing. Result line and per-item feedback `role="status"`: both appear without focus moving, unannounced result line a result line screen-reader user never learn exist — so both start **empty and in tree**, and `quiz.js` fill them. Live region that arrive already full the case screen reader most often miss. `.quiz-fb` keep its `hidden` and authored text in markup, what a no-JS page need; init hoist that text into JS and empty element. Copy control must work on `file://` — no copy control, no spaced-repetition loop. This section quiz contract; [`templates/assets/quiz.js`](../../../templates/assets/quiz.js) implement it.
 
-**Labels.** Every string `quiz.js` write into a page live in one place — its `DEFAULTS` map — and every one take an override attribute. Put the attribute **on `<html>`** and it cover the whole lesson; put it on one `.quiz` and that quiz win, because the widget resolve with `closest()`. So a non-English course set what it need beside `lang` once, and never fork the widget.
+**Labels.** Every string `quiz.js` write into a page live in one place — its `DEFAULTS` map — and every one take an override attribute. Put the attribute **on `<html>`** and it cover the whole lesson; put it on one `.quiz` and that quiz win, because the widget resolve with `closest()`. So a non-English course set what it need beside `lang` once, and never fork the widget. The `QUIZ-STRINGS` comment above `<html>` is the reminder they exist: fill the attributes onto `<html>` and delete it, or delete it unfilled when the course is English — either way `check_lesson.py` catch a lesson that ignored it.
 
-Restating a default in markup is a second copy that drift, so a lesson spell out only what it change. The template spell out one: `data-label`, which genuinely differ between a cold open and a practice quiz in the same lesson.
+Restating a default in markup is a second copy that drift, so a lesson spell out only what it change. The template spell out two, both for a reason a default cannot cover: `data-label`, which genuinely differ between a cold open and a practice quiz in the same lesson, and `data-unsealed-label`, which carry the paste-back instruction the default (`Lesson unsealed.`) leave out — see [DESIGN.md § Signature](DESIGN.md#signature--the-retrieval-gate).
 
 | Attribute                      | Fills                                    | Default                                                                            |
 | ------------------------------ | ---------------------------------------- | ---------------------------------------------------------------------------------- |
@@ -215,7 +219,11 @@ The prompt is a retrieval nudge that feed the spaced-repetition loop. Keep "Wher
 </div>
 ```
 
-`data-type`: `note` (by-the-way), `tip` (optional better way), `warning` (common pitfall), `caution` (irreversible / data-loss). Left rule reuses `--accent`/`--signal`/`--wrong` by type; sans label, kept short. Cap one or two per lesson, never stacked, placed beside the content it qualify — visually distinct from citation sidenote (full-width block, not margin). Each callout carry a type-specific `<svg class="icon">` as the first child — `information-circle` (note), `light-bulb` (tip), `exclamation-triangle` (warning), `lock-closed` (caution) — decorative (`aria-hidden="true"`); adjacent text label and stripe color carry the meaning. Path data copy from heroicons/24/outline.
+`data-type`: `note` (by-the-way), `tip` (optional better way), `warning` (common pitfall), `caution` (irreversible / data-loss). Left rule reuses `--accent`/`--signal`/`--wrong` by type; sans label, kept short.
+
+Cap one or two per lesson, never stacked, placed beside the content it qualify — visually distinct from citation sidenote (full-width block, not margin). Each callout carry a type-specific `<svg class="icon">` as the first child — `information-circle` (note), `light-bulb` (tip), `exclamation-triangle` (warning), `lock-closed` (caution) — decorative (`aria-hidden="true"`); adjacent text label and stripe color carry the meaning. Path data copy from heroicons/24/outline.
+
+The printed label is the type name itself, so a bare `data-type` ship an English word into every callout. Add `data-callout-label="…"` and the lesson word win — a non-English course need it, and a lesson that want `Pitfall` over `Warning` may take it. Stripe colour and icon still key on `data-type`, so the type stay the type. Not plain `data-label`: `quiz.js` resolve that name through `closest()`, so a quiz inside the callout would take the callout word as its result-line head.
 
 ## Figure — diagram
 
@@ -253,6 +261,13 @@ Authoring discipline for lesson body, stated once so generated lesson stay consi
 LLM over-bold by default, so the rule is load-bearing for an AI author. The `.lead` is italic by stylesheet, not by author hand.
 
 ## Citations
+
+```html
+<p>…claim…<a class="cite" href="#n1">1</a></p>
+<p class="sidenote" id="n1">¹ <a href="…">Author, Title</a> — one line on what it covers.</p>
+```
+
+One `.sidenote` per citation, numbered in order, each right after the paragraph that cite it — the count is the lesson's, and the template ship exactly one as the shape. A lesson with six claims carry six; a Where next that cite nothing carry none there. Sidenote live inside `.lesson-content` ([DESIGN.md § Layout](DESIGN.md#layout)).
 
 Inline `a.cite` number real link to own `.sidenote` (`id="n1"`, `n2`, … in order); note itself sans, small, `--ink-soft`, hairline left rule, and a `<p>` rather than `<aside>` — aside here scoped to no sectioning element, so each note would land as own `complementary` landmark, finished lesson would bury `<main>` under dozen of them. `a.cite` take inline padding with cancelling negative margin: vertical padding on inline box don't touch line box, so tap target grow from 8px to something findable without pixel of reflow. Matter on phone, one place note moved away from claim it belong to. Beside paragraph, pairing obvious; on phone and paper note moved below claim, matching numeral only thing tying claim to source. `sup.cite` stay styled for lesson generated before link existed.
 

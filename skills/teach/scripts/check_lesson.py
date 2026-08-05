@@ -143,6 +143,7 @@ class DocParser(HTMLParser):
         self._css_cap = None
         self._css_line = 0
         self.sealed_ids = set()  # ids of elements carrying class="sealed"
+        self.labeled_seal_ids = set()  # ids carrying a filled data-seal-label
         self.inert_ids = set()  # ids of elements carrying the inert attribute
         self.has_seal_note = False  # a .seal-note sits outside the seal
         self.other_links = []  # (line, rel, href) — <link> that is not a stylesheet
@@ -170,12 +171,18 @@ class DocParser(HTMLParser):
             self.html_attrs = ad
         if ad.get("id"):
             self.ids.add(ad["id"])
-        for v in ad.values():
+        # names as well as values: a slot written bare in a start tag —
+        # `<div {{ATTRS}}>` — parses as an attribute name carrying no value,
+        # and scanning values alone shipped it to the learner unfilled.
+        for k, v in ad.items():
+            self._note_placeholder(line, k)
             self._note_placeholder(line, v)
         if "toc-stop" in cls:
             self.toc_stops += 1
         if "sealed" in cls and ad.get("id"):
             self.sealed_ids.add(ad["id"])
+        if ad.get("data-seal-label", "").strip() and ad.get("id"):
+            self.labeled_seal_ids.add(ad["id"])
         if "inert" in ad and ad.get("id"):
             self.inert_ids.add(ad["id"])
         cur_quiz = None
@@ -761,6 +768,19 @@ def _seal_errors(parser):
                 "sealed-no-quiz-script",
                 "lesson body is sealed but no quiz.js is linked; "
                 'add <script src="../assets/quiz.js"></script>',
+            )
+        )
+
+    # the veil renders attr(data-seal-label) and nothing else — the stylesheet
+    # keeps no English literal behind it — so a seal without that attribute is
+    # a blank veil over a lesson the learner cannot read past.
+    for sid in sorted(open_seals - parser.labeled_seal_ids):
+        errors.append(
+            (
+                1,
+                "seal-label-missing",
+                f'"{sid}" is sealed but carries no data-seal-label; the '
+                f"veil renders blank - add the lesson's own line for it",
             )
         )
 
