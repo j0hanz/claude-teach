@@ -66,7 +66,7 @@ Learner who can predict page before it load stop reading it. Lesson 12 must not 
 - **Accent** — `<html data-accent>`, closed set of four hue name. Hue only: light, dark and print keep their own lightness.
 - **Density** — `<html data-density>`, section rhythm only. Short lesson breathe less, long lesson breathe more; component padding and `--measure` never move.
 
-Both hooks in [TOKENS.md § Per-lesson hooks](TOKENS.md#per-lesson-hooks). Name, never value — a colour written into a lesson restate a token and the next edit to `roots.css` miss it.
+Both hooks in [TOKENS.md § Per-lesson hooks](TOKENS.md#per-lesson-hooks). Name, never value — a colour written into a lesson restate a token and the next edit to `roots.css` miss it. `check_lesson.py` take the allowed name from the linked stylesheet and fail any other (`unknown-accent`, `unknown-density`); an unknown name would otherwise fall back to the default and read as correct. Inline `<style>` does not widen the set — a lesson that define its own hue rule is the case this rule exist to stop.
 
 What never vary, because it _is_ the course:
 

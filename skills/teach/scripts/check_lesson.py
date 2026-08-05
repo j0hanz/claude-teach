@@ -79,6 +79,14 @@ def cold_open_faults(pairs):
     return faults
 
 
+# The per-lesson hooks are a closed set of names, and roots.css is where that
+# set lives (TOKENS.md § Per-lesson hooks). Read it back out of the CSS the page
+# actually links rather than restating it here — the set is already written down
+# in four prose places, and a fifth copy is a fifth thing to drift. An absent
+# attribute reads as the base :root, which is why no rule naming a "default"
+# exists to find.
+HOOK_RE = re.compile(r":root\[data-(accent|density)=['\"]([^'\"]+)['\"]\]")
+
 # An unfilled `{{…}}` slot from templates/lesson.html. Matched by shape, not by
 # name: the placeholder set is the template's, and a second list of names here
 # is a third place for it to drift. A lesson teaching Handlebars/Vue/Jinja
@@ -129,7 +137,7 @@ class DocParser(HTMLParser):
         self.link_hrefs = []  # (line, href)  — stylesheet links only
         self.media_srcs = []  # (line, tag, ref)
         self.anchor_hrefs = []  # (line, href)
-        self.html_lang = False
+        self.html_attrs = {}  # attributes on <html> — lang and the two hooks
         self.inline_css = []  # (line, text)
         self._stack = []  # nesting context for quiz/item association
         self._css_cap = None
@@ -156,8 +164,10 @@ class DocParser(HTMLParser):
         ad = {k: (v or "") for k, v in attrs}
         cls = set(ad.get("class", "").split())
         line = self.getpos()[0]
-        if tag == "html" and ad.get("lang"):
-            self.html_lang = True
+        # first <html> wins: a raw <html> in a markup sample further down must
+        # not clobber the real one and take lang with it
+        if tag == "html" and not self.html_attrs:
+            self.html_attrs = ad
         if ad.get("id"):
             self.ids.add(ad["id"])
         for v in ad.values():
@@ -272,9 +282,10 @@ def read_file(path):
         return f.read()
 
 
-def check_css(line, css, errors):
+def check_css(line, css):
     """Offline rules on one CSS block. Every block owes these independently —
     one remote reference anywhere breaks rendering with the cable out."""
+    errors = []
     if re.search(r"@import", css):
         errors.append(
             (line, "css-import", "remove @import; inline CSS in assets/")
@@ -283,9 +294,10 @@ def check_css(line, css, errors):
         errors.append(
             (line, "css-remote-url", "remove remote url(); use local assets/")
         )
+    return errors
 
 
-def check_quiz_css(line, css, errors):
+def check_quiz_css(css):
     """Quiz a11y rules, run once over every CSS block joined.
 
     These are properties of the stylesheet the page ends up with, not of any one
@@ -293,10 +305,15 @@ def check_quiz_css(line, css, errors):
     for a topic component, and push the model to duplicate tokens that live in
     exactly one place (TOKENS.md). Only a document that actually has a
     quiz owes them.
+
+    Reported against line 1 for the same reason: no single block owes them, and
+    the earlier line-of-the-first-block was whichever <style> or <link> happened
+    to sort first — never assets/styles.css, where the fix belongs.
     """
+    errors = []
     if not re.search(r"quiz-btn\s*:focus-visible", css):
         errors.append(
-            (line, "a11y-focus-visible", "add a .quiz-btn:focus-visible rule")
+            (1, "a11y-focus-visible", "add a .quiz-btn:focus-visible rule")
         )
     has_state_border = any(
         "[data-state" in block and re.search(r"\bborder", block)
@@ -305,11 +322,12 @@ def check_quiz_css(line, css, errors):
     if not has_state_border:
         errors.append(
             (
-                line,
+                1,
                 "a11y-state-border",
                 "use [data-state] with a border declaration, not color alone",
             )
         )
+    return errors
 
 
 def is_outside_assets(ref):
@@ -352,20 +370,23 @@ def resolve_local(html_dir, ref, self_mode):
 
 
 def verify(
-    doc_type, parser, css_blocks, html_dir, self_mode=False, html_name=""
+    doc_type, parser, linked_css, html_dir, self_mode=False, html_name=""
 ):
     """Every contract violation in a parsed document, as [(line, rule, fix)]."""
     errors = []
-    if not parser.html_lang:
+    if not parser.html_attrs.get("lang"):
         errors.append((1, "a11y-lang", "add a lang attribute to <html>"))
+    # Two views of the page's CSS, and the difference is load-bearing. The
+    # offline and a11y rules owe the whole of it, inline <style> included. The
+    # per-lesson hooks owe the linked sheets only: a lesson that writes its own
+    # :root[data-accent] rule inline is the case the closed set forbids, and
+    # reading it back would let that lesson approve itself.
+    css_blocks = linked_css + parser.inline_css
     for line, text in css_blocks:
-        check_css(line, text, errors)
+        errors += check_css(line, text)
     if parser.quizzes and css_blocks:
-        # reported against the first block, which is the linked stylesheet in
-        # every lesson built from the template — the place the fix belongs
-        check_quiz_css(
-            css_blocks[0][0], "\n".join(text for _, text in css_blocks), errors
-        )
+        errors += check_quiz_css("\n".join(text for _, text in css_blocks))
+    errors += _hook_errors(parser, "\n".join(t for _, t in linked_css))
     errors += _offline_errors(parser)
     errors += _missing_asset_errors(parser, html_dir, self_mode)
     errors += _anchor_errors(parser)
@@ -373,24 +394,63 @@ def verify(
         errors += _placeholder_errors(parser)
         errors += _broken_link_errors(parser, html_dir)
     if doc_type == "lesson":
-        # Stop labels are the lesson's own words; the route itself is the
-        # course skeleton (DESIGN.md § Variation). Four stops, always — a
-        # lesson free to drop one is a lesson that stop being this course.
-        if parser.toc_stops != 4:
-            errors.append(
-                (
-                    1,
-                    "route-four-stops",
-                    f"lesson route carry {parser.toc_stops} .toc-stop; must be "
-                    f"exactly 4 — label each stop as the lesson need, never "
-                    f"add or drop one",
-                )
-            )
+        errors += _route_errors(parser)
         errors += _quiz_errors(parser, self_mode, html_name)
         errors += _seal_errors(parser)
         if not self_mode:
             errors += _cold_open_comment_errors(parser)
     return errors
+
+
+def _hook_errors(parser, linked):
+    """A per-lesson hook naming something the linked stylesheets never define.
+
+    The lesson silently renders the default otherwise, which is the whole
+    failure: a lesson can pick `data-accent="cobolt"` and look correct. The
+    allowed names come from the stylesheet itself, so adding a fifth accent to
+    roots.css needs no edit here. Linked sheets only — see verify(). An
+    unreadable one finds no names at all, and _linked_css already reports that
+    as css-link, so stay quiet.
+    """
+    errors = []
+    allowed = {"accent": set(), "density": set()}
+    for hook, name in HOOK_RE.findall(linked):
+        allowed[hook].add(name)
+    for hook, names in allowed.items():
+        # empty attribute reads as absent, and an unfilled one is already
+        # reported as unfilled-placeholder
+        value = parser.html_attrs.get(f"data-{hook}", "").strip()
+        if not names or not value or "{{" in value:
+            continue
+        if value not in names:
+            errors.append(
+                (
+                    1,
+                    f"unknown-{hook}",
+                    f'<html data-{hook}="{value}"> names no rule in the '
+                    f"linked CSS; use one of "
+                    f"{', '.join(sorted(names))}, or drop the attribute "
+                    f"for the default",
+                )
+            )
+    return errors
+
+
+def _route_errors(parser):
+    """Stop labels are the lesson's own words; the route itself is the course
+    skeleton (DESIGN.md § Variation). Four stops, always — a lesson free to
+    drop one is a lesson that stop being this course."""
+    if parser.toc_stops == 4:
+        return []
+    return [
+        (
+            1,
+            "route-four-stops",
+            f"lesson route carry {parser.toc_stops} .toc-stop; must be "
+            f"exactly 4 — label each stop as the lesson need, never "
+            f"add or drop one",
+        )
+    ]
 
 
 def _offline_errors(parser):
@@ -441,7 +501,7 @@ def _offline_errors(parser):
 
 def _missing_asset_errors(parser, html_dir, self_mode):
     """Local refs that point nowhere — the same failure as no ref at all,
-    and on file:// it fails silently. Stylesheets are excluded: _collect_css
+    and on file:// it fails silently. Stylesheets are excluded: _linked_css
     already reports an unreadable one as css-link."""
     errors = []
     for line, src in parser.script_srcs:
@@ -816,13 +876,13 @@ def main(argv):
         return 2
 
     html_dir = os.path.dirname(os.path.abspath(path))
-    css_blocks, errors = _collect_css(parser, html_dir, self_mode)
+    linked, errors = _linked_css(parser, html_dir, self_mode)
 
     errors.extend(
         verify(
             doc_type,
             parser,
-            css_blocks,
+            linked,
             html_dir,
             self_mode,
             os.path.basename(path),
@@ -839,11 +899,12 @@ def main(argv):
     return 0
 
 
-def _collect_css(parser, html_dir, self_mode):
-    """Every CSS block the page ends up with, as ([(line, text), ...], errors):
-    linked stylesheets resolved against the HTML dir, then inline <style>."""
+def _linked_css(parser, html_dir, self_mode):
+    """The page's linked stylesheets, as ([(line, text), ...], errors),
+    resolved against the HTML dir. Inline <style> is already on the parser;
+    verify() joins the two, and keeps them apart where that matters."""
     errors = []
-    css_blocks = list(parser.inline_css)
+    css_blocks = []
     for line, href in parser.link_hrefs:
         p = href.split("#")[0].split("?")[0]
         if p.startswith(("http://", "https://", "//")):

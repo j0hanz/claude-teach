@@ -52,9 +52,11 @@ Two attribute on `<html>`, both optional, both a **name from a closed set** — 
 | Attribute      | Values                                       | Moves                                                                                 |
 | -------------- | -------------------------------------------- | ------------------------------------------------------------------------------------- |
 | `data-accent`  | `cobalt` (default), `teal`, `violet`, `plum` | `--accent-h`, and so `--accent` (and `--accent-bg` in dark, where the tint carry hue) |
-| `data-density` | `default`, `compact`, `roomy`                | `--s-5`, `--s-6`, `--s-7` — section rhythm                                            |
+| `data-density` | `compact`, `roomy`                           | `--s-5`, `--s-6`, `--s-7` — section rhythm                                            |
 
-Attribute absent read as the default; a lesson that want the default drop the attribute rather than spell it.
+Attribute absent read as the default; a lesson that want the default drop the attribute rather than spell it. Density has no `default` name for that reason — the base `:root` is it, and a name would restate values that already live there.
+
+`check_lesson.py` read the allowed name straight out of the linked CSS and fail a lesson that use any other (`unknown-accent`, `unknown-density`) — a misspelt name would otherwise render the default and look correct. Add a name to `roots.css` and it is allowed; this table is documentation, never the source.
 
 `--signal` take no hook: vermilion mark route stop and release edge in every lesson, and that is course identity, not lesson choice.
 
