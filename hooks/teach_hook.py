@@ -45,6 +45,7 @@ from teach import (  # noqa: E402  # pyright: ignore[reportMissingImports]
     find_cold_open_comment,
     is_workspace,
     kill_pid,
+    ledger_body,
     load_records,
     mission_status,
     parse_frontmatter,
@@ -380,9 +381,7 @@ def _ledger_line_faults(cwd):
     """
     out = []
     for ln in read_notes(cwd).split("\n"):
-        s = ln.strip()
-        if s.startswith("- "):
-            s = s[2:].strip()
+        s = ledger_body(ln)
         if s.lower().startswith("unscored cold open") and not LEDGER_RE.match(
             s
         ):

@@ -98,8 +98,9 @@
     return node;
   };
 
-  // copy-button paste fallback, identical to the file:// path: reuse the
-  // shared copyText + selectResult + labels carried in ctx.
+  // The copy-button paste flow, for both routes that need it: file://, where
+  // there is no server to POST to, and a 401 after the serve token went stale.
+  // Everything it touches rides on ctx.
   const wireCopyFallback = (ctx) => {
     if (!ctx.copyBtn) return;
     ctx.copyBtn.hidden = false;
@@ -383,21 +384,21 @@
           .map((o, i) => `${i + 1} ${o}${confVals[i] != null ? '/' + confVals[i] : ''}`)
           .join(', ');
       if (resultEl) resultEl.textContent = line;
+      const ctx = {
+        root,
+        releases,
+        replay,
+        line,
+        resultEl,
+        copyBtn,
+        copyStatus,
+        copyText,
+        selectResult,
+        unseal,
+        rememberUnsealed,
+      };
       const serveMode = !!(window.__TEACH_SERVE && window.__TEACH_TOKEN);
       if (serveMode) {
-        const ctx = {
-          root,
-          releases,
-          replay,
-          line,
-          resultEl,
-          copyBtn,
-          copyStatus,
-          copyText,
-          selectResult,
-          unseal,
-          rememberUnsealed,
-        };
         const payload = JSON.stringify({
           lesson: root.getAttribute('data-lesson'),
           line: line,
@@ -419,24 +420,7 @@
         postScore();
         return;
       }
-      if (copyBtn && releases && !replay) {
-        copyBtn.hidden = false;
-        copyBtn.addEventListener('click', () => {
-          if (copyStatus) copyStatus.textContent = '';
-          copyText(
-            line,
-            copyBtn,
-            t(root, 'data-copied-label'),
-            () => {
-              if (copyStatus) copyStatus.textContent = t(root, 'data-copied-status');
-            },
-            () => {
-              selectResult();
-              if (copyStatus) copyStatus.textContent = t(root, 'data-copy-failed-label');
-            },
-          );
-        });
-      }
+      if (releases && !replay) wireCopyFallback(ctx);
       if (releases) {
         unseal(releases, true);
         rememberUnsealed();

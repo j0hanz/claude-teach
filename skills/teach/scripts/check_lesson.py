@@ -298,16 +298,18 @@ def check_quiz_css(line, css, errors):
         errors.append(
             (line, "a11y-focus-visible", "add a .quiz-btn:focus-visible rule")
         )
-    for block in re.split(r"\}", css):
-        if "[data-state" in block and re.search(r"\bborder", block):
-            return
-    errors.append(
-        (
-            line,
-            "a11y-state-border",
-            "use [data-state] with a border declaration, not color alone",
-        )
+    has_state_border = any(
+        "[data-state" in block and re.search(r"\bborder", block)
+        for block in re.split(r"\}", css)
     )
+    if not has_state_border:
+        errors.append(
+            (
+                line,
+                "a11y-state-border",
+                "use [data-state] with a border declaration, not color alone",
+            )
+        )
 
 
 def is_outside_assets(ref):
@@ -349,7 +351,10 @@ def resolve_local(html_dir, ref, self_mode):
     return full
 
 
-def verify(type_, parser, css_blocks, html_dir, self_mode=False, html_name=""):
+def verify(
+    doc_type, parser, css_blocks, html_dir, self_mode=False, html_name=""
+):
+    """Every contract violation in a parsed document, as [(line, rule, fix)]."""
     errors = []
     if not parser.html_lang:
         errors.append((1, "a11y-lang", "add a lang attribute to <html>"))
@@ -361,6 +366,36 @@ def verify(type_, parser, css_blocks, html_dir, self_mode=False, html_name=""):
         check_quiz_css(
             css_blocks[0][0], "\n".join(text for _, text in css_blocks), errors
         )
+    errors += _offline_errors(parser)
+    errors += _missing_asset_errors(parser, html_dir, self_mode)
+    errors += _anchor_errors(parser)
+    if not self_mode:
+        errors += _placeholder_errors(parser)
+        errors += _broken_link_errors(parser, html_dir)
+    if doc_type == "lesson":
+        # Stop labels are the lesson's own words; the route itself is the
+        # course skeleton (DESIGN.md § Variation). Four stops, always — a
+        # lesson free to drop one is a lesson that stop being this course.
+        if parser.toc_stops != 4:
+            errors.append(
+                (
+                    1,
+                    "route-four-stops",
+                    f"lesson route carry {parser.toc_stops} .toc-stop; must be "
+                    f"exactly 4 — label each stop as the lesson need, never "
+                    f"add or drop one",
+                )
+            )
+        errors += _quiz_errors(parser, self_mode, html_name)
+        errors += _seal_errors(parser)
+        if not self_mode:
+            errors += _cold_open_comment_errors(parser)
+    return errors
+
+
+def _offline_errors(parser):
+    """Refs that reach the network — a lesson must render with the cable out."""
+    errors = []
     for line, src in parser.script_srcs:
         if is_outside_assets(src):
             errors.append(
@@ -401,9 +436,14 @@ def verify(type_, parser, css_blocks, html_dir, self_mode=False, html_name=""):
                     f"into assets/ or drop it",
                 )
             )
-    # a ref that points nowhere is the same failure as no ref at all, and on
-    # file:// it fails silently. Stylesheets are excluded: main() already
-    # reports an unreadable one as css-link.
+    return errors
+
+
+def _missing_asset_errors(parser, html_dir, self_mode):
+    """Local refs that point nowhere — the same failure as no ref at all,
+    and on file:// it fails silently. Stylesheets are excluded: _collect_css
+    already reports an unreadable one as css-link."""
+    errors = []
     for line, src in parser.script_srcs:
         target = resolve_local(html_dir, src, self_mode)
         if target and not os.path.isfile(target):
@@ -421,9 +461,14 @@ def verify(type_, parser, css_blocks, html_dir, self_mode=False, html_name=""):
             errors.append(
                 (line, "missing-asset", f'<{tag}> src "{ref}" does not exist')
             )
-    # an in-page jump resolve against this document, so it is checkable in both
-    # modes. Route stop 1 pointing at a #recall a lesson dropped with its cold
-    # open is the case this catch — resolve_local never sees a fragment-only ref.
+    return errors
+
+
+def _anchor_errors(parser):
+    """In-page jumps that land on no id. Checkable in both modes, since they
+    resolve against this document — route stop 1 pointing at a #recall the
+    lesson dropped with its cold open is the case this catches."""
+    errors = []
     for line, href in parser.anchor_hrefs:
         if (
             href.startswith("#")
@@ -438,269 +483,276 @@ def verify(type_, parser, css_blocks, html_dir, self_mode=False, html_name=""):
                     f'link target "{href}" matches no id on this page',
                 )
             )
-    if not self_mode:
-        # the template is all placeholders; a lesson that still carry one ship
-        # the slot to the learner
-        for line, snippet in parser.placeholders:
+    return errors
+
+
+def _placeholder_errors(parser):
+    """Template slots left unfilled — the template is all placeholders, and a
+    lesson that still carries one ships the slot to the learner."""
+    errors = []
+    for line, snippet in parser.placeholders:
+        errors.append(
+            (
+                line,
+                "unfilled-placeholder",
+                f'template slot "{{{{{snippet}" left unfilled; '
+                f"fill it or drop the block",
+            )
+        )
+    return errors
+
+
+def _broken_link_errors(parser, html_dir):
+    """Cross-links between lessons and reference docs are a completion
+    criterion; external citation links are left alone by resolve_local.
+    Never runs in --self, so resolve_local's sibling fallback stays off."""
+    errors = []
+    for line, href in parser.anchor_hrefs:
+        target = resolve_local(html_dir, href, self_mode=False)
+        if target and not os.path.isfile(target):
             errors.append(
                 (
                     line,
-                    "unfilled-placeholder",
-                    f'template slot "{{{{{snippet}" left unfilled; '
-                    f"fill it or drop the block",
+                    "broken-link",
+                    f'link target "{href}" does not exist',
                 )
             )
-        # cross-links between lessons and reference docs are a completion
-        # criterion; external citation links are left alone by resolve_local
-        for line, href in parser.anchor_hrefs:
-            target = resolve_local(html_dir, href, self_mode)
-            if target and not os.path.isfile(target):
-                errors.append(
-                    (
-                        line,
-                        "broken-link",
-                        f'link target "{href}" does not exist',
-                    )
-                )
-    if type_ == "lesson":
-        # Stop labels are the lesson's own words; the route itself is the
-        # course skeleton (DESIGN.md § Variation). Four stops, always — a
-        # lesson free to drop one is a lesson that stop being this course.
-        if parser.toc_stops != 4:
+    return errors
+
+
+def _quiz_errors(parser, self_mode, html_name):
+    """Every quiz on the page against the markup contract, cold-open rules
+    included (COMPONENTS.md § Quiz)."""
+    errors = []
+    stem = os.path.splitext(html_name)[0] if html_name else ""
+    for q in parser.quizzes:
+        if not q["items"]:
             errors.append(
                 (
-                    1,
-                    "route-four-stops",
-                    f"lesson route carry {parser.toc_stops} .toc-stop; must be "
-                    f"exactly 4 — label each stop as the lesson need, never "
-                    f"add or drop one",
+                    q["line"],
+                    "quiz-no-items",
+                    "quiz has no .quiz-item; add at least one",
                 )
             )
-        for q in parser.quizzes:
-            if not q["items"]:
-                errors.append(
-                    (
-                        q["line"],
-                        "quiz-no-items",
-                        "quiz has no .quiz-item; add at least one",
-                    )
-                )
-            # max 3 is a cold-open rule (SKILL.md step 5: one item per due
-            # record, at most three). A skills practice quiz is uncapped.
-            if id(q) in parser.cold_open_quizzes and len(q["items"]) > 3:
-                errors.append(
-                    (
-                        q["line"],
-                        "quiz-item-cap",
-                        f"{len(q['items'])} .quiz-item in the cold "
-                        f"open; max 3 (one per due record)",
-                    )
-                )
-            if not q["has_result"]:
-                errors.append(
-                    (
-                        q["line"],
-                        "quiz-result-missing",
-                        "add a .quiz-result element inside .quiz",
-                    )
-                )
-            if q["result_hidden"]:
-                errors.append(
-                    (
-                        q["line"],
-                        "quiz-result-hidden",
-                        ".quiz-result must not carry hidden; quiz.js never "
-                        "unhides it, so the learner never sees the line to "
-                        "paste back and the cold open can never be scored",
-                    )
-                )
-            # only a cold open produces a line worth pasting back; a practice
-            # quiz offering "Copy result" invites a paste against the wrong ledger
-            if id(q) in parser.cold_open_quizzes and not q["has_copy"]:
-                errors.append(
-                    (
-                        q["line"],
-                        "quiz-copy-missing",
-                        "add a .quiz-copy button inside the cold-open .quiz",
-                    )
-                )
-            for it in q["items"]:
-                try:
-                    c = int(it["correct"])
-                except (TypeError, ValueError):
-                    errors.append(
-                        (
-                            it["line"],
-                            "quiz-correct-range",
-                            f'data-correct="{it["correct"]}" must be an integer index',
-                        )
-                    )
-                    continue
-                if c < 0 or c >= it["options"]:
-                    errors.append(
-                        (
-                            it["line"],
-                            "quiz-correct-range",
-                            f"data-correct={c} exceeds {it['options']} options; "
-                            f"use 0..{it['options'] - 1}",
-                        )
-                    )
-            if q["releases"] and q["releases"] not in parser.ids:
-                errors.append(
-                    (
-                        q["line"],
-                        "quiz-releases-target",
-                        f'data-releases="{q["releases"]}" — no element id matches',
-                    )
-                )
-            if id(q) in parser.cold_open_quizzes and not q["releases"]:
-                errors.append(
-                    (
-                        q["line"],
-                        "quiz-cold-open-no-releases",
-                        "cold-open quiz must have data-releases pointing at the .sealed lesson body",
-                    )
-                )
-            if id(q) in parser.cold_open_quizzes and not q["lesson"]:
-                errors.append(
-                    (
-                        q["line"],
-                        "cold-open-no-lesson-id",
-                        'cold-open quiz must carry data-lesson="NNNN-slug"; without it '
-                        "the result line cannot be matched to the open ledger",
-                    )
-                )
-            stem = os.path.splitext(html_name)[0] if html_name else ""
-            if (
-                not self_mode
-                and stem
-                and q["lesson"]
-                and id(q) in parser.cold_open_quizzes
-                and q["lesson"] != stem
-            ):
-                errors.append(
-                    (
-                        q["line"],
-                        "cold-open-lesson-mismatch",
-                        f'data-lesson="{q["lesson"]}" does not match the file name '
-                        f'"{stem}"; the result line would be scored against the '
-                        f"wrong lesson",
-                    )
-                )
-            if (
-                q["releases"]
-                and q["releases"] in parser.ids
-                and q["releases"] not in parser.sealed_ids
-            ):
-                errors.append(
-                    (
-                        q["line"],
-                        "quiz-releases-not-sealed",
-                        f'data-releases="{q["releases"]}" target must carry class="sealed"',
-                    )
-                )
-            # blur seals the gate for the eye only — inert is what holds it for
-            # keyboard and screen-reader users. quiz.js drops both on release.
-            if (
-                q["releases"]
-                and q["releases"] in parser.sealed_ids
-                and q["releases"] not in parser.inert_ids
-            ):
-                errors.append(
-                    (
-                        q["line"],
-                        "quiz-releases-not-inert",
-                        f'data-releases="{q["releases"]}" target must also carry inert '
-                        f"— .sealed alone leaves the body tabbable and read aloud",
-                    )
-                )
-
-        # A seal opens one way only: a quiz whose data-releases names it —
-        # quiz.js has no other path to it. A lesson that drops its cold open
-        # and leaves the body sealed is inert, blurred and unopenable, so the
-        # seal owes a releaser before the two checks below mean anything.
-        released = {q["releases"] for q in parser.quizzes if q["releases"]}
-        for sid in sorted(parser.sealed_ids - released):
+        # max 3 is a cold-open rule (SKILL.md step 5: one item per due
+        # record, at most three). A skills practice quiz is uncapped.
+        if id(q) in parser.cold_open_quizzes and len(q["items"]) > 3:
             errors.append(
                 (
-                    1,
-                    "sealed-never-released",
-                    f'"{sid}" carries class="sealed" but no quiz '
-                    f"data-releases it; nothing on the page can open it - "
-                    f"drop sealed/inert/data-seal-label with the cold open, "
-                    f"or add the cold open back",
+                    q["line"],
+                    "quiz-item-cap",
+                    f"{len(q['items'])} .quiz-item in the cold "
+                    f"open; max 3 (one per due record)",
                 )
             )
-        # Both below are faults of a seal that a quiz does open. Run them over
-        # every sealed id and a lesson that correctly dropped its cold open
-        # gets told to add a .seal-note - the fix that produces a sealed lesson
-        # nobody can open, which is how this hole stayed green.
-        open_seals = parser.sealed_ids & released
-
-        # a sealed body is inert and blurred until quiz.js releases it; with no
-        # quiz.js on the page the lesson is unreadable and unrecoverable
-        if open_seals and not any(
-            os.path.basename(s.split("?")[0]) == "quiz.js"
-            for _, s in parser.script_srcs
+        if not q["has_result"]:
+            errors.append(
+                (
+                    q["line"],
+                    "quiz-result-missing",
+                    "add a .quiz-result element inside .quiz",
+                )
+            )
+        if q["result_hidden"]:
+            errors.append(
+                (
+                    q["line"],
+                    "quiz-result-hidden",
+                    ".quiz-result must not carry hidden; quiz.js never "
+                    "unhides it, so the learner never sees the line to "
+                    "paste back and the cold open can never be scored",
+                )
+            )
+        # only a cold open produces a line worth pasting back; a practice
+        # quiz offering "Copy result" invites a paste against the wrong ledger
+        if id(q) in parser.cold_open_quizzes and not q["has_copy"]:
+            errors.append(
+                (
+                    q["line"],
+                    "quiz-copy-missing",
+                    "add a .quiz-copy button inside the cold-open .quiz",
+                )
+            )
+        for it in q["items"]:
+            try:
+                c = int(it["correct"])
+            except (TypeError, ValueError):
+                errors.append(
+                    (
+                        it["line"],
+                        "quiz-correct-range",
+                        f'data-correct="{it["correct"]}" must be an integer index',
+                    )
+                )
+                continue
+            if c < 0 or c >= it["options"]:
+                errors.append(
+                    (
+                        it["line"],
+                        "quiz-correct-range",
+                        f"data-correct={c} exceeds {it['options']} options; "
+                        f"use 0..{it['options'] - 1}",
+                    )
+                )
+        if q["releases"] and q["releases"] not in parser.ids:
+            errors.append(
+                (
+                    q["line"],
+                    "quiz-releases-target",
+                    f'data-releases="{q["releases"]}" — no element id matches',
+                )
+            )
+        if id(q) in parser.cold_open_quizzes and not q["releases"]:
+            errors.append(
+                (
+                    q["line"],
+                    "quiz-cold-open-no-releases",
+                    "cold-open quiz must have data-releases pointing at the .sealed lesson body",
+                )
+            )
+        if id(q) in parser.cold_open_quizzes and not q["lesson"]:
+            errors.append(
+                (
+                    q["line"],
+                    "cold-open-no-lesson-id",
+                    'cold-open quiz must carry data-lesson="NNNN-slug"; without it '
+                    "the result line cannot be matched to the open ledger",
+                )
+            )
+        if (
+            not self_mode
+            and stem
+            and q["lesson"]
+            and id(q) in parser.cold_open_quizzes
+            and q["lesson"] != stem
         ):
             errors.append(
                 (
-                    1,
-                    "sealed-no-quiz-script",
-                    "lesson body is sealed but no quiz.js is linked; "
-                    'add <script src="../assets/quiz.js"></script>',
+                    q["line"],
+                    "cold-open-lesson-mismatch",
+                    f'data-lesson="{q["lesson"]}" does not match the file name '
+                    f'"{stem}"; the result line would be scored against the '
+                    f"wrong lesson",
                 )
             )
-
-        # the seal's own label is CSS content inside the inert subtree, and
-        # inert prunes that subtree from the accessibility tree — without a
-        # .seal-note outside the seal the instruction reaches nobody who
-        # cannot see the blur (DESIGN.md § Signature)
-        if open_seals and not parser.has_seal_note:
+        if (
+            q["releases"]
+            and q["releases"] in parser.ids
+            and q["releases"] not in parser.sealed_ids
+        ):
             errors.append(
                 (
-                    1,
-                    "seal-note-missing",
-                    "lesson body is sealed but no .seal-note element exists; "
-                    'add <p class="seal-note" role="status">…</p> as a '
-                    "sibling of the cold-open quiz, outside the seal",
+                    q["line"],
+                    "quiz-releases-not-sealed",
+                    f'data-releases="{q["releases"]}" target must carry class="sealed"',
                 )
             )
-
-        if not self_mode:
-            # cold-open mapping comment (SKILL.md § Cold open — step 8 scoring depends on it)
-            co_q = next(
+        # blur seals the gate for the eye only — inert is what holds it for
+        # keyboard and screen-reader users. quiz.js drops both on release.
+        if (
+            q["releases"]
+            and q["releases"] in parser.sealed_ids
+            and q["releases"] not in parser.inert_ids
+        ):
+            errors.append(
                 (
-                    q
-                    for q in parser.quizzes
-                    if id(q) in parser.cold_open_quizzes
-                ),
-                None,
+                    q["line"],
+                    "quiz-releases-not-inert",
+                    f'data-releases="{q["releases"]}" target must also carry inert '
+                    f"— .sealed alone leaves the body tabbable and read aloud",
+                )
             )
-            if co_q is not None:
-                if parser.cold_open_comment is None:
-                    errors.append(
-                        (
-                            co_q["line"],
-                            "cold-open-comment-missing",
-                            "add a <!-- cold-open: 1=NNNN-slug 2=NNNN-slug --> comment "
-                            "inside .cold-open mapping items to record ids",
-                        )
-                    )
-                else:
-                    cline, ctext = parser.cold_open_comment
-                    pairs = cold_open_pairs(ctext)
-                    if len(pairs) != len(co_q["items"]):
-                        errors.append(
-                            (
-                                cline,
-                                "cold-open-comment-count",
-                                f"comment maps {len(pairs)} items but quiz has "
-                                f"{len(co_q['items'])} .quiz-item; counts must match",
-                            )
-                        )
-                    for rule, msg in cold_open_faults(pairs):
-                        errors.append((cline, rule, msg))
+    return errors
+
+
+def _seal_errors(parser):
+    """A seal opens one way only: a quiz whose data-releases names it —
+    quiz.js has no other path to it. A lesson that drops its cold open
+    and leaves the body sealed is inert, blurred and unopenable, so the
+    seal owes a releaser before the last two checks mean anything."""
+    errors = []
+    released = {q["releases"] for q in parser.quizzes if q["releases"]}
+    for sid in sorted(parser.sealed_ids - released):
+        errors.append(
+            (
+                1,
+                "sealed-never-released",
+                f'"{sid}" carries class="sealed" but no quiz '
+                f"data-releases it; nothing on the page can open it - "
+                f"drop sealed/inert/data-seal-label with the cold open, "
+                f"or add the cold open back",
+            )
+        )
+    # Both below are faults of a seal that a quiz does open. Run them over
+    # every sealed id and a lesson that correctly dropped its cold open
+    # gets told to add a .seal-note - the fix that produces a sealed lesson
+    # nobody can open, which is how this hole stayed green.
+    open_seals = parser.sealed_ids & released
+
+    # a sealed body is inert and blurred until quiz.js releases it; with no
+    # quiz.js on the page the lesson is unreadable and unrecoverable
+    if open_seals and not any(
+        os.path.basename(s.split("?")[0]) == "quiz.js"
+        for _, s in parser.script_srcs
+    ):
+        errors.append(
+            (
+                1,
+                "sealed-no-quiz-script",
+                "lesson body is sealed but no quiz.js is linked; "
+                'add <script src="../assets/quiz.js"></script>',
+            )
+        )
+
+    # the seal's own label is CSS content inside the inert subtree, and
+    # inert prunes that subtree from the accessibility tree — without a
+    # .seal-note outside the seal the instruction reaches nobody who
+    # cannot see the blur (DESIGN.md § Signature)
+    if open_seals and not parser.has_seal_note:
+        errors.append(
+            (
+                1,
+                "seal-note-missing",
+                "lesson body is sealed but no .seal-note element exists; "
+                'add <p class="seal-note" role="status">…</p> as a '
+                "sibling of the cold-open quiz, outside the seal",
+            )
+        )
+    return errors
+
+
+def _cold_open_comment_errors(parser):
+    """The cold-open mapping comment (SKILL.md § Cold open — step 8 scoring
+    depends on it)."""
+    co_q = next(
+        (q for q in parser.quizzes if id(q) in parser.cold_open_quizzes),
+        None,
+    )
+    if co_q is None:
+        return []
+    if parser.cold_open_comment is None:
+        return [
+            (
+                co_q["line"],
+                "cold-open-comment-missing",
+                "add a <!-- cold-open: 1=NNNN-slug 2=NNNN-slug --> comment "
+                "inside .cold-open mapping items to record ids",
+            )
+        ]
+    errors = []
+    cline, ctext = parser.cold_open_comment
+    pairs = cold_open_pairs(ctext)
+    if len(pairs) != len(co_q["items"]):
+        errors.append(
+            (
+                cline,
+                "cold-open-comment-count",
+                f"comment maps {len(pairs)} items but quiz has "
+                f"{len(co_q['items'])} .quiz-item; counts must match",
+            )
+        )
+    for rule, msg in cold_open_faults(pairs):
+        errors.append((cline, rule, msg))
     return errors
 
 
@@ -717,7 +769,7 @@ def main(argv):
     for stream in (sys.stdout, sys.stderr):
         with contextlib.suppress(AttributeError, OSError, ValueError):
             stream.reconfigure(errors="replace")
-    type_ = "lesson"
+    doc_type = "lesson"
     self_mode = False
     path = None
     for a in argv[1:]:
@@ -730,7 +782,7 @@ def main(argv):
                     "usage: --type must be lesson|reference", file=sys.stderr
                 )
                 return 2
-            type_ = v
+            doc_type = v
         elif a.startswith("-"):
             print(f"unknown flag {a}", file=sys.stderr)
             return 2
@@ -738,7 +790,7 @@ def main(argv):
             path = a
     if self_mode:
         path = os.path.join(TEMPLATES_DIR, "lesson.html")
-        type_ = "lesson"
+        doc_type = "lesson"
     if not path:
         print(
             "usage: check_lesson.py [--type=lesson|reference] <path> | --self",
@@ -763,11 +815,35 @@ def main(argv):
         print(f"{path}: parse - {e}", file=sys.stderr)
         return 2
 
-    # Gather CSS blocks: linked stylesheets (resolved against the HTML dir,
-    # with a sibling-styles.css fallback for --self) + inline <style>.
+    html_dir = os.path.dirname(os.path.abspath(path))
+    css_blocks, errors = _collect_css(parser, html_dir, self_mode)
+
+    errors.extend(
+        verify(
+            doc_type,
+            parser,
+            css_blocks,
+            html_dir,
+            self_mode,
+            os.path.basename(path),
+        )
+    )
+
+    if errors:
+        for line, rule, fix in errors:
+            print(f"{path}:{line}: {rule} - {fix}")
+        return 1
+
+    label = "self (templates/lesson.html)" if self_mode else path
+    print(f"OK: {label}")
+    return 0
+
+
+def _collect_css(parser, html_dir, self_mode):
+    """Every CSS block the page ends up with, as ([(line, text), ...], errors):
+    linked stylesheets resolved against the HTML dir, then inline <style>."""
     errors = []
     css_blocks = list(parser.inline_css)
-    html_dir = os.path.dirname(os.path.abspath(path))
     for line, href in parser.link_hrefs:
         p = href.split("#")[0].split("?")[0]
         if p.startswith(("http://", "https://", "//")):
@@ -790,26 +866,7 @@ def main(argv):
             )
             continue
         css_blocks.append((line, css_text))
-
-    errors.extend(
-        verify(
-            type_,
-            parser,
-            css_blocks,
-            html_dir,
-            self_mode,
-            os.path.basename(path),
-        )
-    )
-
-    if errors:
-        for line, rule, fix in errors:
-            print(f"{path}:{line}: {rule} - {fix}")
-        return 1
-
-    label = "self (templates/lesson.html)" if self_mode else path
-    print(f"OK: {label}")
-    return 0
+    return css_blocks, errors
 
 
 if __name__ == "__main__":

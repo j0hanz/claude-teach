@@ -237,21 +237,24 @@ def serialize_frontmatter(
             key = s.partition(":")[0].strip()
         if key in changed:
             written.add(key)
-            v = fm[key]
-            qs = quotes.get(key)
-            vstr = (qs + str(v) + qs) if qs else str(v)
-            line = f"{key}: {vstr}"
+            line = _fm_line(fm, quotes, key)
             if ln.endswith("\r"):
                 line += "\r"
             out.append(line)
         else:
             out.append(ln)
     for key in sorted(changed - written):
-        v = fm[key]
-        qs = quotes.get(key)
-        vstr = (qs + str(v) + qs) if qs else str(v)
-        out.append(f"{key}: {vstr}")
+        out.append(_fm_line(fm, quotes, key))
     return "\n".join(["---"] + out + ["---"]) + "\n" + body
+
+
+def _fm_line(
+    fm: dict[str, str], quotes: dict[str, str | None], key: str
+) -> str:
+    """One `key: value` line, re-wrapped in the quote style it arrived with."""
+    q = quotes.get(key)
+    v = str(fm[key])
+    return f"{key}: {q + v + q}" if q else f"{key}: {v}"
 
 
 def load_record(path: str) -> RecordDict:
@@ -275,7 +278,7 @@ def load_record(path: str) -> RecordDict:
             if "next" in fm and fm["next"].strip()
             else None
         ),
-        "title": _title(body),
+        "title": _record_title(body),
         "confidence": (
             int(fm["confidence"])
             if "confidence" in fm and fm["confidence"].strip().isdigit()
@@ -285,7 +288,9 @@ def load_record(path: str) -> RecordDict:
     return rec
 
 
-def _title(body: str) -> str:
+def _record_title(body: str) -> str:
+    """A learning record's own `# ` heading. Its HTML counterpart is
+    _doc_title, which reads a lesson page instead."""
     for ln in body.split("\n"):
         s = ln.strip()
         if s.startswith("# "):
@@ -401,13 +406,17 @@ def next_number(dirpath: str) -> int:
     return hi + 1
 
 
+def ledger_body(line: str) -> str:
+    """One NOTES.md line without its markdown list marker. LEDGER_RE matches
+    the sentence, and NOTES.md carries it as a `- ` bullet."""
+    s = line.strip()
+    return s[2:].strip() if s.startswith("- ") else s
+
+
 def parse_ledger_line(notes_text: str) -> LedgerLine | None:
     """Return {'lesson':..., 'tests':[id,...], 'asked':N} or None."""
     for ln in notes_text.split("\n"):
-        s = ln.strip()
-        if s.startswith("- "):
-            s = s[2:].strip()
-        m = LEDGER_RE.match(s)
+        m = LEDGER_RE.match(ledger_body(ln))
         if m:
             lesson = m.group(1)
             tests = [t.strip() for t in m.group(2).split(",") if t.strip()]
@@ -420,10 +429,7 @@ def delete_ledger_line(notes_text: str) -> str:
     out = []
     removed = 0
     for ln in notes_text.split("\n"):
-        s = ln.strip()
-        if s.startswith("- "):
-            s = s[2:].strip()
-        if LEDGER_RE.match(s):
+        if LEDGER_RE.match(ledger_body(ln)):
             removed += 1
             continue
         out.append(ln)
@@ -444,17 +450,13 @@ def bump_asked(notes_text: str) -> tuple[str, int]:
     hits = 0
     new_asked = None
     for ln in notes_text.split("\n"):
-        s = ln.strip()
-        prefix = ""
-        if s.startswith("- "):
-            prefix = "- "
-            s = s[2:].strip()
-        m = LEDGER_RE.match(s)
+        m = LEDGER_RE.match(ledger_body(ln))
         if not m:
             out.append(ln)
             continue
         hits += 1
         new_asked = int(m.group(3)) + 1
+        prefix = "- " if ln.strip().startswith("- ") else ""
         indent = ln[: len(ln) - len(ln.lstrip())]
         tail = "\r" if ln.endswith("\r") else ""
         out.append(
@@ -714,31 +716,7 @@ def cmd_state(args: "argparse.Namespace") -> int:
         f"{distinct} distinct source lessons"
     )
     for r in pool:
-        if r["next"] is not None:
-            over = (t - r["next"]).days
-            over_s = "today" if over == 0 else f"{over}d over"
-        else:
-            over_s = "unscheduled"
-        reteach = "  RE-TEACH" if r["lapses"] >= 3 else ""
-        # High-confidence-wrong (confidence>=4 with a lapse) is a
-        # hypercorrection re-teach candidate (Metcalfe 2017); surface it so step
-        # 4 of SKILL.md can prefer it. confidence is the last cold-open rating.
-        hc = (
-            "  HC"
-            if (
-                r["confidence"] is not None
-                and r["confidence"] >= 4
-                and r["lapses"] >= 1
-            )
-            else ""
-        )
-        rid = os.path.splitext(os.path.basename(r["path"]))[0]
-        prior = prior_cold_opens(cwd, rid)
-        prior_s = ", ".join(prior) if prior else "—"
-        print(
-            f"  {rid:<16} {over_s:<8} interval={r['interval']:<3} lapses={r['lapses']}  "
-            f"from {r['lesson'] or '—'}  prior cold opens: {prior_s}{reteach}{hc}"
-        )
+        print(_due_line(cwd, r, t))
     print(f"records     {len(active)} active, {len(retired)} retired")
     nl = next_number(os.path.join(cwd, "lessons"))
     nr = next_number(os.path.join(cwd, "learning-records"))
@@ -746,6 +724,35 @@ def cmd_state(args: "argparse.Namespace") -> int:
     print("assets     " + "   ".join(f"{n} {st}" for n, st in assets))
     print("inventory   " + inv)
     return 0
+
+
+def _due_line(cwd: str, r: RecordDict, t: date) -> str:
+    """One due-record row of the state report."""
+    if r["next"] is not None:
+        over = (t - r["next"]).days
+        over_s = "today" if over == 0 else f"{over}d over"
+    else:
+        over_s = "unscheduled"
+    reteach = "  RE-TEACH" if r["lapses"] >= 3 else ""
+    # High-confidence-wrong (confidence>=4 with a lapse) is a hypercorrection
+    # re-teach candidate (Metcalfe 2017); surface it so step 4 of SKILL.md can
+    # prefer it. confidence is the last cold-open rating.
+    hc = (
+        "  HC"
+        if (
+            r["confidence"] is not None
+            and r["confidence"] >= 4
+            and r["lapses"] >= 1
+        )
+        else ""
+    )
+    rid = os.path.splitext(os.path.basename(r["path"]))[0]
+    prior = prior_cold_opens(cwd, rid)
+    prior_s = ", ".join(prior) if prior else "—"
+    return (
+        f"  {rid:<16} {over_s:<8} interval={r['interval']:<3} lapses={r['lapses']}  "
+        f"from {r['lesson'] or '—'}  prior cold opens: {prior_s}{reteach}{hc}"
+    )
 
 
 def mission_status(cwd: str) -> str:
@@ -787,29 +794,34 @@ def asset_status(cwd: str) -> list[tuple[str, str]]:
             # invisible for the life of the file
             out.append((name, "UNKNOWN (template unreadable)"))
             continue
-        if tt is None:
-            out.append((name, "UNKNOWN (template has no version stamp)"))
-        elif wt is None:
-            out.append(
-                (
-                    name,
-                    f"STALE (unversioned, current v{tt}) — re-copy the template",
-                )
-            )
-        elif wt == tt:
-            out.append((name, "ok"))
-        else:
-            out.append(
-                (name, f"STALE (v{wt}, current v{tt}) — re-copy the template")
-            )
+        out.append((name, _stamp_verdict(wt, tt)))
     if not out:
         return [("assets", "(none copied)")]
     return out
 
 
+def _stamp_verdict(copied: int | None, template: int | None) -> str:
+    """ok / STALE / UNKNOWN for one copied asset, from the two version stamps."""
+    if template is None:
+        return "UNKNOWN (template has no version stamp)"
+    if copied is None:
+        return (
+            f"STALE (unversioned, current v{template}) — re-copy the template"
+        )
+    if copied == template:
+        return "ok"
+    return f"STALE (v{copied}, current v{template}) — re-copy the template"
+
+
 def inventory(cwd: str) -> str:
     lessons = len(glob.glob(os.path.join(cwd, "lessons", "*.html")))
     reference = len(glob.glob(os.path.join(cwd, "reference", "*.html")))
+    know, comm = _source_counts(cwd)
+    return f"{lessons} lessons, {reference} reference docs, {know} knowledge + {comm} community sources"
+
+
+def _source_counts(cwd: str) -> tuple[int, int]:
+    """(knowledge, community) bullets under RESOURCES.md's own ## headings."""
     know, comm = 0, 0
     rp = os.path.join(cwd, "RESOURCES.md")
     if os.path.isfile(rp):
@@ -823,7 +835,7 @@ def inventory(cwd: str) -> str:
                     know += 1
                 elif "community" in section:
                     comm += 1
-    return f"{lessons} lessons, {reference} reference docs, {know} knowledge + {comm} community sources"
+    return know, comm
 
 
 def _doc_title(path: str) -> str:
@@ -976,11 +988,6 @@ def build_index(cwd: str) -> str:
     records = load_records(cwd)
     active, _, due = split_records(records)
 
-    learned = "\n".join(
-        f'      <li>{esc(r["title"])} <span class="eyebrow">{esc(_format_when(r, t))}</span></li>'
-        for r in records
-    )
-
     parts = [
         "<!doctype html>",
         f'<html lang="{esc(_lang(cwd))}">',
@@ -1017,6 +1024,10 @@ def build_index(cwd: str) -> str:
             "    </ul>",
         ]
     if records:
+        learned = "\n".join(
+            f'      <li>{esc(r["title"])} <span class="eyebrow">{esc(_format_when(r, t))}</span></li>'
+            for r in records
+        )
         parts += [
             "",
             "    <h2>What you have worked through</h2>",
@@ -1040,13 +1051,7 @@ def score_open_cold_open(cwd: str, result_line: str) -> tuple[list[dict], str]:
 
     The single writer of schedule + index fields (REQ-010): chat-side
     `teach.py score` and the POST /score handler both route through here, so
-    no caller writes schedule or index fields independently. Does exactly what
-    cmd_score did: is_workspace check; read_notes + parse_ledger_line (raise
-    TeachError if no open ledger); resolve_spacing; the abandon branch
-    (result_line.strip().lower()=="abandon") and the normal branch
-    (parse_result_line, ledger_id match, count check); plan via load_record +
-    score_record; write_text(delete_ledger_line(notes)); save_record each;
-    rebuild build_index.
+    no caller writes schedule or index fields independently.
 
     Returns (rows, index_msg): rows is one dict per record scored — {id,
     outcome, interval, next, lapses, status, confidence} where id = record
@@ -1212,7 +1217,6 @@ def append_working_note(notes: str, line: str) -> str:
     return "\n".join(lines)
 
 
-# --- entry ------------------------------------------------------------------
 # --- serve: loopback HTTP for one workspace (REQ-001/002/014) ----------------
 def serve_json_path() -> str:
     """Where the running server records {pid, port, token, workspace}.
