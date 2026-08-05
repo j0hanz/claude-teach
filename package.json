@@ -1,6 +1,5 @@
 {
   "name": "claude-teach",
-  "version": "0.3.0",
   "private": true,
   "description": "Dev tooling only — plugin metadata lives in .claude-plugin/plugin.json.",
   "scripts": {
