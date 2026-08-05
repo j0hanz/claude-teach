@@ -1,6 +1,6 @@
 # Lesson HTML Design — Components
 
-Spec for every reusable block a generated lesson emit. Companion to [DESIGN.md](DESIGN.md) (layout, signature, constraints, validation) and [TOKENS.md](TOKENS.md) (token role). One course identity cross every `lessons/*.html` and `reference/*.html` — set read as course, not pile one-offs. Voice: dropped-article style deliberate, load-bearing — preserve in edit.
+Spec for every reusable block a generated lesson emit. Companion to [DESIGN.md](DESIGN.md) (layout, signature, constraints, validation) and [TOKENS.md](TOKENS.md) (token role). One course identity cross every `lessons/*.html` and `reference/*.html`. Voice: dropped-article style — see [DESIGN.md](DESIGN.md) § Direction.
 
 Every component here is plain HTML + the shared stylesheet; nothing needs a new script. Offline-only, print-friendly — see [DESIGN.md § Constraints](DESIGN.md#constraints).
 
@@ -8,7 +8,7 @@ Every component here is plain HTML + the shared stylesheet; nothing needs a new 
 
 [`templates/lesson.html`](../../../templates/lesson.html) is skeleton plus argument — no fixed lesson copy left in it. Two brace forms, one convention:
 
-- `{{UPPER-KEBAB}}` — **named argument**, table below. Wording is the lesson's, never the template's; that is what stop lesson 12 reading as lesson 1 with different words.
+- `{{UPPER-KEBAB}}` — **named argument**, table below. Wording is the lesson's, never the template's.
 - `{{lowercase prose}}` — fill-in guidance at point of use (a sidenote line, a synthesis point). Not named, not tabled.
 
 Argument marked _optional_ in the table drop with the element that hold it — that is the point of it, one fewer fixed line every lesson repeat. Every other one fill.
@@ -24,7 +24,7 @@ Both gone from a finished lesson: `check_lesson.py` reject any surviving `{{` (`
 | `TITLE`                                                                | `<title>`, `h1`                      | lesson title                                                                                                                |
 | `TOPIC`                                                                | `<title>`                            | course topic                                                                                                                |
 | `EYEBROW`                                                              | `.lesson-header .eyebrow`            | where lesson sit, e.g. `Lesson 4 · ownership`                                                                               |
-| `LEAD`                                                                 | `.lead`                              | one thing lesson land — output of reconciling sources, not restatement of first                                             |
+| `LEAD`                                                                 | `.lead`                              | one thing lesson land — see [Lead](#lead)                                                                                   |
 | `ROUTE-LABEL`                                                          | `.toc` `aria-label` + `.toc-eyebrow` | what the route is called; same string both slots                                                                            |
 | `STOP-1`…`STOP-4`                                                      | route stops, and `h2` of section 2–4 | [Lesson route](#lesson-route)                                                                                               |
 | `RECORD-ID`                                                            | `<!-- cold-open: … -->`              | `NNNN-slug` of record each item test — one pair per `.quiz-item`                                                            |
@@ -60,7 +60,7 @@ Stop 1 point at the cold open. Lesson with nothing due carry none (see below) �
 
 ## Lead
 
-`.lead` on opening paragraph. One thing lesson land, set above body size. At body size it read as first paragraph, not claim rest of page argue.
+`.lead` on opening paragraph. One thing lesson land, set above body size. At body size it read as first paragraph, not claim rest of page argue. The `.lead` is the output of reconciliation, not a restatement of the first source.
 
 ## Quiz
 
@@ -118,7 +118,7 @@ Copy control show only on first pass through gated cold open — revisit unseal 
 
 **Serve mode vs paste fallback.** On `finish()`, `quiz.js` branch on `window.__TEACH_SERVE` (set by the serve-injected token script — see [SKILL.md](../SKILL.md) session flow): served lesson `POST /score` with `{lesson, line, token}` and no copy button shown; `file://` lesson (flag absent) run the copy-button paste path above, unchanged. Result-line shape identical both paths. Response handling per status: `2xx` unseal the body, render an in-page `.quiz-status` ("Scored. Schedule updated.") plus a `.quiz-schedule` block carry the returned `schedule` array, hide the copy button; `401` keep the body sealed, render `.quiz-reconnect` ("Session restarted — reload this lesson to reconnect") and reveal the `.quiz-copy` button as paste fallback; any other non-2xx (and network failure) keep the body sealed, render a `.quiz-error` block with a retry affordance, and persist the result line to `localStorage` under the seal key so a retry never lose it. The `.quiz-copy` button stay the fallback across every branch — serve mode hide it on success but keep it in markup so a `401` or non-2xx fall back to paste. No static-HTML change: `.quiz-status`, `.quiz-schedule`, `.quiz-reconnect`, `.quiz-error` are JS-created, so the markup contract in the code block above is unchanged and `check_lesson.py` still pass on `templates/lesson.html`.
 
-**Confidence rating (optional, opt-in).** A cold-open quiz may carry `data-confidence="1"` to capture a 1–5 "how sure" rating per item _before_ the answer reveal — a scheduling signal for hypercorrection-aware re-teach (high-confidence-wrong correct more readily; Metcalfe 2017), never a comprehension booster (bare JOL prompts do not help and harm ~1/3 of learners — Ariel 2021, Zhao 2024). When set, `quiz.js` render a small 1–5 selector per item; chosen rating ride into the result token as `pos outcome/N` (e.g. `1 right/4`). No `data-confidence` = unchanged behaviour and unchanged result line. The rating is a scheduling signal only; `teach.py` store it in the record's `confidence` frontmatter and step 4 of [SKILL.md](../SKILL.md) prefer high-confidence-wrong re-teach candidates. Never prompt a bare "how well did you understand this?" — capture confidence, do not ask the learner to judge comprehension.
+**Confidence rating (optional, opt-in).** Markup contract: `data-confidence="1"` on `.quiz` render a small 1–5 selector per item before the answer reveal; no `data-confidence` = unchanged behaviour and unchanged result line. Chosen rating ride into the result token as `pos outcome/N` (e.g. `1 right/4`). Storage, format, and rationale in [RECORDS.md](RECORDS.md).
 
 ## Worked example
 
@@ -251,14 +251,7 @@ Authoring rule, not a new block: when introducing a concept via analogy, (1) nam
 
 ## Emphasis
 
-Authoring discipline for lesson body, stated once so generated lesson stay consistent:
-
-- **bold** only for a new term at its point of definition, or a run-in label — never a whole sentence, never combined with another emphasis
-- _italic_ for subtle emphasis and words-as-words, used sparingly (dyslexia risk)
-- `code` only for actual code identifiers, filenames, console output
-- headings carry scan weight, not inline bold — do not bold to "make important"
-
-LLM over-bold by default, so the rule is load-bearing for an AI author. The `.lead` is italic by stylesheet, not by author hand.
+Emphasis authoring rule: see [SKILL.md](../SKILL.md) `## Knowledge`. Headings carry scan weight, not inline bold — do not bold to "make important". The `.lead` is italic by stylesheet, not by author hand.
 
 ## Citations
 

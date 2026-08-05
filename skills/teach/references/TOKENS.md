@@ -61,5 +61,3 @@ Attribute absent read as the default; a lesson that want the default drop the at
 `<html>` carry a third kind of hook that is no token: the `data-*` overrides for words `quiz.js` write, which the `QUIZ-STRINGS` slot above the tag exist to remind ([COMPONENTS.md § Quiz](COMPONENTS.md#quiz)). Same element, different layer — string, not value.
 
 `--signal` take no hook: vermilion mark route stop and release edge in every lesson, and that is course identity, not lesson choice.
-
-Token value live in [`templates/assets/roots.css`](../../../templates/assets/roots.css) `:root` — single source. Edit there; never restate value here.

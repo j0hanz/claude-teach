@@ -43,6 +43,13 @@ TEMPLATES_DIR = os.path.normpath(
 # rewrites, and two copies of a scoring rule is one copy too many.
 COLD_OPEN_PAIR_RE = re.compile(r"(\d+)=([0-9A-Za-z][0-9A-Za-z-]*)")
 
+# record ids and data-lesson stems are 4-digit-prefixed (0003-slug). One regex
+# for both sides of the contract so they cannot drift from teach.py
+# resolve_record_path, which does re.match(r"(\d{4})", rec_id) and rejects any
+# id without that prefix. A fifth restatement of the shape is a fifth thing to
+# drift; this one mirrors teach.py line for line.
+NNNN_RE = re.compile(r"(\d{4})")
+
 
 def cold_open_pairs(text):
     """[(position, record_id), ...] from a mapping comment's text.
@@ -74,6 +81,17 @@ def cold_open_faults(pairs):
                 f"comment maps {', '.join(dupes)} to more than one position; "
                 f"a cold open tests one learning record per item, and scoring "
                 f"would write that record twice keeping only the last outcome",
+            )
+        )
+    bad = sorted({r for r in ids if not NNNN_RE.match(r)})
+    if bad:
+        faults.append(
+            (
+                "cold-open-comment-id-shape",
+                f"comment ids {', '.join(bad)} must be 4-digit-prefixed "
+                f"record ids like 0003-slug; teach.py resolve_record_path "
+                f"rejects any without the prefix and the ledger write would "
+                f"lose them",
             )
         )
     return faults
@@ -153,6 +171,10 @@ class DocParser(HTMLParser):
         self.cold_open_comment = (
             None  # (line, text) of the cold-open mapping comment
         )
+        # earliest .quiz-item line inside any .cold-open — the mapping comment
+        # must precede every item (SKILL.md: the comment is the FIRST line inside
+        # .cold-open), so a comment after the first item is out of order
+        self.cold_open_first_item_line = None
         self.placeholders = []  # (line, snippet) of unfilled {{…}} slots
         self.toc_stops = 0  # count of .toc-stop — the route's four stops
 
@@ -219,6 +241,11 @@ class DocParser(HTMLParser):
             frame["is_item"] = True
             frame["item"] = it
             cur_item = it
+            if id(cur_quiz) in self.cold_open_quizzes and (
+                self.cold_open_first_item_line is None
+                or line < self.cold_open_first_item_line
+            ):
+                self.cold_open_first_item_line = line
         if "quiz-btn" in cls and cur_item is not None:
             cur_item["options"] += 1
         if "quiz-result" in cls and cur_quiz is not None:
@@ -406,6 +433,7 @@ def verify(
         errors += _seal_errors(parser)
         if not self_mode:
             errors += _cold_open_comment_errors(parser)
+            errors += _roots_css_errors(parser, html_dir, self_mode)
     return errors
 
 
@@ -427,7 +455,25 @@ def _hook_errors(parser, linked):
         # empty attribute reads as absent, and an unfilled one is already
         # reported as unfilled-placeholder
         value = parser.html_attrs.get(f"data-{hook}", "").strip()
-        if not names or not value or "{{" in value:
+        if not value or "{{" in value:
+            continue
+        # value set, non-empty, not a placeholder, but no linked sheet defines
+        # any :root[data-{hook}] hook — distinct from "name not in the set"
+        # below: here the set is empty, so the attribute names something no
+        # sheet on the page can honour, and the lesson silently renders the
+        # default. roots.css missing entirely is the usual cause, reported
+        # separately as missing-roots-css; this fires when the attribute is set
+        # against a sheet that defines no hook at all.
+        if not names:
+            errors.append(
+                (
+                    1,
+                    f"unknown-{hook}-source",
+                    f'html data-{hook}="{value}" set but no linked stylesheet '
+                    f"defines any :root[data-{hook}] hook; link assets/roots.css "
+                    f"or drop the attribute",
+                )
+            )
             continue
         if value not in names:
             errors.append(
@@ -528,6 +574,32 @@ def _missing_asset_errors(parser, html_dir, self_mode):
             errors.append(
                 (line, "missing-asset", f'<{tag}> src "{ref}" does not exist')
             )
+    return errors
+
+
+def _roots_css_errors(parser, html_dir, self_mode):
+    """Lesson mode owes a roots.css link — the shared stylesheet where the
+    per-lesson hooks and the course tokens live. Without it the hook check in
+    _hook_errors is meaningless (no names found == no names defined), and a
+    lesson that links only styles.css still renders the base :root but loses
+    every hook the contract lets it name. Runs in lesson mode only; --self
+    validates the template, which links roots.css itself."""
+    errors = []
+    for _line, href in parser.link_hrefs:
+        p = href.split("#")[0].split("?")[0]
+        if os.path.basename(p) != "roots.css":
+            continue
+        target = resolve_local(html_dir, href, self_mode)
+        if target and os.path.isfile(target):
+            return errors
+    errors.append(
+        (
+            1,
+            "missing-roots-css",
+            "no assets/roots.css stylesheet linked; every lesson builds on "
+            "the shared roots.css",
+        )
+    )
     return errors
 
 
@@ -687,6 +759,21 @@ def _quiz_errors(parser, self_mode, html_name):
                 )
             )
         if (
+            id(q) in parser.cold_open_quizzes
+            and q["lesson"]
+            and "{{" not in q["lesson"]
+            and not NNNN_RE.match(q["lesson"])
+        ):
+            errors.append(
+                (
+                    q["line"],
+                    "cold-open-lesson-id-shape",
+                    f'data-lesson="{q["lesson"]}" must be a 4-digit-prefixed '
+                    f"stem like 0003-slug; teach.py resolve_record_path rejects "
+                    f"any without the prefix and the score line would not land",
+                )
+            )
+        if (
             not self_mode
             and stem
             and q["lesson"]
@@ -759,7 +846,7 @@ def _seal_errors(parser):
     # a sealed body is inert and blurred until quiz.js releases it; with no
     # quiz.js on the page the lesson is unreadable and unrecoverable
     if open_seals and not any(
-        os.path.basename(s.split("?")[0]) == "quiz.js"
+        os.path.basename(s.split("#")[0].split("?")[0]) == "quiz.js"
         for _, s in parser.script_srcs
     ):
         errors.append(
@@ -767,6 +854,27 @@ def _seal_errors(parser):
                 1,
                 "sealed-no-quiz-script",
                 "lesson body is sealed but no quiz.js is linked; "
+                'add <script src="../assets/quiz.js"></script>',
+            )
+        )
+
+    # any quiz on the page, sealed or not, needs quiz.js — the result line,
+    # copy control and release gate all live in it. The sealed-body case above
+    # fires first when open_seals exist, so this catches the practice quiz
+    # with no seal at all.
+    if (
+        parser.quizzes
+        and not open_seals
+        and not any(
+            os.path.basename(s.split("#")[0].split("?")[0]) == "quiz.js"
+            for _, s in parser.script_srcs
+        )
+    ):
+        errors.append(
+            (
+                1,
+                "quiz-no-script",
+                "page has .quiz but no quiz.js is linked; "
                 'add <script src="../assets/quiz.js"></script>',
             )
         )
@@ -821,6 +929,22 @@ def _cold_open_comment_errors(parser):
         ]
     errors = []
     cline, ctext = parser.cold_open_comment
+    # SKILL.md: the mapping comment is the FIRST line inside .cold-open, so it
+    # must precede every .quiz-item. A comment after the first item is out of
+    # order and the ledger write would map the wrong record to each item.
+    if (
+        parser.cold_open_first_item_line is not None
+        and cline > parser.cold_open_first_item_line
+    ):
+        errors.append(
+            (
+                cline,
+                "cold-open-comment-not-first",
+                f"cold-open comment at line {cline} must be the first line "
+                f"inside .cold-open; first .quiz-item is at line "
+                f"{parser.cold_open_first_item_line}",
+            )
+        )
     pairs = cold_open_pairs(ctext)
     if len(pairs) != len(co_q["items"]):
         errors.append(

@@ -22,6 +22,7 @@ import glob
 import io
 import json
 import os
+import socket
 import subprocess
 import sys
 import time
@@ -58,6 +59,7 @@ from teach import (  # noqa: E402  # pyright: ignore[reportMissingImports]
     serve_json_path,
     split_records,
     today,
+    write_serve_state,
     write_text,
 )
 
@@ -84,7 +86,79 @@ def _plugin_root():
     )
 
 
-def _ensure_server(cwd):
+def _probe_port(port, timeout=0.2):
+    """Cheap liveness probe of the bound port.
+
+    ponytail: short-timeout TCP connect to 127.0.0.1:port — a recycled-PID
+    serve.json whose port nothing answers fails here, so reuse falls through
+    to the kill+respawn path instead of printing a dead serve URL. No /health
+    route on this server; the accept alone is enough signal.
+    """
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.settimeout(timeout)
+        try:
+            s.connect(("127.0.0.1", port))
+            return True
+        except OSError:
+            return False
+
+
+@contextlib.contextmanager
+def _serve_lock():
+    """Cross-process lock around the read-kill-spawn-read TOCTOU window.
+
+    ponytail: lock scope is the _ensure_server reuse/respawn decision only —
+    sibling lock file so serve.json itself is free to be removed and
+    rewritten under us. msvcrt.locking on Windows, fcntl.flock elsewhere.
+    Held across the ~0.8s spawn wait so two concurrent SessionStarts on the
+    same workspace do not both spawn and orphan a server.
+    """
+    lock_path = serve_json_path() + ".lock"
+    with open(
+        lock_path, "a"
+    ) as f:  # "a": create-no-truncate, don't wipe a holder's lock
+        if os.name == "nt":
+            import msvcrt
+
+            msvcrt.locking(f.fileno(), msvcrt.LK_LOCK, 1)
+            try:
+                yield
+            finally:
+                with contextlib.suppress(OSError):
+                    msvcrt.locking(f.fileno(), msvcrt.LK_UNLCK, 1)
+        else:
+            import fcntl
+
+            fcntl.flock(f.fileno(), fcntl.LOCK_EX)
+            try:
+                yield
+            finally:
+                with contextlib.suppress(OSError):
+                    fcntl.flock(f.fileno(), fcntl.LOCK_UN)
+
+
+def _add_owner(sid, state):
+    """Append this session to serve.json's owner refcount.
+
+    ponytail: multi-owner scope — serve.json is a single shared file across
+    sessions on the same workspace; every SessionStart appends its session_id
+    so SessionEnd decrements and only the LAST owner tears the server down
+    (fixes both halves of the race the old last-wins owner left open). No-op
+    when the harness sends no session_id (degrades to the old workspace-match
+    kill).
+    """
+    if not sid or not state.get("port"):
+        return
+    owners = state.get("owners") or []
+    if sid not in owners:
+        owners.append(sid)
+    state["owners"] = owners
+    state.pop("owner", None)  # migrate legacy single-owner field
+    with contextlib.suppress(OSError):
+        write_serve_state(state)
+
+
+def _ensure_server(cwd, payload):
     """Reuse, respawn, or spawn the teach serve server for cwd.
 
     Prints the serve URL on success, a one-line stderr note on failure. Never
@@ -96,49 +170,62 @@ def _ensure_server(cwd):
     # teach.py serve stores workspace as os.path.abspath; compare on that form
     # so a forward-slash cwd from the hook matches the backslash form on Windows.
     ws = os.path.abspath(cwd)
-    state = read_serve_state()
-    pid = state.get("pid")
-    if pid and pid_alive(pid) and state.get("workspace") == ws:
-        print(f"serve: http://127.0.0.1:{state['port']}")
-        return
-    if pid:
-        kill_pid(pid)  # stale PID or workspace mismatch -> respawn
-        # force-kill skips cmd_serve's finally, so serve.json stays stale —
-        # clear it or the re-read below prints a dead port as the live URL.
+    sid = payload.get("session_id")
+    with _serve_lock():
+        state = read_serve_state()
+        pid = state.get("pid")
+        if (
+            pid
+            and pid_alive(pid)
+            and state.get("workspace") == ws
+            and _probe_port(state["port"])
+        ):
+            _add_owner(sid, state)
+            print(f"serve: http://127.0.0.1:{state['port']}")
+            return
+        if pid:
+            # ponytail: probe failed here means a recycled PID whose port is
+            # dead — kill is the existing respawn path; a recycled PID could
+            # be an unrelated process, but workspace match in serve.json
+            # narrows it to a former teach serve.
+            kill_pid(pid)  # stale PID or workspace mismatch -> respawn
+            # force-kill skips cmd_serve's finally, so serve.json stays stale —
+            # clear it or the re-read below prints a dead port as the live URL.
+            with contextlib.suppress(OSError):
+                os.remove(serve_json_path())
+        # Detached spawn: stdio sunk so the child never inherits the hook's pipes.
+        # Built per-branch (not a **kwargs splat) so the platform-specific flag
+        # picks the right Popen overload instead of a loosely-typed dict.
         with contextlib.suppress(OSError):
-            os.remove(serve_json_path())
-    # Detached spawn: stdio sunk so the child never inherits the hook's pipes.
-    # Built per-branch (not a **kwargs splat) so the platform-specific flag
-    # picks the right Popen overload instead of a loosely-typed dict.
-    with contextlib.suppress(OSError):
-        if os.name == "nt":
-            subprocess.Popen(
-                [sys.executable, script, "serve", "--workspace", cwd],
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                stdin=subprocess.DEVNULL,
-                creationflags=(
-                    subprocess.DETACHED_PROCESS
-                    | subprocess.CREATE_NEW_PROCESS_GROUP
-                ),
-            )
+            if os.name == "nt":
+                subprocess.Popen(
+                    [sys.executable, script, "serve", "--workspace", cwd],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    stdin=subprocess.DEVNULL,
+                    creationflags=(
+                        subprocess.DETACHED_PROCESS
+                        | subprocess.CREATE_NEW_PROCESS_GROUP
+                    ),
+                )
+            else:
+                subprocess.Popen(
+                    [sys.executable, script, "serve", "--workspace", cwd],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    stdin=subprocess.DEVNULL,
+                    start_new_session=True,
+                )
+        time.sleep(0.8)
+        state = read_serve_state()
+        if state.get("port"):
+            _add_owner(sid, state)
+            print(f"serve: http://127.0.0.1:{state['port']}")
         else:
-            subprocess.Popen(
-                [sys.executable, script, "serve", "--workspace", cwd],
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                stdin=subprocess.DEVNULL,
-                start_new_session=True,
-            )
-    time.sleep(0.8)
-    state = read_serve_state()
-    if state.get("port"):
-        print(f"serve: http://127.0.0.1:{state['port']}")
-    else:
-        print("teach: serve did not start", file=sys.stderr)
+            print("teach: serve did not start", file=sys.stderr)
 
 
-def event_session_start(cwd):
+def event_session_start(cwd, payload):
     ledger = parse_ledger_line(read_notes(cwd))
     t = today()
     due = len(split_records(load_records(cwd))[2])
@@ -179,19 +266,33 @@ def event_session_start(cwd):
     # cannot block. If a future harness requires hookSpecificOutput wrapping,
     # wrap here — one-line change.
     print("\n".join(lines))
-    _ensure_server(cwd)
+    _ensure_server(cwd, payload)
     return 0
 
 
-def event_session_end(cwd):
+def event_session_end(cwd, payload):
     # REQ-009: stop the server for this workspace and clear the stale lockfile.
     # Silent no-op when no serve.json or it belongs to a different workspace.
+    # ponytail: multi-owner scope — serve.json is shared across sessions on
+    # the same workspace; owners are refcounted, so ending one of N sessions
+    # only decrements and the last owner tears the server down. No session_id
+    # degrades to the old workspace-match kill.
     state = read_serve_state()
     pid = state.get("pid")
     ws = os.path.abspath(cwd)
-    if pid and pid_alive(pid) and state.get("workspace") == ws:
+    sid = payload.get("session_id")
+    owners = state.get("owners")
+    if owners is None:
+        owners = [state.get("owner")] if state.get("owner") else []
+    if sid and sid in owners:
+        owners = [o for o in owners if o != sid]
+        state["owners"] = owners
+        with contextlib.suppress(OSError):
+            write_serve_state(state)
+    last = not sid or not owners
+    if pid and pid_alive(pid) and state.get("workspace") == ws and last:
         kill_pid(pid)
-    if state.get("workspace") == ws:
+    if state.get("workspace") == ws and last:
         with contextlib.suppress(OSError):
             os.remove(serve_json_path())
     return 0
@@ -458,8 +559,17 @@ def event_stop_sweep(cwd, payload):
     faults, fresh = sweep(cwd, seen, time.time())
     for p, sig in fresh:
         seen[_key(p)] = sig
-    with contextlib.suppress(OSError):
+    try:
         write_text(state_path, json.dumps(seen))
+    except OSError:
+        # Mirrors the CLAUDE_PLUGIN_DATA-unset warning above: on write
+        # failure the "not report twice" guarantee breaks silently, so say
+        # so or faults re-report every turn with no hint why.
+        # ASCII only: stderr goes to the raw console, cp1252 on Windows.
+        print(
+            "teach: could not persist sweep state — faults may re-report",
+            file=sys.stderr,
+        )
     if not faults:
         return 0
     shown = faults[:MAX_FAULTS]
@@ -558,8 +668,96 @@ def selfcheck():
     if fails:
         for line in fails:
             print(f"selfcheck FAIL {line}", file=sys.stderr)
+        sweep_rc = 1
+    else:
+        print("selfcheck OK")
+        sweep_rc = 0
+    gate_rc = selfcheck_gate()
+    return sweep_rc or gate_rc
+
+
+def selfcheck_gate():
+    """Drive event_stop through its state machine: arm -> block -> asked ->
+    silent -> score -> re-arm. tmpdir-based like the sweep selfcheck.
+
+    event_stop never runs by hand — it needs a Stop event and a guard file
+    under CLAUDE_PLUGIN_DATA — so this is the one runnable check that fails
+    if the gate stops gating. Exit 0 only if every assertion passes.
+    """
+    import shutil
+    import tempfile
+
+    base = tempfile.mkdtemp(prefix="teach-gate-")
+    fails = []
+
+    def want(name, got, ok):
+        if not ok:
+            fails.append(f"{name}: {got!r}")
+
+    old_pd = os.environ.get("CLAUDE_PLUGIN_DATA")
+    try:
+        os.environ["CLAUDE_PLUGIN_DATA"] = base
+        os.makedirs(os.path.join(base, "lessons"))
+        guard = os.path.join(base, "nagged.txt")
+
+        def write_ledger(asked):
+            line = (
+                f"unscored cold open: lessons/0001-x.html tests 0001-x "
+                f"(asked: {asked})"
+            )
+            write_text(
+                os.path.join(base, "NOTES.md"), f"# Notes\n\n- {line}\n"
+            )
+
+        def stop():
+            buf = io.StringIO()
+            with contextlib.redirect_stdout(buf):
+                rc = event_stop(base, {})
+            return rc, buf.getvalue()
+
+        # ship-turn arm: first Stop after the ledger opened -> arm, no block.
+        write_ledger(0)
+        rc, out = stop()
+        want("arm-rc", rc, rc == 0)
+        want("arm-silent", out, out == "")
+        want(
+            "arm-guard",
+            None,
+            os.path.isfile(guard)
+            and read_text(guard).strip() == "lessons/0001-x.html",
+        )
+
+        # second stop -> block, and guard flips to the nagged marker.
+        rc, out = stop()
+        want("block-rc", rc, rc == 0)
+        want("block-decision", out, '"block"' in out and '"reason"' in out)
+        want("block-guard", None, "nagged" in read_text(guard))
+
+        # asked -> silent: ledger now asked:1, guard already nagged, no block.
+        write_ledger(1)
+        rc, out = stop()
+        want("asked-silent", out, out == "")
+
+        # score -> ledger closed -> re-arm: guard removed, no block.
+        write_text(
+            os.path.join(base, "NOTES.md"), "# Notes\n\n- nothing open\n"
+        )
+        rc, out = stop()
+        want("rearmed-rc", rc, rc == 0)
+        want("rearmed-silent", out, out == "")
+        want("rearmed-guard-gone", None, not os.path.isfile(guard))
+    finally:
+        shutil.rmtree(base, ignore_errors=True)
+        if old_pd is None:
+            os.environ.pop("CLAUDE_PLUGIN_DATA", None)
+        else:
+            os.environ["CLAUDE_PLUGIN_DATA"] = old_pd
+
+    if fails:
+        for line in fails:
+            print(f"selfcheck_gate FAIL {line}", file=sys.stderr)
         return 1
-    print("selfcheck OK")
+    print("selfcheck_gate OK")
     return 0
 
 
@@ -594,9 +792,9 @@ def main(argv):
         return 0  # silent no-op outside a teach workspace
     try:
         if args.event == "session-start":
-            return event_session_start(cwd)
+            return event_session_start(cwd, payload)
         if args.event == "session-end":
-            return event_session_end(cwd)
+            return event_session_end(cwd, payload)
         if args.event == "stop-sweep":
             return event_stop_sweep(cwd, payload)
         return event_stop(cwd, payload)

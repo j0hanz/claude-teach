@@ -15,7 +15,7 @@ Maintainable split — spec here and in peer references, code as real file skill
 | [`templates/assets/quiz.js`](../../../templates/assets/quiz.js)       | Reusable quiz widget          | `assets/quiz.js`         |
 | [`templates/lesson.html`](../../../templates/lesson.html)             | Lesson skeleton + arguments   | `lessons/NNNN-slug.html` |
 
-Edit template; don't fork per lesson. Lesson fill the `{{arguments}}` in skeleton — every word on the page come from there, none from the template — link three local `assets/` file, and vary what [Variation](#variation) allow. Nothing more.
+Edit template; don't fork per lesson. Lesson fill the `{{arguments}}` in skeleton — every word on the page arrive as argument, none from the template ([COMPONENTS.md § Template arguments](COMPONENTS.md#template-arguments)) — link three local `assets/` file, and vary what [Variation](#variation) allow. Nothing more.
 
 ## Direction
 
@@ -59,7 +59,7 @@ Quiet on purpose: faint veil, cobalt rule, small uppercase label. No confetti, n
 
 ## Variation
 
-Learner who can predict page before it load stop reading it. Lesson 12 must not be lesson 1 with different word. Template carry no fixed lesson copy for that reason — what a lesson choose:
+Learner who can predict page before it load stop reading it. Lesson 12 must not be lesson 1 with different word. Template carry argument, not copy ([COMPONENTS.md § Template arguments](COMPONENTS.md#template-arguments)) — what a lesson choose:
 
 - **Every string.** All copy arrive as [template argument](COMPONENTS.md#template-arguments), route stop label and section heading included. The strings `quiz.js` write at runtime — progress count, undo, copy status, serve-mode errors — are not arguments but still not the widget's to keep: each take an override attribute on `<html>`, set once for the whole lesson, and the `QUIZ-STRINGS` slot is the template's reminder that they exist at all ([COMPONENTS.md § Quiz](COMPONENTS.md#quiz)). A callout's visible label is the same case — `data-type` name it in English until `data-callout-label` take over ([COMPONENTS.md § Callout](COMPONENTS.md#callout)). Between them, nothing English reach a non-English learner.
 - **Which optional component appear, and in what order** — `KNOWLEDGE-BLOCKS` and `SKILLS-BLOCKS` are free slots. Callout, figure, self-explanation, aside, worked example, practice quiz, further sidenote: order inside a section carry no meaning, so it is the lesson's. Gate the choice on record state (fading rule), never on variety for its own sake.

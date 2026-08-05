@@ -237,14 +237,17 @@ def serialize_frontmatter(
             key = s.partition(":")[0].strip()
         if key in changed:
             written.add(key)
-            line = _fm_line(fm, quotes, key)
-            if ln.endswith("\r"):
-                line += "\r"
-            out.append(line)
+            # key popped from fm -> deletion: drop the line, do not re-emit.
+            if key in fm:
+                line = _fm_line(fm, quotes, key)
+                if ln.endswith("\r"):
+                    line += "\r"
+                out.append(line)
         else:
             out.append(ln)
     for key in sorted(changed - written):
-        out.append(_fm_line(fm, quotes, key))
+        if key in fm:
+            out.append(_fm_line(fm, quotes, key))
     return "\n".join(["---"] + out + ["---"]) + "\n" + body
 
 
@@ -552,6 +555,12 @@ def parse_result_line(
                 raise TeachError(
                     2, f'bad confidence "{conf_s}" in "{line}"'
                 ) from None
+            # RECORDS.md: confidence is 1-5. /9 or /0 is a mis-tap the schedule
+            # must not store — reject same shape as an unknown outcome.
+            if conf < 1 or conf > 5:
+                raise TeachError(
+                    2, f'bad confidence {conf}: must be 1-5 in "{line}"'
+                ) from None
         else:
             outcome = outcome_tok
         if outcome not in ("right", "wrong"):
@@ -586,15 +595,27 @@ def score_record(
         rec["fm"]["confidence"] = str(confidence)
         rec["confidence"] = confidence
         changed.add("confidence")
+    else:
+        # cold open carried no /N: clear last cold-open confidence so HC
+        # (SKILL.md:42, last cold-open confidence >=4 with a lapse) cannot
+        # fire on a stale earlier rating. Deletion routes through the
+        # changed set — serialize_frontmatter drops a popped key's line.
+        if "confidence" in rec["fm"]:
+            rec["fm"].pop("confidence", None)
+            rec["confidence"] = None
+            changed.add("confidence")
     if outcome == "right":
         if rec["interval"] < ceiling:
             new_iv = min(rec["interval"] * doubling, ceiling)
-            rec["fm"]["interval"] = num_str(new_iv)
-            rec["interval"] = (
-                int(new_iv) if float(new_iv).is_integer() else new_iv
-            )
-            rec["fm"]["next"] = (t + timedelta(days=new_iv)).isoformat()
-            rec["next"] = t + timedelta(days=new_iv)
+            # round to integer days so timedelta does not truncate a
+            # fractional interval (1.5 doubling -> +2 days, not +1). One
+            # definition everywhere: interval-days-to-next = round half up
+            # (int(round()) is banker's: 4.5 -> 4).
+            new_iv_int = int(new_iv + 0.5)
+            rec["fm"]["interval"] = num_str(new_iv_int)
+            rec["interval"] = new_iv_int
+            rec["fm"]["next"] = (t + timedelta(days=new_iv_int)).isoformat()
+            rec["next"] = t + timedelta(days=new_iv_int)
             rec["fm"]["lapses"] = "0"
             rec["lapses"] = 0
             changed |= {"interval", "next", "lapses"}
@@ -613,9 +634,14 @@ def score_record(
         rec["lapses"] = rec["lapses"] + 1
         changed |= {"interval", "next", "lapses"}
     elif outcome == "abandon":
-        rec["fm"]["next"] = (t + timedelta(days=rec["interval"])).isoformat()
-        rec["next"] = t + timedelta(days=rec["interval"])
-        changed.add("next")
+        # round the current interval: a fractional interval (fractional
+        # doubling survives in storage) would truncate under timedelta.
+        new_iv_int = int(rec["interval"] + 0.5)  # round half up
+        rec["fm"]["interval"] = num_str(new_iv_int)
+        rec["interval"] = new_iv_int
+        rec["fm"]["next"] = (t + timedelta(days=new_iv_int)).isoformat()
+        rec["next"] = t + timedelta(days=new_iv_int)
+        changed |= {"interval", "next"}
     else:
         raise TeachError(2, f"unknown outcome {outcome}")
     return changed
@@ -781,8 +807,7 @@ def asset_status(cwd: str) -> list[tuple[str, str]]:
     for name in ("roots.css", "styles.css", "quiz.js"):
         ws = os.path.join(assets_dir, name)
         if not os.path.isfile(ws):
-            if name == "roots.css":
-                out.append((name, "STALE (missing) — copy the template"))
+            out.append((name, "STALE (missing) — copy the template"))
             continue
         tmpl = os.path.join(TEMPLATES_DIR, "assets", name)
         try:
@@ -1100,9 +1125,13 @@ def score_open_cold_open(cwd: str, result_line: str) -> tuple[list[dict], str]:
         plan.append(
             (rec, outcome, score_record(rec, outcome, doubling, ceiling, conf))
         )
-    write_text(os.path.join(cwd, "NOTES.md"), delete_ledger_line(notes))
+    # save ALL records first, delete the ledger line LAST: a crash mid-write
+    # never destroys the recovery handle (the ledger) before the writes it
+    # gates. Crash after records-saved but before ledger-delete leaves the
+    # ledger open plus updated records — a re-run re-applies, acceptable.
     for rec, _, changed in plan:
         save_record(rec, changed)
+    write_text(os.path.join(cwd, "NOTES.md"), delete_ledger_line(notes))
     rows = [
         {
             "id": os.path.splitext(os.path.basename(rec["path"]))[0],
@@ -1124,6 +1153,15 @@ def score_open_cold_open(cwd: str, result_line: str) -> tuple[list[dict], str]:
 
 
 def cmd_score(args: "argparse.Namespace") -> int:
+    if getattr(args, "check", False):
+        return _score_check()
+    if not args.result:
+        print(
+            "teach.py score: error: the result line is required "
+            "(or pass --check to run the self-check)",
+            file=sys.stderr,
+        )
+        return 2
     results, index_msg = score_open_cold_open(args.workspace, args.result)
     for r in results:
         conf_s = f" confidence={r['confidence']}" if r["confidence"] else ""
@@ -1585,6 +1623,253 @@ def _serve_check() -> int:
     return 0
 
 
+def _score_check() -> int:
+    """score --check: exercise every scoring row against expected
+    interval/next/lapses/status, plus confidence storage and the asked path.
+
+    Builds a throwaway workspace in a fresh tempdir, opens a ledger, and
+    scores each row via the single writer (score_open_cold_open). Plain
+    asserts, fails loud — mirrors _serve_check, no framework. Exit 0 only if
+    every assertion passes; on the first failure print the name + detail and
+    exit 1.
+    """
+    import tempfile
+
+    base = tempfile.mkdtemp(prefix="teach-score-")
+    os.makedirs(os.path.join(base, "learning-records"))
+    os.makedirs(os.path.join(base, "lessons"))
+
+    def fail(name: str, detail: str) -> int:
+        print(f"score --check FAIL: {name}\n  {detail}", file=sys.stderr)
+        return 1
+
+    def write_rec(
+        rid: str,
+        interval: int | float,
+        lapses: int = 0,
+        status: str = "active",
+        nxt: str = "2026-07-27",
+        confidence: int | None = None,
+    ) -> None:
+        fm = [
+            f"interval: {num_str(interval)}",
+            f"lapses: {lapses}",
+            f"status: {status}",
+            f"next: {nxt}",
+        ]
+        if confidence is not None:
+            fm.append(f"confidence: {confidence}")
+        write_text(
+            os.path.join(base, "learning-records", rid + ".md"),
+            "---\n" + "\n".join(fm) + "\n---\n\n# " + rid + "\n",
+        )
+
+    def open_ledger(tests: list[str]) -> None:
+        line = (
+            f"- unscored cold open: lessons/0001-x.html tests "
+            f"{', '.join(tests)} (asked: 0)"
+        )
+        write_text(os.path.join(base, "NOTES.md"), "# Notes\n\n" + line + "\n")
+
+    def reload(rid: str) -> RecordDict:
+        return load_record(os.path.join(base, "learning-records", rid + ".md"))
+
+    global TODAY
+    saved_today = TODAY
+    TODAY = date(2026, 8, 5)
+    try:
+        t = TODAY
+
+        # 1. Right below ceiling: interval 1 * doubling 2 = 2, lapses reset.
+        write_rec("0001-a", interval=1)
+        open_ledger(["0001-a"])
+        rows, _ = score_open_cold_open(base, "Cold open 0001-x: 1 right")
+        if (
+            rows[0]["interval"] != "2"
+            or rows[0]["next"] != (t + timedelta(days=2)).isoformat()
+            or rows[0]["lapses"] != "0"
+            or rows[0]["status"] != "active"
+        ):
+            return fail("right-below-ceiling", f"got {rows[0]}")
+        r = reload("0001-a")
+        if (
+            r["interval"] != 2
+            or r["next"] != t + timedelta(days=2)
+            or r["lapses"] != 0
+            or r["status"] != "active"
+        ):
+            return fail(
+                "right-below-ceiling-reload",
+                f"got interval={r['interval']} next={r['next']} lapses={r['lapses']} status={r['status']}",
+            )
+
+        # 2. Right at ceiling: retire, interval/next untouched, lapses reset.
+        write_rec("0002-b", interval=90)
+        open_ledger(["0002-b"])
+        rows, _ = score_open_cold_open(base, "Cold open 0001-x: 1 right")
+        if (
+            rows[0]["status"] != "retired"
+            or rows[0]["lapses"] != "0"
+            or rows[0]["interval"] != "90"
+            or rows[0]["next"] != "2026-07-27"
+        ):
+            return fail("right-at-ceiling-retire", f"got {rows[0]}")
+        r = reload("0002-b")
+        if r["status"] != "retired" or r["lapses"] != 0:
+            return fail(
+                "right-at-ceiling-retire-reload",
+                f"got status={r['status']} lapses={r['lapses']}",
+            )
+
+        # 3. Wrong: interval -> 1, next +1 day, lapses +1.
+        write_rec("0003-c", interval=4, lapses=1)
+        open_ledger(["0003-c"])
+        rows, _ = score_open_cold_open(base, "Cold open 0001-x: 1 wrong")
+        if (
+            rows[0]["interval"] != "1"
+            or rows[0]["next"] != (t + timedelta(days=1)).isoformat()
+            or rows[0]["lapses"] != "2"
+            or rows[0]["status"] != "active"
+        ):
+            return fail("wrong", f"got {rows[0]}")
+        r = reload("0003-c")
+        if (
+            r["interval"] != 1
+            or r["next"] != t + timedelta(days=1)
+            or r["lapses"] != 2
+        ):
+            return fail(
+                "wrong-reload",
+                f"got interval={r['interval']} next={r['next']} lapses={r['lapses']}",
+            )
+
+        # 4. abandon: next += round(interval), no lapse, no status change.
+        write_rec("0004-d", interval=3)
+        open_ledger(["0004-d"])
+        rows, _ = score_open_cold_open(base, "abandon")
+        if (
+            rows[0]["next"] != (t + timedelta(days=3)).isoformat()
+            or rows[0]["lapses"] != "0"
+            or rows[0]["status"] != "active"
+            or rows[0]["interval"] != "3"
+        ):
+            return fail("abandon", f"got {rows[0]}")
+        r = reload("0004-d")
+        if (
+            r["next"] != t + timedelta(days=3)
+            or r["lapses"] != 0
+            or r["status"] != "active"
+        ):
+            return fail(
+                "abandon-reload",
+                f"got next={r['next']} lapses={r['lapses']} status={r['status']}",
+            )
+
+        # 5. asked path: bump_asked 0 -> 1 -> 2 (no-answer/asked row).
+        write_rec("0005-e", interval=5)
+        open_ledger(["0005-e"])
+        notes = read_notes(base)
+        notes, n = bump_asked(notes)
+        if n != 1:
+            return fail("asked-bump-1", f"expected 1, got {n}")
+        write_text(os.path.join(base, "NOTES.md"), notes)
+        notes, n = bump_asked(notes)
+        if n != 2:
+            return fail("asked-bump-2", f"expected 2, got {n}")
+        # asked:2 abandon path: score "abandon" closes the ledger.
+        write_text(os.path.join(base, "NOTES.md"), notes)
+        rows, _ = score_open_cold_open(base, "abandon")
+        if rows[0]["next"] != (t + timedelta(days=5)).isoformat():
+            return fail("asked-then-abandon", f"got {rows[0]}")
+        if parse_ledger_line(read_notes(base)) is not None:
+            return fail("asked-then-abandon-ledger", "ledger not deleted")
+
+        # 6. confidence storage on /N, then clear when a cold open omits /N.
+        write_rec("0006-f", interval=1, confidence=3)
+        open_ledger(["0006-f"])
+        rows, _ = score_open_cold_open(base, "Cold open 0001-x: 1 right/4")
+        if rows[0]["confidence"] != "4":
+            return fail("confidence-store", f"got {rows[0]}")
+        r = reload("0006-f")
+        if r["confidence"] != 4 or "confidence" not in r["fm"]:
+            return fail(
+                "confidence-store-reload",
+                f"got confidence={r['confidence']} fm={r['fm']}",
+            )
+        # a follow-up cold open with no /N clears the field (HC cannot fire stale).
+        write_rec("0006-f", interval=2, confidence=4)
+        open_ledger(["0006-f"])
+        rows, _ = score_open_cold_open(base, "Cold open 0001-x: 1 right")
+        if rows[0]["confidence"] is not None:
+            return fail("confidence-clear", f"expected None, got {rows[0]}")
+        r = reload("0006-f")
+        if r["confidence"] is not None or "confidence" in r["fm"]:
+            return fail(
+                "confidence-clear-reload",
+                f"got confidence={r['confidence']} fm keys={list(r['fm'])}",
+            )
+
+        # 7. fractional doubling rounds, does not truncate (1 * 1.5 = 1.5 -> 2 days).
+        write_rec("0007-g", interval=1)
+        write_text(
+            os.path.join(base, "NOTES.md"),
+            "# Notes\n\n- spacing: {doubling: 1.5, ceiling: 10}\n\n"
+            "- unscored cold open: lessons/0001-x.html tests 0007-g (asked: 0)\n",
+        )
+        rows, _ = score_open_cold_open(base, "Cold open 0001-x: 1 right")
+        if (
+            rows[0]["interval"] != "2"
+            or rows[0]["next"] != (t + timedelta(days=2)).isoformat()
+        ):
+            return fail("fractional-round-right", f"got {rows[0]}")
+        # abandon with a fractional stored interval rounds too.
+        write_rec("0008-h", interval=1.5)
+        write_text(
+            os.path.join(base, "NOTES.md"),
+            "# Notes\n\n- spacing: {doubling: 1.5, ceiling: 10}\n\n"
+            "- unscored cold open: lessons/0001-x.html tests 0008-h (asked: 0)\n",
+        )
+        rows, _ = score_open_cold_open(base, "abandon")
+        if (
+            rows[0]["next"] != (t + timedelta(days=2)).isoformat()
+            or rows[0]["interval"] != "2"
+        ):
+            return fail("fractional-round-abandon", f"got {rows[0]}")
+
+        # 8. confidence range validation: /9 and /0 rejected, /5 accepted.
+        try:
+            parse_result_line("Cold open 0001-x: 1 right/9")
+        except TeachError as e:
+            if e.code != 2 or "must be 1-5" not in e.msg:
+                return fail(
+                    "confidence-range-9", f"got code={e.code} msg={e.msg}"
+                )
+        else:
+            return fail(
+                "confidence-range-9", "expected TeachError, none raised"
+            )
+        try:
+            parse_result_line("Cold open 0001-x: 1 right/0")
+        except TeachError:
+            pass
+        else:
+            return fail(
+                "confidence-range-0", "expected TeachError, none raised"
+            )
+        # /5 parses fine.
+        try:
+            _, parsed = parse_result_line("Cold open 0001-x: 1 right/5")
+        except TeachError as e:
+            return fail("confidence-range-5", f"unexpected TeachError: {e}")
+        if parsed[0][2] != 5:
+            return fail("confidence-range-5", f"got conf={parsed[0][2]}")
+
+        print("score --check OK")
+        return 0
+    finally:
+        TODAY = saved_today
+
+
 def cmd_serve(args: "argparse.Namespace") -> int:
     if getattr(args, "check", False):
         return _serve_check()
@@ -1640,8 +1925,15 @@ def main(argv: list[str]) -> int:
     sc = sub.add_parser(
         "score", help="apply the scoring table to an open cold open"
     )
-    sc.add_argument("result", help='result line verbatim, or "abandon"')
+    sc.add_argument(
+        "result", nargs="?", help='result line verbatim, or "abandon"'
+    )
     sc.add_argument("--workspace", default=os.getcwd())
+    sc.add_argument(
+        "--check",
+        action="store_true",
+        help="run the scoring self-check (no workspace needed) and exit",
+    )
     sc.set_defaults(func=cmd_score)
 
     ld = sub.add_parser(
