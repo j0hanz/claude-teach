@@ -1,4 +1,4 @@
-/* teach-template-version: 22 */
+/* teach-template-version: 23 */
 
 /* =========================================================================
    SECTION INDEX — read top-to-bottom, write top-to-bottom
@@ -313,8 +313,6 @@ a.cite {
   display: inline-flex;
   align-items: center;
   gap: 0.45em;
-  padding: 0;
-  background: none;
 }
 
 .lesson-header .eyebrow .icon {
@@ -391,6 +389,9 @@ a.cite {
     color 0.18s var(--ease-out);
 }
 
+/* Back-compat only: the route stop carry the meaning, so the template stopped
+   emitting a chevron per stop at v23. Lesson built before that still have one,
+   and the column layout drop it under the label — keep it hidden. */
 .toc a .icon {
   display: none;
 }
@@ -478,10 +479,6 @@ a.cite {
 
 .lesson-nav-link:focus-visible {
   outline-offset: 4px;
-}
-
-.lesson-nav-cell:empty {
-  display: none;
 }
 
 /* 3. COMPONENTS ----------------------------------------------------------- */
@@ -690,7 +687,9 @@ a.cite {
   border: 0;
   border-bottom: 1px solid var(--rule-2);
   border-radius: 0;
-  min-width: var(--s-7);
+  /* literal, not --s-7: control width is a hit target, and the space ladder
+     move with data-density. Wide enough for the label plus its countdown. */
+  min-width: 6rem;
   transition:
     color 0.18s var(--ease-out),
     border-color 0.18s var(--ease-out);
@@ -1485,7 +1484,6 @@ details {
   .self-explain .icon-closed,
   details.aside .icon-open,
   details.aside .icon-closed,
-  .toc a .icon,
   .lesson-nav-link .icon {
     display: none;
   }

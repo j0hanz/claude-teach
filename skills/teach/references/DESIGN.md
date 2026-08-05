@@ -2,20 +2,20 @@
 
 Design system for HTML this skill generate. One course identity cross every `lessons/*.html` and `reference/*.html` in workspace — set read as course, not pile one-offs.
 
-Hard constraint from [SKILL.md](../SKILL.md) shape every choice — see [Constraints](#constraints). This file hold direction, layout, the retrieval-gate signature, constraints and validation. Two peer reference hold the rest: [TOKENS.md](TOKENS.md) name every CSS token role; [COMPONENTS.md](COMPONENTS.md) spec every reusable block a generated lesson emit.
+Hard constraint from [SKILL.md](../SKILL.md) shape every choice — see [Constraints](#constraints). This file hold direction, layout, the retrieval-gate signature, [what may vary per lesson](#variation), constraints and validation. Two peer reference hold the rest: [TOKENS.md](TOKENS.md) name every CSS token role; [COMPONENTS.md](COMPONENTS.md) spec every reusable block a generated lesson emit, and table every [template argument](COMPONENTS.md#template-arguments).
 
 ## Artifacts
 
 Maintainable split — spec here and in peer references, code as real file skill copy:
 
-| File                                                                  | Role                           | Copied into workspace as |
-| --------------------------------------------------------------------- | ------------------------------ | ------------------------ |
-| [`templates/assets/roots.css`](../../../templates/assets/roots.css)   | Root variables (token values)  | `assets/roots.css`       |
-| [`templates/assets/styles.css`](../../../templates/assets/styles.css) | Screen and print rules         | `assets/styles.css`      |
-| [`templates/assets/quiz.js`](../../../templates/assets/quiz.js)       | Reusable quiz widget           | `assets/quiz.js`         |
-| [`templates/lesson.html`](../../../templates/lesson.html)             | Lesson skeleton (placeholders) | `lessons/NNNN-slug.html` |
+| File                                                                  | Role                          | Copied into workspace as |
+| --------------------------------------------------------------------- | ----------------------------- | ------------------------ |
+| [`templates/assets/roots.css`](../../../templates/assets/roots.css)   | Root variables (token values) | `assets/roots.css`       |
+| [`templates/assets/styles.css`](../../../templates/assets/styles.css) | Screen and print rules        | `assets/styles.css`      |
+| [`templates/assets/quiz.js`](../../../templates/assets/quiz.js)       | Reusable quiz widget          | `assets/quiz.js`         |
+| [`templates/lesson.html`](../../../templates/lesson.html)             | Lesson skeleton + arguments   | `lessons/NNNN-slug.html` |
 
-Edit template; don't fork per lesson. Lesson fill `{{placeholders}}` in skeleton, link three local `assets/` file — nothing more.
+Edit template; don't fork per lesson. Lesson fill the `{{arguments}}` in skeleton — every word on the page come from there, none from the template — link three local `assets/` file, and vary what [Variation](#variation) allow. Nothing more.
 
 ## Direction
 
@@ -23,20 +23,20 @@ Course-timetable study instrument, light. Cool blue-gray page, graphite ink, tra
 
 Not cream-and-terracotta default (blue-gray not cream; transit blue not terracotta). Not dashboard blue: transit blue mark route, control and calibration, never drown reading surface. Not broadsheet multi-column (single column + margin; rules are study structure, not newspaper).
 
-Lesson open as route card: header carry vertical transit rule and one vermilion stop, then route navigation name Recall, Understand, Practice and Continue before retrieval gate. This sequence explain lesson shape without expose sealed body.
+Lesson open as route card: header carry vertical transit rule and one vermilion stop, then route navigation name its four stop before retrieval gate. This sequence explain lesson shape without expose sealed body — recall, then the two thing the lesson teach, then where it lead. The stop labels are the lesson's own word for those four ([Variation](#variation)); the four stop and their order are not.
 
 Voice: dropped-article style throughout this skill deliberate, load-bearing — preserve in edit; don't normalize to standard English.
 
 ## Icons
 
-Shell carries an eleven-icon set — heroicons (`@heroicons/react@2.2.0/24/outline`, MIT, source `tailwindlabs/heroicons`), inline `<svg class="icon">` at one anchor each. Inline, not sprite — offline-first (no remote `<use href>`), no asset copy step, color via `stroke="currentColor"` token-aware. Selection and authoring in [COMPONENTS.md § Icon — shell set](COMPONENTS.md#icon--shell-set).
+Shell carries a ten-icon set — heroicons (`@heroicons/react@2.2.0/24/outline`, MIT, source `tailwindlabs/heroicons`), inline `<svg class="icon">` at one anchor each. Inline, not sprite — offline-first (no remote `<use href>`), no asset copy step, color via `stroke="currentColor"` token-aware. Selection and authoring in [COMPONENTS.md § Icon — shell set](COMPONENTS.md#icon--shell-set).
 
 Rules:
 
 - **One icon per anchor.** A new icon earns a place only where the surrounding text already names the gesture; adjacent text always carries the meaning, so every icon is `aria-hidden="true"`. Decorative, not informational.
 - **No sprite file.** Per-use inline bytes are <2 KB total across the shell; sprite adds file copy, asset-staleness entry, and `check_lesson.py` doesn't validate `<use href>` resolve. Add sprite when icon count past ~15 or any single lesson repeats an icon >3×.
 - **No web font, no iconfont.** Banned by `file://` constraint.
-- **Print:** summary, TOC, and lesson-nav icons are `display: none` in print CSS — they are interactive gestures, not content. Callout and synthesis icons print in `--ink`/inherit color.
+- **Print:** summary and lesson-nav icons are `display: none` in print CSS — they are interactive gestures, not content. Callout and synthesis icons print in `--ink`/inherit color.
 - **No motion.** Icons aren't animated; motion budget belongs to quiz state, seal release, pointer interactions.
 
 ## Layout
@@ -47,7 +47,7 @@ Sidenote live **inside** `.lesson-content`, not after. Two reason, both load-bea
 
 ## Signature — the retrieval gate
 
-Cold open lesson's calibration surface. Body content below it **sealed**: dimmed, blurred, `inert`, small label ("Answer the cold open to unseal the lesson"). Every cold-open item answered, `quiz.js` drop `.sealed` and `inert` together, body quiet release. Cobalt top rule make one required action visible without turning it into a game show — embody retrieval-before-instruction, brief core mechanism.
+Cold open lesson's calibration surface. Body content below it **sealed**: dimmed, blurred, `inert`, small label (`SEAL-LABEL` — the lesson's own line; the CSS literal is fallback). Every cold-open item answered, `quiz.js` drop `.sealed` and `inert` together, body quiet release. Cobalt top rule make one required action visible without turning it into a game show — embody retrieval-before-instruction, brief core mechanism.
 
 Seal two halves, need both. Blur visible half; `inert` half that hold. Blur alone gate eye only — Tab still walk sealed lesson, screen reader still read it out, signature become decoration for exact reader who can't see it. `check_lesson.py` enforce pairing (`quiz-releases-not-inert`). Label text come from `data-seal-label` on sealed element so non-English lesson can translate it; CSS literal stay as fallback.
 
@@ -56,6 +56,26 @@ Instruction need third piece, same reason `inert` exist. Veil label CSS content 
 Swap text come from `data-unsealed-label` on `.seal-note`, so translate with lesson, carry one instruction page otherwise never give: **paste result line back**. Without it, cold open end in mono box reading `Cold open 0007-x: 1 right, 2 wrong` beside Copy button, nothing on page say what either for — spaced-repetition loop depend on learner action lesson never ask for. Slot cost nothing: release announcement had to happen anyway.
 
 Quiet on purpose: faint veil, cobalt rule, small uppercase label. No confetti, no green flash. `prefers-reduced-motion` mean no transition, instant release; veil stay, blur static mask not movement — cancel it, reduced-motion reader read whole sealed lesson at 35% opacity. Seal state, not performance.
+
+## Variation
+
+Learner who can predict page before it load stop reading it. Lesson 12 must not be lesson 1 with different word. Template carry no fixed lesson copy for that reason — what a lesson choose:
+
+- **Every string.** All copy arrive as [template argument](COMPONENTS.md#template-arguments), route stop label and section heading included. Course in another language translate shell once and reuse it; today `lang` is the only thing that could follow the learner.
+- **Which optional component appear, and in what order** — `KNOWLEDGE-BLOCKS` and `SKILLS-BLOCKS` are free slots. Callout, figure, self-explanation, aside, worked example, practice quiz: order inside a section carry no meaning, so it is the lesson's. Gate the choice on record state (fading rule), never on variety for its own sake.
+- **Accent** — `<html data-accent>`, closed set of four hue name. Hue only: light, dark and print keep their own lightness.
+- **Density** — `<html data-density>`, section rhythm only. Short lesson breathe less, long lesson breathe more; component padding and `--measure` never move.
+
+Both hooks in [TOKENS.md § Per-lesson hooks](TOKENS.md#per-lesson-hooks). Name, never value — a colour written into a lesson restate a token and the next edit to `roots.css` miss it.
+
+What never vary, because it _is_ the course:
+
+- four route stop, in order, on their fixed anchor (`#recall`, `#knowledge`, `#skills`, `#where-next`) — `check_lesson.py` enforce the count
+- cold open before body, body sealed until every item answered (§ [Signature](#signature--the-retrieval-gate))
+- section order: Knowledge, Skills, Synthesis, Where next
+- the three shared `assets/` file, and the icon set with its anchor
+
+Test for any change here: two lesson from one course, side by side, still one product. Two products mean it went too far.
 
 ## Constraints
 

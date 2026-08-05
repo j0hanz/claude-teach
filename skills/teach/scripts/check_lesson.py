@@ -79,6 +79,12 @@ def cold_open_faults(pairs):
     return faults
 
 
+# An unfilled `{{…}}` slot from templates/lesson.html. Matched by shape, not by
+# name: the placeholder set is the template's, and a second list of names here
+# is a third place for it to drift. A lesson teaching Handlebars/Vue/Jinja
+# writes `{{ … }}` on purpose, so text inside <pre>/<code> is exempt.
+PLACEHOLDER_RE = re.compile(r"\{\{\s*([^{}]{0,60})")
+
 VOID = {
     "br",
     "img",
@@ -138,6 +144,13 @@ class DocParser(HTMLParser):
         self.cold_open_comment = (
             None  # (line, text) of the cold-open mapping comment
         )
+        self.placeholders = []  # (line, snippet) of unfilled {{…}} slots
+        self.toc_stops = 0  # count of .toc-stop — the route's four stops
+
+    def _note_placeholder(self, line, text):
+        m = PLACEHOLDER_RE.search(text or "")
+        if m:
+            self.placeholders.append((line, m.group(1).strip()))
 
     def handle_starttag(self, tag, attrs):
         ad = {k: (v or "") for k, v in attrs}
@@ -147,6 +160,10 @@ class DocParser(HTMLParser):
             self.html_lang = True
         if ad.get("id"):
             self.ids.add(ad["id"])
+        for v in ad.values():
+            self._note_placeholder(line, v)
+        if "toc-stop" in cls:
+            self.toc_stops += 1
         if "sealed" in cls and ad.get("id"):
             self.sealed_ids.add(ad["id"])
         if "inert" in ad and ad.get("id"):
@@ -233,10 +250,13 @@ class DocParser(HTMLParser):
     def handle_data(self, data):
         if self._css_cap is not None:
             self._css_cap.append(data)
+        if not any(f["tag"] in ("pre", "code") for f in self._stack):
+            self._note_placeholder(self.getpos()[0], data)
 
     def handle_comment(self, data):
         line = self.getpos()[0]
         text = data.strip()
+        self._note_placeholder(line, text)
         # only the cold-open mapping comment is of interest; identify it by the
         # literal 'cold-open:' prefix AND a cold-open ancestor on the stack.
         if not text.startswith("cold-open:"):
@@ -401,7 +421,35 @@ def verify(type_, parser, css_blocks, html_dir, self_mode=False, html_name=""):
             errors.append(
                 (line, "missing-asset", f'<{tag}> src "{ref}" does not exist')
             )
+    # an in-page jump resolve against this document, so it is checkable in both
+    # modes. Route stop 1 pointing at a #recall a lesson dropped with its cold
+    # open is the case this catch — resolve_local never sees a fragment-only ref.
+    for line, href in parser.anchor_hrefs:
+        if (
+            href.startswith("#")
+            and len(href) > 1
+            and "{{" not in href
+            and href[1:] not in parser.ids
+        ):
+            errors.append(
+                (
+                    line,
+                    "broken-anchor",
+                    f'link target "{href}" matches no id on this page',
+                )
+            )
     if not self_mode:
+        # the template is all placeholders; a lesson that still carry one ship
+        # the slot to the learner
+        for line, snippet in parser.placeholders:
+            errors.append(
+                (
+                    line,
+                    "unfilled-placeholder",
+                    f'template slot "{{{{{snippet}" left unfilled; '
+                    f"fill it or drop the block",
+                )
+            )
         # cross-links between lessons and reference docs are a completion
         # criterion; external citation links are left alone by resolve_local
         for line, href in parser.anchor_hrefs:
@@ -415,6 +463,19 @@ def verify(type_, parser, css_blocks, html_dir, self_mode=False, html_name=""):
                     )
                 )
     if type_ == "lesson":
+        # Stop labels are the lesson's own words; the route itself is the
+        # course skeleton (DESIGN.md § Variation). Four stops, always — a
+        # lesson free to drop one is a lesson that stop being this course.
+        if parser.toc_stops != 4:
+            errors.append(
+                (
+                    1,
+                    "route-four-stops",
+                    f"lesson route carry {parser.toc_stops} .toc-stop; must be "
+                    f"exactly 4 — label each stop as the lesson need, never "
+                    f"add or drop one",
+                )
+            )
         for q in parser.quizzes:
             if not q["items"]:
                 errors.append(

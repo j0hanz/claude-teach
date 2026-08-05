@@ -4,13 +4,55 @@ Spec for every reusable block a generated lesson emit. Companion to [DESIGN.md](
 
 Every component here is plain HTML + the shared stylesheet; nothing needs a new script. Offline-only, print-friendly — see [DESIGN.md § Constraints](DESIGN.md#constraints).
 
+## Template arguments
+
+[`templates/lesson.html`](../../../templates/lesson.html) is skeleton plus argument — no fixed lesson copy left in it. Two brace forms, one convention:
+
+- `{{UPPER-KEBAB}}` — **named argument**, table below. Wording is the lesson's, never the template's; that is what stop lesson 12 reading as lesson 1 with different words.
+- `{{lowercase prose}}` — fill-in guidance at point of use (a sidenote line, a synthesis point). Not named, not tabled.
+
+Both gone from a finished lesson: `check_lesson.py` reject any surviving `{{` (`unfilled-placeholder`), except inside `<pre>`/`<code>`, where a lesson teaching a brace-syntax template language need them. What a lesson may vary beyond its copy — optional block choice and order, accent, density — and what it may not: [DESIGN.md § Variation](DESIGN.md#variation).
+
+| Argument                                                               | Slot                                 | Fill with                                                                                                                             |
+| ---------------------------------------------------------------------- | ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------- |
+| `LANG`                                                                 | `<html lang>`                        | BCP-47 tag of the language lesson written in                                                                                          |
+| `ACCENT`                                                               | `<html data-accent>`                 | `cobalt` (default), `teal`, `violet`, `plum` — [TOKENS.md § Per-lesson hooks](TOKENS.md#per-lesson-hooks); drop attribute for default |
+| `DENSITY`                                                              | `<html data-density>`                | `default`, `compact`, `roomy` — same reference; drop attribute for default                                                            |
+| `TITLE`                                                                | `<title>`, `h1`                      | lesson title                                                                                                                          |
+| `TOPIC`                                                                | `<title>`                            | course topic                                                                                                                          |
+| `EYEBROW`                                                              | `.lesson-header .eyebrow`            | where lesson sit, e.g. `Lesson 4 · ownership`                                                                                         |
+| `LEAD`                                                                 | `.lead`                              | one thing lesson land — output of reconciling sources, not restatement of first                                                       |
+| `ROUTE-LABEL`                                                          | `.toc` `aria-label` + `.toc-eyebrow` | what the route is called; same string both slots                                                                                      |
+| `STOP-1`…`STOP-4`                                                      | route stops, and `h2` of section 2–4 | [Lesson route](#lesson-route)                                                                                                         |
+| `RECORD-ID`                                                            | `<!-- cold-open: … -->`              | `NNNN-slug` of record each item test — one pair per `.quiz-item`                                                                      |
+| `COLD-OPEN-EYEBROW`, `COLD-OPEN-TITLE`, `COLD-OPEN-INTRO`              | `.cold-open`                         | [Cold open](#cold-open)                                                                                                               |
+| `QUIZ-LABEL`                                                           | `.quiz` `data-label`                 | head of result line; free text, scoring key on the id that follow it                                                                  |
+| `LESSON-ID`                                                            | `.quiz` `data-lesson`                | own file stem, `NNNN-slug`                                                                                                            |
+| `QUESTION`, `OPT`, `FEEDBACK`                                          | `.quiz-item`                         | [Quiz](#quiz)                                                                                                                         |
+| `COPY-LABEL`                                                           | `.quiz-copy`                         | copy-control label                                                                                                                    |
+| `SEAL-NOTE`, `UNSEALED-LABEL`                                          | `.seal-note`                         | [DESIGN.md § Signature](DESIGN.md#signature--the-retrieval-gate)                                                                      |
+| `SEAL-LABEL`                                                           | `.lesson-content` `data-seal-label`  | the veil's own line                                                                                                                   |
+| `BODY`                                                                 | first `<p>` under Knowledge          | [SKILL.md](../SKILL.md) `## Knowledge` authoring rules                                                                                |
+| `URL`                                                                  | sidenote and body links              | citation target                                                                                                                       |
+| `KNOWLEDGE-BLOCKS`, `SKILLS-BLOCKS`                                    | after the Knowledge / Skills `h2`    | optional components this lesson earn, in the order it earn them                                                                       |
+| `SYNTHESIS-TITLE`, `SYNTHESIS-PROMPT`                                  | `.synthesis`                         | [Synthesis](#synthesis)                                                                                                               |
+| `WHERE-NEXT`, `FOLLOW-UP`                                              | Where next                           | [Where next](#where-next)                                                                                                             |
+| `NAV-LABEL`, `PREV-LABEL`, `NEXT-LABEL`                                | `.lesson-nav`                        | navigation labels                                                                                                                     |
+| `PREV-LESSON`, `PREV-LESSON-TITLE`, `NEXT-LESSON`, `NEXT-LESSON-TITLE` | `.lesson-nav`                        | neighbour file stem and title; no neighbour → drop that whole `.lesson-nav-cell`                                                      |
+
 ## Lesson route
 
-`.toc`, four ordered stops: Recall, Understand, Practice, Continue. Each anchor own square number; route show lesson scope before cold open, never use it as dense global navigation. Each stop link carry a trailing `chevron-right` `<svg class="icon">` (decorative, `aria-hidden="true"`) — the stop circle and number carry the meaning, chevron reinforces "next stop in this direction." Four-stop route is load-bearing — do not add a fifth stop. Synthesis (below) close the lesson but is not a route stop.
+`.toc`, four ordered stops. Each anchor own square number; route show lesson scope before cold open, never use it as dense global navigation. Four-stop route is load-bearing — `check_lesson.py` fail a lesson that carry any other count (`route-four-stops`). Anchors fixed with it: `#recall`, `#knowledge`, `#skills`, `#where-next`.
+
+Stop **labels** are the lesson's, through `STOP-1`…`STOP-4`. One label per stop, used twice: route stop 2–4 and the `h2` of the section it point at. Two names for one stop — a route saying "Understand" over a heading saying "Knowledge" — is the vocabulary drift this replaces. Keep the same four labels across a course; they translate once, not per lesson. Synthesis close the lesson but is not a route stop.
+
+Stop 1 point at the cold open. Lesson with nothing due carry none (see below) — then `id="recall"` ride on `.lesson-header` and `STOP-1` name what the lesson actually open with.
 
 ## Cold open
 
-`.cold-open`, `--paper-2` calibration field, transit-blue top rule, fine frame. Label it `Recall check`; one plain sentence explain answer-from-memory and release condition. Hold quiz. Field span both column; what it hold stay bound to `--measure`, so cold-open quiz and practice quiz further down same lesson one component at one width, ✓ mark stay next to word it mark.
+`.cold-open`, `--paper-2` calibration field, transit-blue top rule, fine frame. `COLD-OPEN-EYEBROW` and `COLD-OPEN-TITLE` label it, `COLD-OPEN-INTRO` is one plain sentence explaining answer-from-memory and the release condition. Hold quiz. Field span both column; what it hold stay bound to `--measure`, so cold-open quiz and practice quiz further down same lesson one component at one width, ✓ mark stay next to word it mark.
+
+**No due record, no cold open** ([SKILL.md](../SKILL.md) step 5). Then drop the whole `.cold-open` section and the `.seal-note` with it, drop `sealed`, `inert` and `data-seal-label` off `.lesson-content`, and re-anchor stop 1 per [Lesson route](#lesson-route). Half-dropping it is the failure: a sealed body with no quiz to release it is a lesson nobody can open, and `check_lesson.py` catch that pairing, not the missing anchor — the anchor is caught by `broken-anchor`.
 
 ## Lead
 
@@ -21,20 +63,32 @@ Every component here is plain HTML + the shared stylesheet; nothing needs a new 
 Shape only:
 
 ```html
-<div class="quiz" data-releases="contentId" data-label="Cold open" data-lesson="NNNN-slug">
+<div class="quiz" data-releases="contentId" data-label="…" data-lesson="NNNN-slug">
   <div class="quiz-item" role="group" aria-labelledby="q1" data-correct="0">
     <p class="quiz-q" id="q1">…</p>
     …<button class="quiz-btn" type="button">…</button>…
   </div>
   <p class="quiz-result" role="status"></p>
-  <button class="quiz-copy" type="button" hidden>Copy result</button>
+  <button class="quiz-copy" type="button" hidden>…COPY-LABEL…</button>
 </div>
 <p class="seal-note" role="status">…</p>
 ```
 
 `.quiz-result` carry **no** `hidden` — `quiz.js` never unhide it, so hidden one result line, and scoring affordance, nobody ever see. `role="group"` + `aria-labelledby` tie option to own question: three sibling button carry no question with them, so on item 2 of 3 screen reader otherwise offer bare option list.
 
-Equal-width `.quiz-btn` option so formatting never leak answer (rule from [SKILL.md](../SKILL.md) `## Skills`; same character-count per option where possible). Right/wrong carry mono ✓/✗ mark plus border + tint — border colour and tint both colour, mark what keep state readable without it. Answered option carry `aria-disabled`: still focusable, mark stay reachable, but no longer offer action that do nothing. Result line and per-item feedback `role="status"`: both appear without focus moving, unannounced result line a result line screen-reader user never learn exist — so both start **empty and in tree**, and `quiz.js` fill them. Live region that arrive already full the case screen reader most often miss. `.quiz-fb` keep its `hidden` and authored text in markup, what a no-JS page need; init hoist that text into JS and empty element. Copy control must work on `file://` — no copy control, no spaced-repetition loop. This section quiz contract; [`templates/assets/quiz.js`](../../../templates/assets/quiz.js) implement it.
+Two to four `.quiz-btn` per item; count is the lesson's, `data-correct` a 0-based index into it, and `check_lesson.py` range-check the pair. Equal-width `.quiz-btn` option so formatting never leak answer (rule from [SKILL.md](../SKILL.md) `## Skills`; same character-count per option where possible). Right/wrong carry mono ✓/✗ mark plus border + tint — border colour and tint both colour, mark what keep state readable without it. Answered option carry `aria-disabled`: still focusable, mark stay reachable, but no longer offer action that do nothing. Result line and per-item feedback `role="status"`: both appear without focus moving, unannounced result line a result line screen-reader user never learn exist — so both start **empty and in tree**, and `quiz.js` fill them. Live region that arrive already full the case screen reader most often miss. `.quiz-fb` keep its `hidden` and authored text in markup, what a no-JS page need; init hoist that text into JS and empty element. Copy control must work on `file://` — no copy control, no spaced-repetition loop. This section quiz contract; [`templates/assets/quiz.js`](../../../templates/assets/quiz.js) implement it.
+
+**Labels.** `quiz.js` hold an English default for every string it write, each overridable by a `data-*` on `.quiz`, so a non-English lesson translate without touching the widget. Template spell out only `data-label`, the one that vary per lesson — restating a default in markup is a second copy that drift.
+
+| Attribute                | Fills                                   | Default in `quiz.js`                                              |
+| ------------------------ | --------------------------------------- | ----------------------------------------------------------------- |
+| `data-label`             | head of the result line (`QUIZ-LABEL`)  | `Cold open`                                                       |
+| `data-undo-label`        | undo control; countdown append to it    | `Undo`                                                            |
+| `data-copied-label`      | copy control, briefly, after a copy     | `Copied`                                                          |
+| `data-copied-status`     | `.quiz-copy-status` after a copy        | `Result copied. Paste it into your next message to your teacher.` |
+| `data-copy-failed-label` | `.quiz-copy-status` after a failed copy | `Copy failed. Result selected; copy it manually.`                 |
+
+`teach.py score` key on the `NNNN-slug` at the end of the head, never on `data-label` words, so translating the label cannot break scoring.
 
 **Feedback content (load-bearing).** Per-item feedback text must state _why_ the correct option is correct and _why_ the chosen wrong option is wrong, not merely confirm or reject. The high-information gain live in this text (Wisniewski 2020: d=0.99 high-information vs d=0.24 reinforcement-only); the scoring result line is KR-level (right/wrong counts) for scheduling, not for learning, so the per-item feedback carry all the specificity. Authoring rule, not a markup change — the `.quiz-fb` slot already exist.
 
@@ -72,7 +126,23 @@ Open-ended prompt after the Knowledge or at a worked-step boundary, with a model
 
 ```html
 <details class="self-explain">
-  <summary>In your own words: why does … hold?</summary>
+  <summary>
+    <svg class="icon icon-closed" viewBox="0 0 24 24" aria-hidden="true">
+      <path
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        d="M9 15 3 9m0 0 6-6M3 9h12a6 6 0 0 1 0 12h-3"
+      />
+    </svg>
+    <svg class="icon icon-open" viewBox="0 0 24 24" aria-hidden="true">
+      <path
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        d="m15 15 6-6m0 0-6-6m6 6H9a6 6 0 0 0 0 12h3"
+      />
+    </svg>
+    In your own words: why does … hold?
+  </summary>
   <div class="self-explain-model">…model answer…</div>
 </details>
 ```
@@ -81,7 +151,14 @@ Distinct from cold open: cold open test prior record; self-explanation elaborate
 
 ## Details — optional depth
 
-Native `<details>`/`<summary>` for genuinely optional deeper content (a worked derivation, an edge case, a longer aside) inside the body. Offline, prints sensibly, no JS. Cap one nesting level. Label `summary` with real information scent ("How we chose this threshold"), never hide a prerequisite. Self-explanation (above) is its primary use; a plain `<details class="aside">` serve other optional depth. Same closed/open icon pair as self-explanation — see above.
+Native `<details>`/`<summary>` for genuinely optional deeper content (a worked derivation, an edge case, a longer aside) inside the body. Offline, prints sensibly, no JS. Cap one nesting level. Label `summary` with real information scent ("How we chose this threshold"), never hide a prerequisite. Self-explanation (above) is its primary use; a plain `<details class="aside">` serve other optional depth.
+
+```html
+<details class="aside">
+  <summary>…same closed/open icon pair as above…How we chose this threshold</summary>
+  …
+</details>
+```
 
 ## Synthesis
 
@@ -89,13 +166,17 @@ Native `<details>`/`<summary>` for genuinely optional deeper content (a worked d
 
 ```html
 <section class="synthesis" id="synthesis">
-  <h2><svg class="icon" viewBox="0 0 24 24" aria-hidden="true">…sparkles…</svg>Synthesis</h2>
+  <h2>
+    <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">…sparkles…</svg>…SYNTHESIS-TITLE…
+  </h2>
   <ul class="synthesis-points">
     <li>…core idea, one line…</li>
     …3–5…
   </ul>
   <p class="synthesis-rule">…re-state the core rule in light of what practice showed…</p>
-  <p class="synthesis-prompt">Say it back in your own words — then ask your tutor to check it.</p>
+  <p class="synthesis-prompt">
+    …SYNTHESIS-PROMPT: say it back in your own words, then have it checked…
+  </p>
 </section>
 ```
 
@@ -107,6 +188,13 @@ The prompt is a retrieval nudge that feed the spaced-repetition loop. Keep "Wher
 
 ```html
 <div class="callout" data-type="warning" role="note">
+  <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+    <path
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z"
+    />
+  </svg>
   <p>…</p>
 </div>
 ```
@@ -119,12 +207,17 @@ Optional `<figure class="diagram">` for inline SVG or a local `assets/` image. W
 
 ```html
 <figure class="diagram">
-  <img src="assets/…png" alt="…" />
+  <svg viewBox="0 0 320 180" role="img" aria-labelledby="d1-title">
+    <title id="d1-title">…</title>
+    …
+  </svg>
   <figcaption>
     …caption; cite the claim it illustrate via <a class="cite" href="#n1">1</a>…
   </figcaption>
 </figure>
 ```
+
+A local image take the same frame — `<img src="assets/…png" alt="…" />` in place of the `<svg>`, and the asset copied into workspace `assets/` first.
 
 Offline enforced by `check_lesson.py` (any `<img>`/`srcset` remote or missing fail). Prefer inline SVG — no asset to copy, no stale-asset drift. The "diagram helper" named in [SKILL.md](../SKILL.md) `## Assets` is a reusable SVG component in `assets/`, not a script.
 
@@ -157,7 +250,14 @@ Inline `a.cite` number real link to own `.sidenote` (`id="n1"`, `n2`, … in ord
 
 ## Where next
 
-Final block: one primary source (highest-trust thing found), cross-link to related lesson and reference doc by anchor, line invite follow-up question. Navigation only — consolidation live in [Synthesis](#synthesis).
+Final block: one primary source (highest-trust thing found), cross-link to related lesson and reference doc by anchor, line invite follow-up question. Navigation only — consolidation live in [Synthesis](#synthesis). Wording is the lesson's (`WHERE-NEXT`, `FOLLOW-UP`); the four link shapes are not, because a lesson live in `lessons/` and every relative depth here is a link `check_lesson.py` will call broken:
+
+```html
+<a href="https://…">…primary source…</a>
+<a href="NNNN-slug.html">…related lesson…</a>
+<a href="../reference/slug.html#anchor">…reference doc…</a>
+<a href="../index.html">…course home…</a>
+```
 
 ## Icon — shell set
 
@@ -166,7 +266,6 @@ Inline heroicons (`@heroicons/react@2.2.0/24/outline`, MIT, source `tailwindlabs
 | Icon                   | Where                                     | Why                                        |
 | ---------------------- | ----------------------------------------- | ------------------------------------------ |
 | `academic-cap`         | `.lesson-header > .eyebrow`               | "Lesson" affordance — study instrument     |
-| `chevron-right`        | each `.toc a`                             | forward direction on the route             |
 | `arrow-long-left`      | `.lesson-nav-link` previous               | paired glyph replaces `←`                  |
 | `arrow-long-right`     | `.lesson-nav-link` next                   | paired glyph replaces `→`                  |
 | `exclamation-triangle` | `.callout[data-type="warning"]`           | common-pitfall glyph                       |

@@ -13,6 +13,7 @@ Name and role only — no value here, on purpose. Value drift when restated.
 | `--ink-soft`    | secondary text, marginalia           |
 | `--rule`        | hairlines                            |
 | `--rule-2`      | control boundaries (quiz options)    |
+| `--accent-h`    | accent hue — the one per-lesson knob |
 | `--accent`      | cobalt — gate, correct, links        |
 | `--accent-bg`   | cobalt tint — active control bg      |
 | `--signal`      | vermilion — route stop, release edge |
@@ -41,6 +42,20 @@ Why these token, not others:
 - **`--margin-w` earn its width** because every claim cite. Citation live beside claim as sidenote, not bunch as inline footnote bomb. Margin structural, not decorative.
 - **`--wrong` muted oxblood, never alarm-red.** Wrong answer teaching signal, not emergency. Red shout; oxblood correct quiet, keep page calm.
 - **One space ladder, not free value.** Structural gap come off `--s-*`; rare quarter-rem optical adjustment stay beside component it tune. Type size live at use — page has few roles, named ladder hide more than it help.
+- **`--accent-h` is hue alone, not a second accent.** Light, dark and print each set `--accent`'s own lightness and chroma; a per-lesson rule that set `--accent` outright would out-specify all three and drag a light-mode colour into dark. Hue is the one part safe to vary, so it is the only part that varies.
 - **`--rule-2` exist because `--rule` too faint to be edge.** Hairline separate; control boundary must be _found_. Quiz option border only thing saying "this is clickable", `--rule` sit near 1.5:1 on paper — under 3:1 control boundary owe. Two token, two job; never use `--rule` on interactive edge.
+
+## Per-lesson hooks
+
+Two attribute on `<html>`, both optional, both a **name from a closed set** — never a value. Value live in `roots.css` beside the token they move, so one edit there move every lesson that pick that name. Rationale and the identity limit: [DESIGN.md § Variation](DESIGN.md#variation).
+
+| Attribute      | Values                                       | Moves                                                                                 |
+| -------------- | -------------------------------------------- | ------------------------------------------------------------------------------------- |
+| `data-accent`  | `cobalt` (default), `teal`, `violet`, `plum` | `--accent-h`, and so `--accent` (and `--accent-bg` in dark, where the tint carry hue) |
+| `data-density` | `default`, `compact`, `roomy`                | `--s-5`, `--s-6`, `--s-7` — section rhythm                                            |
+
+Attribute absent read as the default; a lesson that want the default drop the attribute rather than spell it.
+
+`--signal` take no hook: vermilion mark route stop and release edge in every lesson, and that is course identity, not lesson choice.
 
 Token value live in [`templates/assets/roots.css`](../../../templates/assets/roots.css) `:root` — single source. Edit there; never restate value here.

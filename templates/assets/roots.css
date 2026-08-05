@@ -1,4 +1,4 @@
-/* teach-template-version: 22 */
+/* teach-template-version: 23 */
 :root {
   color-scheme: light;
   --paper: oklch(97% 0.008 85);
@@ -8,7 +8,8 @@
   --ink-soft: oklch(45% 0.015 60);
   --rule: oklch(85% 0.015 75);
   --rule-2: oklch(50% 0.022 60);
-  --accent: oklch(45% 0.13 255);
+  --accent-h: 255;
+  --accent: oklch(45% 0.13 var(--accent-h));
   --accent-bg: oklch(94% 0.022 80);
   --signal: oklch(58% 0.18 28);
   --wrong: oklch(50% 0.13 30);
@@ -36,6 +37,44 @@
   --shadow-sm: 0 1px 0 var(--rule);
 }
 
+/* Per-lesson accent — `<html data-accent="…">`. Hue only, so light, dark and
+   print keep their own lightness and chroma and no rule here has to be
+   restated per scheme. Closed set on purpose: a lesson pick a name, never a
+   value; a free colour in a lesson restate a token (TOKENS.md) and the course
+   stop reading as one course. --signal stay fixed — the route stop is
+   identity, the accent is the lesson's own. */
+:root[data-accent='cobalt'] {
+  --accent-h: 255;
+}
+
+:root[data-accent='teal'] {
+  --accent-h: 200;
+}
+
+:root[data-accent='violet'] {
+  --accent-h: 285;
+}
+
+:root[data-accent='plum'] {
+  --accent-h: 320;
+}
+
+/* Per-lesson density — `<html data-density="…">`. Section rhythm only;
+   component padding (--s-1…4) stay fixed, so a compact lesson is a shorter
+   page, not a different one. --measure never move: line length is a
+   typographic decision, not a density knob (TOKENS.md). */
+:root[data-density='compact'] {
+  --s-5: 2.25rem;
+  --s-6: 3rem;
+  --s-7: 4rem;
+}
+
+:root[data-density='roomy'] {
+  --s-5: 3.5rem;
+  --s-6: 5rem;
+  --s-7: 8rem;
+}
+
 @media (prefers-color-scheme: dark) {
   :root {
     color-scheme: dark;
@@ -46,8 +85,8 @@
     --ink-soft: oklch(72% 0.018 70);
     --rule: oklch(34% 0.015 70);
     --rule-2: oklch(62% 0.022 70);
-    --accent: oklch(78% 0.11 250);
-    --accent-bg: oklch(28% 0.04 260);
+    --accent: oklch(78% 0.11 var(--accent-h));
+    --accent-bg: oklch(28% 0.04 var(--accent-h));
     --signal: oklch(72% 0.16 30);
     --wrong: oklch(70% 0.13 30);
     --success: oklch(76% 0.12 150);
