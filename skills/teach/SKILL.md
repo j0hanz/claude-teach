@@ -83,7 +83,7 @@ Every lesson should challenge user _just enough_. They name no topic? Derive it:
 
 Lesson = one self-contained HTML file in `lessons/`, teach one tightly-scoped thing tied to mission.
 
-Keep short, quick completable — working memory small — but land one tangible win to build on. Make it **beautiful**: copy template asset into `assets/` on first lesson (see [Assets](#assets)), then build every lesson from [`templates/lesson.html`](../../templates/lesson.html), fill every `{{argument}}`, link `assets/` file — nothing more. Design system in [DESIGN.md](references/DESIGN.md) (layout, signature, constraint, validation); reusable-block spec and argument table in [DESIGN.md § Components](references/DESIGN.md#components); token role in [DESIGN.md § Tokens](references/DESIGN.md#tokens). The **retrieval gate** (cold open seal lesson body until every item answered) load-bearing — keep it. User come back to these.
+Keep short, quick completable — working memory small — but land one tangible win to build on. Make it **beautiful**: copy template asset into `assets/` on first lesson (see [Assets](#assets)), then build every lesson from [`templates/lesson.html`](../../templates/lesson.html), fill every `{{argument}}`, link `assets/` file — nothing more. Design system in [DESIGN.md](references/DESIGN.md) (layout, signature, constraint, validation); reusable-block spec and argument table in [DESIGN.md § Components](references/DESIGN.md#components); token role in [DESIGN.md § Tokens](references/DESIGN.md#tokens). How every argument must _sound_ in [VOICE.md](references/VOICE.md) — DESIGN.md own the container, VOICE.md own what go in it. The **retrieval gate** (cold open seal lesson body until every item answered) load-bearing — keep it. User come back to these.
 
 Template hold no lesson copy — every word arrive as argument ([DESIGN.md § Template arguments](references/DESIGN.md#template-arguments)). Words `quiz.js` add later ("2 of 3 answered", "Undo", copy status) arrive instead as override attribute on `<html>`, and `{{QUIZ-STRINGS}}` slot above that tag is what stop you forgetting them — course not in English, set them there and delete slot; English, delete it unfilled ([DESIGN.md § Quiz](references/DESIGN.md#quiz)). Callout visible label same trap: `data-type` print English word until `data-callout-label` take over. Make each lesson its own: pick optional component it earn and order they earn, drop optional line it not need, set accent and density to fit its length and place in course. Learner who can predict page before it load stop reading it. What may vary and what never can — four-stop route, cold open before body, shared stylesheet — is [DESIGN.md § Variation](references/DESIGN.md#variation); go past it and two lesson in one course read as two products.
 
@@ -94,11 +94,12 @@ Teach knowledge first, then user practise skill against feedback loop. Lesson cl
 Lesson not finish until:
 
 - Every `{{argument}}` filled, or its block dropped whole — slot that ship is slot learner read
+- Every filled string read back against [references/VOICE.md](references/VOICE.md) tic list — lesson copy is standard English spoken to one learner, never this skill's dropped-article register; that collapse is the one failure no validator catch
 - Build on shared stylesheet (`assets/styles.css`) and any other component in `assets/` that fit
 - Every claim backed by citation link out to resource
 - Recommend one primary source — highest-quality, highest-trust thing found on topic
 - Link to related lesson and reference document by HTML anchor
-- Remind user ask follow-up question; you their teacher, can unpack anything unclear
+- Remind user ask follow-up question; you their teacher, can unpack anything unclear. Name the thing they would actually ask about — generic sign-off ("Let me know if you'd like me to expand!") is chatbot residue, not invitation ([references/VOICE.md](references/VOICE.md))
 - Open on their screen, absolute path quoted (workspace root come from step 2 path-confirmation gate): `Start-Process "<absolute path>"` in PowerShell, `start "" "<absolute path>"` in bash on Windows (empty title argument required — without it `cmd` read path as window title, open nothing), `open` on macOS, `xdg-open` on Linux
 - `${CLAUDE_PLUGIN_ROOT}/skills/teach/scripts/check_lesson.py` exit 0 on it (step 6 run this; lesson that fail not finished, it broken)
 
@@ -106,7 +107,7 @@ Lesson not finish until:
 
 Step 5 found due item? Cold open is first block of lesson, new content below stay hidden until every item answered. Retrieval before instruction whole point: one moment you sure user pay attention.
 
-Write each question fresh, from source record own text and `GLOSSARY.md` — nothing else valid source, else you test something user never taught. Question they seen word-for-word before test recognition, not recall — so word it different from prior lesson that tested this record. State report `prior cold opens:` line name those lesson; read their cold-open block, word yours different. Lesson file keep their question; that archive make reuse detectable.
+Write each question fresh, from source record own text and `GLOSSARY.md` — nothing else valid source, else you test something user never taught. Question they seen word-for-word before test recognition, not recall — so word it different from prior lesson that tested this record. Word it plain while you differ it: cold open is first thing learner meet, cold and alone, and question they must decode before answering test reading, not memory. Concrete situation beat abstract stem — pair in [references/VOICE.md § Before and after](references/VOICE.md#before-and-after). State report `prior cold opens:` line name those lesson; read their cold-open block, word yours different. Lesson file keep their question; that archive make reuse detectable.
 
 Nothing due: see step 5 — seal go with it. What else drop, and where route stop 1 point instead: [DESIGN.md § Cold open](references/DESIGN.md#cold-open). Half-dropped cold open leave body sealed with nothing to unseal it.
 
@@ -122,7 +123,7 @@ Include only knowledge skill require. Here difficulty is enemy — it eat workin
 
 Authoring rule for body, stated once — spec and example in [DESIGN.md § Components](references/DESIGN.md#components):
 
-- One idea per paragraph; front-load each paragraph with point. Prefer short, active-voice sentence and common word over jargon; keep necessary term, define in `GLOSSARY.md`. Readability score diagnostic, not target to game.
+- One idea per paragraph; front-load each paragraph with point. Write each sentence the way you would say it aloud to one person beside you — plain word, active voice, nothing learner read twice. Term learner cannot skip: define in one clause at first use, add to `GLOSSARY.md`. Full rule, tic list and before/after pair: [references/VOICE.md](references/VOICE.md) — lesson copy is ordinary standard English, never this skill's dropped-article register. Readability score diagnostic, not target to game.
 - Every claim cite; prose carry argument, not table — use table only when reader must compare value cell-to-cell, not for layout or emphasis.
 - **Bold** only new term at its point of definition, or run-in label — never whole sentence, never combined with another emphasis. _Italic_ for subtle emphasis and words-as-words, sparingly (dyslexia risk). `code` only for real identifier. LLM over-bold by default, so rule is load-bearing.
 - Analogy: name source and target, map correspondences explicitly (short list or 2-column table), then name at least one place it breaks (`unlike: …`) — render that line as [callout](references/DESIGN.md#callout). Analogies help only when correspondences mapped _and_ breakdown points named.
@@ -144,6 +145,8 @@ Teach skill interactively: quiz and light in-browser task, or guided sequence of
 - high-interval, zero lapse → bare problem only.
 
 Record state is signal static classroom lack. Spec: [DESIGN.md § Worked example](references/DESIGN.md#worked-example). Self-explanation prompt at worked-step boundary (open-ended, not MC — see [Knowledge](#knowledge)) elaborate the step.
+
+**Fading move scaffolding, never wording.** Plain language is not low scaffolding, and the two get collapsed. Wording stay plain at every level — expert earn less structure, never denser sentence. Fading drop worked step, hint, partial solution and figure; it never license jargon, and bare problem for high-interval learner is still one sentence a beginner could parse. Read "explain like beginner regardless of level" as "ship worked example every lesson" and you walk straight into expertise reversal. Both halves, with example: [references/VOICE.md § Plain wording is not low scaffolding](references/VOICE.md#plain-wording-is-not-low-scaffolding).
 
 For quiz, give every answer same character count where you can — formatting must never leak answer. Per-item feedback rule (why correct is correct, why wrong is wrong) live in [DESIGN.md § Quiz (Feedback content)](references/DESIGN.md#quiz).
 

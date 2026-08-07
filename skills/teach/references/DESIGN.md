@@ -25,7 +25,7 @@ Not cream-and-terracotta default (blue-gray not cream; transit blue not terracot
 
 Lesson open as route card: header carry vertical transit rule and one vermilion stop, then route navigation name its four stop before retrieval gate. Sequence explain lesson shape without expose sealed body — recall, two thing lesson teach, where it lead. Stop labels are lesson's own word for those four ([Variation](#variation)); the four stop and their order are not.
 
-Voice: dropped-article style throughout this skill deliberate, load-bearing — preserve in edit; no normalize to standard English.
+Voice: two register, never mixed. **This file and every file under `skills/` and `templates/`** carry dropped-article style — deliberate, load-bearing, preserve in edit; no normalize to standard English. **Lesson HTML this file spec** carry the opposite: ordinary standard English, whole sentence, spoken to one learner sitting alone at `file://`. Every `{{argument}}` is that second register, markup attribute included. Author who carry author-facing compression into lesson copy ship telegram to reader who cannot expand it — full rule in [VOICE.md](VOICE.md), which own what go in the container this file spec.
 
 ## Icons
 
@@ -190,7 +190,7 @@ Attribute absent read as default; lesson wanting default drop attribute rather t
 
 ## Components
 
-Spec for every reusable block a generated lesson emit. Every component here plain HTML + shared stylesheet; nothing need new script. Offline-only, print-friendly — see [§ Constraints](#constraints).
+Spec for every reusable block a generated lesson emit. Every component here plain HTML + shared stylesheet; nothing need new script. Offline-only, print-friendly — see [§ Constraints](#constraints). Markup shape here, wording in [VOICE.md](VOICE.md): every block below is filled with standard English written to one learner, and personality belong to that copy — word choice, example, analogy — never to new component, emoji, colour or motion. Nothing in VOICE.md license a widget.
 
 ## Template arguments
 
@@ -248,7 +248,7 @@ Stop 1 point at cold open. Lesson with nothing due carry none (see below) — th
 
 ## Lead
 
-`.lead` on opening paragraph. One thing lesson land, set above body size. At body size it read as first paragraph, not claim rest of page argue. `.lead` is output of reconciliation, not restatement of first source.
+`.lead` on opening paragraph. One thing lesson land, set above body size. At body size it read as first paragraph, not claim rest of page argue. `.lead` is output of reconciliation, not restatement of first source — nor restatement of the title above it, and never announcement of what lesson will do. Title already name topic; warm-up line under it is padding ([VOICE.md](VOICE.md) rule 8). Open on the claim.
 
 ## Quiz
 
@@ -289,6 +289,8 @@ Restating default in markup is second copy that drift, so lesson spell out only 
 `teach.py score` key on `NNNN-slug` at end of head, never on `data-label` word, so translating label cannot break scoring.
 
 **Feedback content (load-bearing).** Per-item feedback text must state _why_ correct option correct and _why_ chosen wrong option wrong, not merely confirm or reject. High-information gain live in this text (Wisniewski 2020: d=0.99 high-information vs d=0.24 reinforcement-only); scoring result line is KR-level (right/wrong count) for scheduling, not learning, so per-item feedback carry all specificity. Authoring rule, not markup change — `.quiz-fb` slot already exist.
+
+Voice bite hardest here: learner read this line at the moment they got it wrong. Name mechanism, never verdict, and never praise — "Great job! Option B is correct" carry no information and read as chatbot; "Yes. `git revert` adds a commit that undoes the old one, so shared history survives; `git reset` rewrites it" carry the lesson. Feedback also never reference option by letter alone, since option order is lesson's. Pair in [VOICE.md § Before and after](VOICE.md#before-and-after).
 
 **Undo window.** Answer not final instant clicked. Chosen option go to neutral `data-state="chosen"` mark, `.quiz-undo` appear, item lock three second later. Nothing about answer reveal inside that window — no right/wrong, no correct option, no feedback. Reveal-then-undo hand back free retry with answer already on screen, and that one thing retrieval measurement can't survive. Once locked, no retry: window buy back tap, never recall. Reason it exist: this line reschedule memory record, so mis-tap noise recorded as signal.
 
@@ -376,6 +378,8 @@ Native `<details>`/`<summary>` for genuinely optional deeper content (worked der
 
 Prompt is retrieval nudge feeding spaced-repetition loop. Keep "Where next" navigation-only; synthesis carry consolidation.
 
+3–5 is count of idea lesson actually landed, never triad padded to three because three sound complete ([VOICE.md](VOICE.md)). Point are plain sentence, not bolded label with colon. Close on last concrete thing — encouragement paragraph ("you're well on your way") is the send-off tic, and it displace the retrieval nudge that earn this slot.
+
 ## Callout
 
 `.callout`, typed aside for common pitfall, by-the-way, optional better way, or irreversible action. No sanctioned home for these existed, so warning got buried as prose or bold got abused.
@@ -422,6 +426,8 @@ Offline enforced by `check_lesson.py` (any `<img>`/`srcset` remote or missing fa
 ## Analogy
 
 Authoring rule, not new block: when introducing concept via analogy, (1) name source and target, (2) explicitly map correspondence — small 2-column table or short list, (3) name at least one place analogy break (`unlike: …`). Analogy help only when correspondence mapped _and_ breakdown point named (Gentner structure-mapping; FAR guide). Render "where it fails" line as `.callout` `data-type="note"`. Mapping itself plain table (see prose-vs-table rule in [SKILL.md](../SKILL.md) `## Knowledge`).
+
+Analogy is mapped; aphorism is not. `X is the Y of Z` with no correspondence and no breakdown line is the formula this rule exist to stop — it sound explanatory and teach nothing ([VOICE.md](VOICE.md)). Analogy is also where a lesson's personality legitimately live: source domain is yours to pick, and a well-chosen one can be funny. Funny in the mapping, never in the claim the mapping support — every claim still cite.
 
 ## Emphasis
 
