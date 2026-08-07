@@ -174,7 +174,8 @@ a:focus-visible,
 .quiz-undo:focus-visible,
 .quiz-copy:focus-visible,
 .toc a:focus-visible,
-.lesson-nav-link:focus-visible {
+.lesson-nav-link:focus-visible,
+summary:focus-visible {
   outline: var(--rule-thin) solid var(--accent);
   outline-offset: 3px;
   border-radius: var(--radius);
