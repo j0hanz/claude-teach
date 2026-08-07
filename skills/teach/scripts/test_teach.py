@@ -30,7 +30,9 @@ import teach_hook  # noqa: E402  # pyright: ignore[reportMissingImports]
 TODAY = date(2026, 8, 5)
 
 
-def write_rec(base, rid, interval, lapses=0, status="active", nxt="2026-07-27"):
+def write_rec(
+    base, rid, interval, lapses=0, status="active", nxt="2026-07-27"
+):
     teach.write_text(
         os.path.join(base, "learning-records", rid + ".md"),
         f"---\ninterval: {interval}\nlapses: {lapses}\nstatus: {status}\n"
@@ -112,14 +114,18 @@ def test_scoring(base):
 
     # Fractional doubling rounds up, never truncates (1 * 1.5 = 1.5 -> 2 days).
     write_rec(base, "0006-f", 1)
-    open_ledger(base, ["0006-f"], "- spacing: {doubling: 1.5, ceiling: 10}\n\n")
+    open_ledger(
+        base, ["0006-f"], "- spacing: {doubling: 1.5, ceiling: 10}\n\n"
+    )
     rows, _ = teach.score_open_cold_open(base, "Cold open 0001-x: 1 right")
     assert rows[0]["interval"] == "2", rows[0]
     assert rows[0]["next"] == (t + timedelta(days=2)).isoformat(), rows[0]
 
     # A fractional stored interval rounds on abandon too.
     write_rec(base, "0007-g", 1.5)
-    open_ledger(base, ["0007-g"], "- spacing: {doubling: 1.5, ceiling: 10}\n\n")
+    open_ledger(
+        base, ["0007-g"], "- spacing: {doubling: 1.5, ceiling: 10}\n\n"
+    )
     rows, _ = teach.score_open_cold_open(base, "abandon")
     assert rows[0]["interval"] == "2", rows[0]
     assert rows[0]["next"] == (t + timedelta(days=2)).isoformat(), rows[0]
@@ -155,19 +161,19 @@ def test_result_line_refusals(base):
 def test_stop_gate(base):
     """arm -> block -> asked-silent -> re-arm. The gate never runs by hand: it
     needs a Stop event and a guard file under CLAUDE_PLUGIN_DATA."""
-    guard = os.path.join(base, "nagged.txt")
+    guard = teach_hook._guard_path(base)
 
-    def write_ledger(asked):
+    def write_ledger(asked, cwd=base):
         teach.write_text(
-            os.path.join(base, "NOTES.md"),
+            os.path.join(cwd, "NOTES.md"),
             f"# Notes\n\n- unscored cold open: lessons/0001-x.html tests "
             f"0001-x (asked: {asked})\n",
         )
 
-    def stop():
+    def stop(cwd=base):
         buf = io.StringIO()
         with contextlib.redirect_stdout(buf):
-            rc = teach_hook.event_stop(base, {})
+            rc = teach_hook.event_stop(cwd, {})
         return rc, buf.getvalue()
 
     # Ship turn: first Stop after the ledger opened arms and says nothing.
@@ -189,6 +195,16 @@ def test_stop_gate(base):
     teach.write_text(os.path.join(base, "NOTES.md"), "# Notes\n\n- nothing\n")
     assert stop() == (0, "")
     assert not os.path.isfile(guard)
+
+    # A second workspace must not disarm the first: lesson paths repeat across
+    # courses, and a shared guard let every interleaved turn re-arm the gate.
+    other = os.path.join(base, "other")
+    os.makedirs(os.path.join(other, "learning-records"), exist_ok=True)
+    write_ledger(0)
+    write_ledger(0, cwd=other)
+    assert stop() == (0, "") and stop(other) == (0, "")  # both armed
+    assert '"block"' in stop()[1] and '"block"' in stop(other)[1]
+    assert stop() == (0, "") and stop(other) == (0, "")  # both stay quiet
 
 
 def main():

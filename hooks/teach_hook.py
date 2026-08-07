@@ -16,6 +16,7 @@ on usage error (argparse).
 
 import argparse
 import contextlib
+import hashlib
 import json
 import os
 import sys
@@ -48,8 +49,8 @@ from teach import (  # noqa: E402  # pyright: ignore[reportMissingImports]
 )
 
 
-def _plugin_data_path(name):
-    """Path to a file under ${CLAUDE_PLUGIN_DATA}, or None when unset.
+def _guard_path(cwd):
+    """Stop-gate guard file for one workspace, or None when the data dir is unset.
 
     ${CLAUDE_PLUGIN_DATA} reaches hook processes and MCP/LSP subprocesses only
     — never the Bash tool the model runs `ledger` and `score` from. So only hook
@@ -57,9 +58,22 @@ def _plugin_data_path(name):
     truth for whether a cold open is outstanding. Without the data dir there is
     no way to remember state between turns, so the gate that uses it disables
     itself rather than trap the session in a loop it cannot exit by complying.
+
+    One file per workspace, not one per install: lesson paths are
+    workspace-relative and repeat across courses, so a single shared guard let
+    two workspaces overwrite each other's armed lesson — and every overwrite
+    re-arms the gate, turning "block once per lesson" into a block per
+    interleaving. normcase because Windows hands back the same directory under
+    more than one spelling, and two spellings would be two guard files.
     """
     d = os.environ.get("CLAUDE_PLUGIN_DATA")
-    return os.path.join(d, name) if d else None
+    if not d:
+        return None
+    key = os.path.normcase(os.path.abspath(cwd)).encode("utf-8")
+    # usedforsecurity=False or a FIPS build refuses sha1 outright, and main's
+    # catch-all would turn that refusal into a permanently silent gate.
+    h = hashlib.sha1(key, usedforsecurity=False).hexdigest()[:12]
+    return os.path.join(d, f"nagged-{h}.txt")
 
 
 def event_session_start(cwd):
@@ -106,7 +120,7 @@ def event_stop(cwd, payload):
     if payload.get("stop_hook_active"):
         return 0
     ledger = parse_ledger_line(read_notes(cwd))
-    guard = _plugin_data_path("nagged.txt")
+    guard = _guard_path(cwd)
     if guard is None:
         # loud on stderr, never on stdout, and only when there was something to
         # block on: without a guard file the block below would repeat every
@@ -189,8 +203,14 @@ def main(argv):
     except TeachError as e:
         print(f"teach: {e.msg}", file=sys.stderr)
         return 0
-    except OSError as e:
-        print(f"teach: {e}", file=sys.stderr)
+    except Exception as e:
+        # Every exception, not just OSError: read_text decodes UTF-8, so one
+        # workspace file saved in cp1252 (any Windows editor's "ANSI") raises
+        # UnicodeDecodeError, which is a ValueError — the traceback used to
+        # kill both hooks and leave the Stop gate silently dead for the life of
+        # that file. Name the type, since this is now all the debugging there
+        # is. resume_section in teach.py swallows the same way, same reason.
+        print(f"teach: {type(e).__name__}: {e}", file=sys.stderr)
         return 0
 
 
